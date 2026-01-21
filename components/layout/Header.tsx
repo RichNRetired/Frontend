@@ -1,198 +1,198 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import Link from "next/link";
 import { RootState } from "../../store";
-import { Navbar } from "./Navbar";
+import {
+  Search,
+  User,
+  Heart,
+  ShoppingBag,
+  Menu,
+  X,
+  ChevronDown,
+} from "lucide-react";
 
 export const Header: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
   const { items } = useSelector((state: RootState) => state.cart);
-  const { isAuthenticated, user } = useSelector(
-    (state: RootState) => state.auth,
-  );
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to search results
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
-    }
-  };
+  // Handle scroll for glassmorphism effect
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const sections = [
+    {
+      name: "New Arrivals",
+      categories: ["Just In", "Exclusives", "Limited Drop", "Summer Edit"],
+    },
+    {
+      name: "Men",
+      categories: [
+        "Polos",
+        "Linen Shirts",
+        "Tailored Trousers",
+        "Knitwear",
+        "Accessories",
+      ],
+    },
+    {
+      name: "Women",
+      categories: [
+        "Silk Dress",
+        "Evening Wear",
+        "Cashmere",
+        "Handbags",
+        "Jewelry",
+      ],
+    },
+    {
+      name: "Collections",
+      categories: [
+        "The Resort Look",
+        "Business Casual",
+        "Quiet Luxury",
+        "Archive",
+      ],
+    },
+  ];
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      {/* Top Bar */}
-      <div className="bg-slate-900 text-white text-sm py-2">
-        <div className="container mx-auto px-4 text-center">
-          Free shipping on orders over ₹5000 • 30-day returns
+    <header
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        isScrolled
+          ? "bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm"
+          : "bg-white"
+      }`}
+    >
+      {/* Top Announcement Bar */}
+      <div className="bg-black text-white py-2 overflow-hidden border-b border-white/10">
+        <div className="whitespace-nowrap animate-marquee text-[10px] uppercase tracking-[0.3em] font-medium text-center">
+          Free Shipping on orders over ₹5,000 • Priority Delivery
         </div>
       </div>
 
-      {/* Main Header */}
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">C</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              Rich and Retired
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-20">
+          {/* Menu Button (Mobile) */}
+          <button className="lg:hidden p-2 -ml-2">
+            <Menu size={20} strokeWidth={1.5} />
+          </button>
+
+          {/* Navigation - Left Side (Desktop) */}
+          <nav className="hidden text-black lg:flex items-center space-x-8">
+            {sections.map((section) => (
+              <div
+                key={section.name}
+                className="relative group h-20 flex items-center"
+                onMouseEnter={() => setActiveMenu(section.name)}
+                onMouseLeave={() => setActiveMenu(null)}
+              >
+                <button className="text-[11px] uppercase tracking-[0.2em] font-bold hover:text-gray-950 transition-colors flex items-center gap-1">
+                  {section.name}
+                  <ChevronDown
+                    size={12}
+                    className={`transition-transform duration-300 ${activeMenu === section.name ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {/* MEGA MENU DROP DOWN */}
+                <div
+                  className={`absolute top-full left-0 w-[600px] bg-white border border-gray-100 shadow-2xl p-8 grid grid-cols-2 gap-8 transition-all duration-300 ${
+                    activeMenu === section.name
+                      ? "opacity-100 visible translate-y-0"
+                      : "opacity-0 invisible -translate-y-2"
+                  }`}
+                >
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest border-b pb-2">
+                      Categories
+                    </h4>
+                    <ul className="space-y-3">
+                      {section.categories.map((cat) => (
+                        <li key={cat}>
+                          <Link
+                            href={`/category/${cat.toLowerCase()}`}
+                            className="text-sm text-gray-500 hover:text-black transition-colors block italic font-serif"
+                          >
+                            {cat}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="relative overflow-hidden group/img">
+                    <img
+                      src={`https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&q=80&w=300`}
+                      alt="Featured"
+                      className="w-full h-full object-cover grayscale transition-all duration-700 group-hover/img:grayscale-0 group-hover/img:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/10 flex items-end p-4">
+                      <span className="text-white text-[10px] font-bold uppercase tracking-widest">
+                        Shop {section.name} Edit
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          {/* Logo - Centered */}
+          <Link href="/" className="flex flex-col items-center">
+            <span className="text-xl mr-20 md:text-2xl  text-gray-900  font-black uppercase tracking-[0.4em] leading-none">
+              Rich <span className="text-gray-700 italic">&</span> Retired
             </span>
           </Link>
 
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8">
-            <form onSubmit={handleSearch} className="w-full relative">
+          {/* Right Actions */}
+          <div className="flex items-center space-x-5 lg:space-x-7">
+            {/* Search - Subtle underline style */}
+            <div className="hidden lg:flex items-center border-b border-transparent focus-within:border-black transition-all pb-1">
+              <Search size={18} strokeWidth={1.5} className="text-gray-900" />
               <input
                 type="text"
-                placeholder="Search for products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-black pl-4 pr-12 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                placeholder="Search"
+                className="bg-transparent text-black text-xs uppercase tracking-widest outline-none pl-2 w-24 focus:w-48 transition-all"
               />
-              <button
-                type="submit"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </button>
-            </form>
-          </div>
+            </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
-            {/* Mobile Search */}
-            <button className="md:hidden p-2 text-gray-600 hover:text-gray-900">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-
-            {/* Account */}
             <Link
               href="/account"
-              className="p-2 text-gray-600 hover:text-gray-900 relative"
+              className="hover:text-gray-950 text-gray-800 transition-colors"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
+              <User size={20} strokeWidth={1.2} />
             </Link>
 
-            {/* Wishlist */}
-            <button className="p-2 text-gray-600 hover:text-gray-900 relative">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-            </button>
+            <Link
+              href="/wishlist"
+              className="hidden sm:block hover:text-gray-950 text-gray-800  transition-colors"
+            >
+              <Heart size={20} strokeWidth={1.2} />
+            </Link>
 
-            {/* Cart */}
             <Link
               href="/cart"
-              className="p-2 text-gray-600 hover:text-gray-900 relative"
+              className="relative hover:text-gray-950 text-gray-800 transition-colors"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H19M7 13l-1.1 5M7 13l1.1-5m8.9 5L17 8m2 5v5a2 2 0 01-2 2H9a2 2 0 01-2-2v-5m8-5V6a2 2 0 00-2-2H9a2 2 0 00-2 2v1.1"
-                />
-              </svg>
+              <ShoppingBag size={20} strokeWidth={1.2} />
               {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 bg-black text-white text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {cartItemCount}
                 </span>
               )}
             </Link>
           </div>
         </div>
-
-        {/* Mobile Search Bar */}
-        <div className="md:hidden mt-4">
-          <form onSubmit={handleSearch} className="relative">
-            <input
-              type="text"
-              placeholder="Search for products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-          </form>
-        </div>
       </div>
-
-      {/* Navigation */}
-      <Navbar />
     </header>
   );
 };

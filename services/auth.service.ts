@@ -1,16 +1,36 @@
-import axios from './axios';
+import axios from "./axios";
 
-export const login = async (credentials: { email: string; password: string }) => {
-    const response = await axios.post('/auth/login', credentials);
-    return response.data;
+export interface AuthResponse {
+    accessToken: string;
+    refreshToken: string;
+    tokenType: string;
+}
+
+export const login = async (credentials: {
+    email: string;
+    password: string;
+}): Promise<AuthResponse> => {
+    const res = await axios.post("/api/auth/login", credentials);
+    return res.data;
 };
 
-export const register = async (userData: { name: string; email: string; password: string }) => {
-    const response = await axios.post('/auth/register', userData);
-    return response.data;
+export const register = async (userData: {
+    name: string;
+    email: string;
+    password: string;
+}): Promise<AuthResponse> => {
+    const res = await axios.post("/api/auth/register", userData);
+    return res.data;
 };
 
 export const logout = async () => {
-    const response = await axios.post('/auth/logout');
-    return response.data;
+    const res = await axios.post("/api/auth/logout");
+    return res.data;
+};
+
+export const refreshToken = async (token: string): Promise<AuthResponse> => {
+    const res = await axios.post("/api/auth/refresh", {
+        refreshToken: token,
+    });
+    return res.data;
 };

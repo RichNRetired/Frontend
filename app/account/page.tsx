@@ -1,15 +1,17 @@
 "use client";
 
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
 import { RootState } from "../../store";
+import { logout } from "../../features/auth/authSlice";
 
 export default function AccountPage() {
   const { user, isAuthenticated } = useSelector(
     (state: RootState) => state.auth,
   );
+  const dispatch = useDispatch();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,6 +19,11 @@ export default function AccountPage() {
       router.push("/login");
     }
   }, [isAuthenticated, router]);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/");
+  };
 
   if (!isAuthenticated) {
     return (
@@ -170,6 +177,12 @@ export default function AccountPage() {
                 >
                   Continue Shopping
                 </Link>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>

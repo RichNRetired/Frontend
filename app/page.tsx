@@ -81,7 +81,7 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       <HeroSection />
       {/* Promotional Banner */}
-      <section className="bg-gradient-to-r from-pink-500 to-rose-500 text-white py-8">
+      <section className="bg-gradient-to-r from-gray-600 to-gray-900 text-white py-4">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
