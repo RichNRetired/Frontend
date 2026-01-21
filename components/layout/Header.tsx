@@ -22,7 +22,6 @@ export const Header: React.FC = () => {
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  // Handle scroll for glassmorphism effect
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -73,7 +72,6 @@ export const Header: React.FC = () => {
           : "bg-white"
       }`}
     >
-      {/* Top Announcement Bar */}
       <div className="bg-black text-white py-2 overflow-hidden border-b border-white/10">
         <div className="whitespace-nowrap animate-marquee text-[10px] uppercase tracking-[0.3em] font-medium text-center">
           Free Shipping on orders over ₹5,000 • Priority Delivery

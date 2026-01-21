@@ -42,10 +42,7 @@ export default function ProfilePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically make an API call to update the user profile
-    console.log("Updating profile:", formData);
     setIsEditing(false);
-    // Update the user in Redux store if needed
   };
 
   if (!isAuthenticated) {
