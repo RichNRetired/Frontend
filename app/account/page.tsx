@@ -4,6 +4,18 @@ import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
+import {
+  User,
+  ShoppingBag,
+  MapPin,
+  LogOut,
+  ChevronRight,
+  Heart,
+  Package,
+  CreditCard,
+  Settings,
+  HeadphonesIcon,
+} from "lucide-react";
 import { RootState } from "../../store";
 import { logout } from "../../features/auth/authSlice";
 
@@ -15,9 +27,7 @@ export default function AccountPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-    }
+    if (!isAuthenticated) router.push("/login");
   }, [isAuthenticated, router]);
 
   const handleLogout = () => {
@@ -27,163 +37,130 @@ export default function AccountPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pink-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-10 h-10 border-2 border-slate-100 border-t-pink-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
+  const navItems = [
+    {
+      title: "Orders",
+      desc: "Check your order status",
+      icon: Package,
+      href: "/account/orders",
+    },
+    {
+      title: "Collections",
+      desc: "Your curated wishlists",
+      icon: Heart,
+      href: "/wishlist",
+    },
+    {
+      title: "Profile Details",
+      desc: "Edit name, email, & phone",
+      icon: User,
+      href: "/account/profile",
+    },
+    {
+      title: "Addresses",
+      desc: "Saved shipping locations",
+      icon: MapPin,
+      href: "/account/addresses",
+    },
+    {
+      title: "Saved Cards",
+      desc: "Manage payment methods",
+      icon: CreditCard,
+      href: "/account/payments",
+    },
+    {
+      title: "Help Center",
+      desc: "FAQs & customer support",
+      icon: HeadphonesIcon,
+      href: "/help",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">
-              My Account
+    <div className="min-h-screen bg-[#FFFFFF] pt-24 pb-20">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        {/* HEADER SECTION - Clean & Minimal like H&M */}
+        <div className="mb-10 pb-8 border-b mt-10 border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-light text-slate-900 tracking-tight">
+              My <span className="font-bold">Account</span>
             </h1>
+            <p className="text-slate-500 text-sm mt-1 font-medium">
+              Manage your profile, orders and preferences
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="self-start px-5 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 border border-slate-200 rounded-md hover:bg-slate-50 transition-all hover:text-red-600 hover:border-red-100"
+          >
+            Logout
+          </button>
+        </div>
 
-            {/* User Info Section */}
-            <div className="border-b border-gray-200 pb-6 mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xl font-bold">
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* LEFT SIDEBAR: PROFILE SUMMARY */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-28 space-y-6">
+              <div className="bg-slate-50 rounded-2xl p-8 border border-slate-100/50">
+                <div className="relative w-24 h-24 mb-6">
+                  <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-3xl font-light text-slate-400 border border-slate-200 shadow-sm uppercase">
+                    {user?.name?.charAt(0)}
+                  </div>
+                  <div className="absolute bottom-1 right-1 w-6 h-6 bg-pink-600 border-4 border-slate-50 rounded-full"></div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {user?.name}
-                  </h2>
-                  <p className="text-gray-600">{user?.email}</p>
-                </div>
+
+                <h2 className="text-xl font-bold text-slate-900 leading-tight">
+                  {user?.name}
+                </h2>
+                <p className="text-slate-500 text-sm mb-6">{user?.email}</p>
               </div>
             </div>
+          </div>
 
-            {/* Account Navigation */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Link
-                href="/account/profile"
-                className="block p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-              >
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mr-4">
-                    <svg
-                      className="w-6 h-6 text-pink-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
+          {/* RIGHT SIDE: NAVIGATION TILES */}
+          <div className="lg:col-span-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {navItems.map((item, idx) => (
+                <Link
+                  key={idx}
+                  href={item.href}
+                  className="group relative bg-white p-6 rounded-xl border border-slate-100 hover:border-pink-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-40"
+                >
+                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-pink-50 group-hover:text-pink-600 transition-colors">
+                    <item.icon size={20} strokeWidth={1.5} />
                   </div>
+
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Profile
+                    <h3 className="text-[15px] font-bold text-slate-900 mb-1 group-hover:text-pink-600 transition-colors">
+                      {item.title}
                     </h3>
-                    <p className="text-gray-600">
-                      Update your personal information
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      {item.desc}
                     </p>
                   </div>
-                </div>
-              </Link>
 
-              <Link
-                href="/account/orders"
-                className="block p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-              >
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                    <svg
-                      className="w-6 h-6 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Orders
-                    </h3>
-                    <p className="text-gray-600">View your order history</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/account/addresses"
-                className="block p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-              >
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-                    <svg
-                      className="w-6 h-6 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Addresses
-                    </h3>
-                    <p className="text-gray-600">
-                      Manage your delivery addresses
-                    </p>
-                  </div>
-                </div>
-              </Link>
+                  <ChevronRight
+                    size={16}
+                    className="absolute top-6 right-6 text-slate-300 group-hover:text-pink-600 group-hover:translate-x-1 transition-all"
+                  />
+                </Link>
+              ))}
             </div>
 
-            {/* Quick Actions */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Quick Actions
-              </h3>
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/cart"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-pink-600 hover:bg-pink-700"
-                >
-                  View Cart
-                </Link>
-                <Link
-                  href="/"
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Continue Shopping
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Logout
-                </button>
-              </div>
+            {/* Bottom Section: Continue Shopping */}
+            <div className="mt-8 pt-8 border-t border-slate-100">
+              <Link
+                href="/"
+                className="flex items-center justify-center w-full py-4 border-2 border-slate-900 text-slate-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-slate-900 hover:text-white transition-all rounded-md"
+              >
+                Continue Shopping
+              </Link>
             </div>
           </div>
         </div>

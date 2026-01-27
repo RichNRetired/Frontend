@@ -10,7 +10,7 @@ export const login = async (credentials: {
     email: string;
     password: string;
 }): Promise<AuthResponse> => {
-    const res = await axios.post("/api/auth/login", credentials);
+    const res = await axios.post("/api/auth/customer/login", credentials);
     return res.data;
 };
 

@@ -79,6 +79,28 @@ const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
+        setCredentials(state, action) {
+            const payload = action.payload || {};
+            const accessToken = payload.accessToken || localStorage.getItem('accessToken');
+            const refreshToken = payload.refreshToken || localStorage.getItem('refreshToken');
+            const tokenType = payload.tokenType || localStorage.getItem('tokenType');
+
+            if (accessToken) localStorage.setItem('accessToken', accessToken);
+            if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+            if (tokenType) localStorage.setItem('tokenType', tokenType);
+
+            state.isAuthenticated = true;
+            state.tokenType = tokenType ?? state.tokenType;
+
+            const decoded = decodeJwt(accessToken as string | null);
+            if (decoded) {
+                state.user = {
+                    name: decoded.name || decoded.fullname || decoded.sub || null,
+                    email: decoded.email || null,
+                    roles: decoded.roles || decoded.role || null,
+                };
+            }
+        },
         logout(state) {
             state.user = null;
             state.isAuthenticated = false;
@@ -144,5 +166,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, setCredentials } = authSlice.actions;
 export default authSlice.reducer;
