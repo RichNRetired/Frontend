@@ -83,7 +83,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen mt-10 bg-[#F9F9F9] pt-24 pb-20 px-4">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10">
-        {/* SIDEBAR NAVIGATION - Common in Myntra/Big Brands */}
         <aside className="w-full md:w-64 space-y-2">
           <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm mb-6">
             <div className="relative w-20 h-20 mx-auto mb-4">
