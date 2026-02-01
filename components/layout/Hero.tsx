@@ -31,12 +31,12 @@ const textVariants = {
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 1, ease: [0.19, 1, 0.22, 1] },
+    transition: { duration: 1 },
   },
   exit: {
     opacity: 0,
     y: -24,
-    transition: { duration: 0.6, ease: [0.4, 0, 1, 1] },
+    transition: { duration: 0.6 },
   },
 };
 
@@ -45,11 +45,11 @@ const imageVariants = {
   animate: {
     scale: 1,
     clipPath: "inset(0 0 0 0)",
-    transition: { duration: 1.4, ease: [0.77, 0, 0.175, 1] },
+    transition: { duration: 1.4 },
   },
   exit: {
     clipPath: "inset(0 100% 0 0)",
-    transition: { duration: 0.8, ease: [0.4, 0, 1, 1] },
+    transition: { duration: 0.8 },
   },
 };
 
@@ -110,7 +110,7 @@ export default function HeroSection() {
 
           {/* ================= IMAGE ================= */}
           <div className="lg:col-span-7 order-1 lg:order-2">
-            <div className="relative aspect-[4/5] sm:aspect-[16/10] lg:aspect-[4/5] max-w-3xl mx-auto">
+            <div className="relative aspect-4/5 sm:aspect-16/10 lg:aspect-4/5 max-w-3xl mx-auto">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={current}
@@ -147,7 +147,7 @@ export default function HeroSection() {
                 className="relative h-6 flex items-center"
               >
                 <span
-                  className={`block h-[1px] transition-all duration-500 ${
+                  className={`block h-px transition-all duration-500 ${
                     i === current
                       ? "w-12 bg-neutral-900"
                       : "w-8 bg-neutral-300 hover:bg-neutral-400"
