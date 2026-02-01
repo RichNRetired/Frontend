@@ -1,15 +1,17 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { useGetCategoriesQuery } from "@/features/category/categoryApi";
 
 export const Navbar: React.FC = () => {
-  const categories = [
-    { name: "Men", href: "/men" },
-    { name: "Women", href: "/women" },
-    { name: "Kids", href: "/kids" },
-    { name: "Sale", href: "/sale", highlight: true },
-    { name: "New Arrivals", href: "/new-arrivals" },
-    { name: "Brands", href: "/brands" },
-  ];
+  const { data: categoriesData = [] } = useGetCategoriesQuery();
+
+  // Map API categories to navbar format
+  const categories = categoriesData.map((cat) => ({
+    name: cat.name,
+    href: `/${cat.name.toLowerCase()}`,
+  }));
 
   return (
     <nav className="border-t border-gray-200 bg-white">
@@ -19,11 +21,7 @@ export const Navbar: React.FC = () => {
             <li key={category.name}>
               <Link
                 href={category.href}
-                className={`whitespace-nowrap text-sm font-medium transition-colors hover:text-pink-600 ${
-                  category.highlight
-                    ? "text-red-600 font-semibold"
-                    : "text-gray-700"
-                }`}
+                className="whitespace-nowrap text-sm font-medium transition-colors hover:text-pink-600 text-gray-700"
               >
                 {category.name}
               </Link>

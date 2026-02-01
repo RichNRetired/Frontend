@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import { store } from "../store";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/layout/Footer";
+import BottomNav from "../components/layout/BottomNav";
 import { useEffect } from "react";
 import initAuth from "../services/auth-bootstrap";
 
@@ -22,6 +23,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       <Header />
       <main>{children}</main>
       <Footer />
+      <BottomNav />
     </Provider>
   );
 }

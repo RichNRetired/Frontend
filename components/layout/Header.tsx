@@ -147,7 +147,7 @@ export const Header: React.FC = () => {
           {/* Logo - Centered */}
           <Link href="/" className="flex flex-col items-center">
             <span className="text-xl mr-20 md:text-2xl  text-gray-900  font-black uppercase tracking-[0.4em] leading-none">
-              Rich <span className="text-gray-700 italic">&</span> Retired
+              Rich <span className="text-black">&</span> Retired
             </span>
           </Link>
 

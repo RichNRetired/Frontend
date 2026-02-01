@@ -9,83 +9,97 @@ const slides = [
   {
     image: "/slide-1-home4-1 - Copy.jpg",
     subtitle: "Spring / Summer 2026",
-    title: "The Art of \nMinimalism",
+    title: "The Art of\nMinimalism",
     description:
-      "Discover the latest collection curated for the modern aesthetic. Timeless pieces, ethically sourced.",
+      "A refined selection designed for modern silhouettes. Timeless forms, conscious materials.",
     button1: "Shop Men",
     button2: "Shop Women",
   },
   {
     image: "/slide-2-home4-1 - Copy.jpg",
     subtitle: "Limited Edition",
-    title: "Luxe Essential \nTextures",
+    title: "Luxe Essential\nTextures",
     description:
-      "Premium fabrics meet unparalleled craftsmanship. Elevate your everyday wardrobe.",
-    button1: "Explore More",
+      "Elevated fabrics and understated tailoring for a contemporary wardrobe.",
+    button1: "Explore",
     button2: "New Arrivals",
   },
 ];
+
+const textVariants = {
+  initial: { opacity: 0, y: 24 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 1, ease: [0.19, 1, 0.22, 1] },
+  },
+  exit: {
+    opacity: 0,
+    y: -24,
+    transition: { duration: 0.6, ease: [0.4, 0, 1, 1] },
+  },
+};
+
+const imageVariants = {
+  initial: { scale: 1.08, clipPath: "inset(0 0 0 100%)" },
+  animate: {
+    scale: 1,
+    clipPath: "inset(0 0 0 0)",
+    transition: { duration: 1.4, ease: [0.77, 0, 0.175, 1] },
+  },
+  exit: {
+    clipPath: "inset(0 100% 0 0)",
+    transition: { duration: 0.8, ease: [0.4, 0, 1, 1] },
+  },
+};
 
 export default function HeroSection() {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-    }, 6000);
-    return () => clearInterval(timer);
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % slides.length);
+    }, 7000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <section className="relative min-h-[100vh] flex items-center bg-[#F9F9F9] overflow-hidden">
-      {/* Background Decorative Text (Optional for Premium Feel) */}
-      <div className="absolute top-10 left-10 opacity-[0.03] pointer-events-none select-none">
-        <h2 className="text-[15rem] font-bold leading-none">VOGUE</h2>
-      </div>
-
-      <div className="container mx-auto px-6 lg:px-12 z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* LEFT CONTENT: Text & CTA */}
+    <section className="relative min-h-screen bg-[#FAFAFA] flex items-center overflow-hidden">
+      <div className="max-w-7xl mx-auto w-full px-6 sm:px-8 lg:px-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          {/* ================= TEXT ================= */}
           <div className="lg:col-span-5 order-2 lg:order-1">
             <AnimatePresence mode="wait">
               <motion.div
                 key={current}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                variants={textVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
               >
-                <motion.span
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="inline-block text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold mb-4"
-                >
+                <span className="block text-[11px] tracking-[0.4em] uppercase text-neutral-400 mb-6">
                   {slides[current].subtitle}
-                </motion.span>
+                </span>
 
-                <h1 className="text-5xl md:text-7xl font-serif text-neutral-900 leading-[1.1] mb-6 whitespace-pre-line">
+                <h1 className="whitespace-pre-line text-[42px] sm:text-[56px] md:text-[64px] xl:text-[72px] font-serif font-light leading-[1.05] text-neutral-900 mb-8">
                   {slides[current].title}
                 </h1>
 
-                <p className="text-neutral-600 text-lg md:text-xl max-w-sm mb-10 leading-relaxed font-light">
+                <p className="text-neutral-500 text-[15px] sm:text-[16px] leading-relaxed max-w-md mb-14 font-light">
                   {slides[current].description}
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-5">
+                <div className="flex flex-col sm:flex-row gap-6">
                   <Link
                     href="/shop"
-                    className="group relative px-10 py-4 bg-neutral-900 text-white overflow-hidden text-sm uppercase tracking-widest transition-all"
+                    className="inline-flex items-center justify-center px-12 py-4 text-[11px] tracking-[0.35em] uppercase bg-neutral-900 text-white hover:bg-neutral-800 transition"
                   >
-                    <span className="relative z-10">
-                      {slides[current].button1}
-                    </span>
-                    <div className="absolute inset-0 bg-neutral-700 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    {slides[current].button1}
                   </Link>
 
                   <Link
                     href="/collection"
-                    className="group px-10 py-4 border border-neutral-300 text-neutral-900 text-sm uppercase tracking-widest hover:border-neutral-900 transition-colors"
+                    className="inline-flex items-center justify-center px-12 py-4 text-[11px] tracking-[0.35em] uppercase text-neutral-900 border border-neutral-300 hover:border-neutral-900 transition"
                   >
                     {slides[current].button2}
                   </Link>
@@ -94,53 +108,56 @@ export default function HeroSection() {
             </AnimatePresence>
           </div>
 
-          {/* RIGHT CONTENT: Image with sophisticated frame */}
+          {/* ================= IMAGE ================= */}
           <div className="lg:col-span-7 order-1 lg:order-2">
-            <div className="relative aspect-[4/5] md:aspect-[16/10] lg:aspect-[4/5] w-full max-w-2xl mx-auto">
+            <div className="relative aspect-[4/5] sm:aspect-[16/10] lg:aspect-[4/5] max-w-3xl mx-auto">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={current}
-                  initial={{ clipPath: "inset(0 0 0 100%)", scale: 1.1 }}
-                  animate={{ clipPath: "inset(0 0 0 0%)", scale: 1 }}
-                  exit={{ clipPath: "inset(0 100% 0 0%)", opacity: 0 }}
-                  transition={{ duration: 1.2, ease: [0.77, 0, 0.175, 1] }}
-                  className="relative w-full h-full"
+                  variants={imageVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="absolute inset-0"
                 >
                   <Image
                     src={slides[current].image}
-                    alt="Collection Image"
+                    alt="Fashion collection"
                     fill
                     priority
                     className="object-cover"
                   />
-                  {/* Overlay for depth */}
                   <div className="absolute inset-0 bg-black/5" />
                 </motion.div>
               </AnimatePresence>
 
-              {/* Floating Decorative Box */}
-              <div className="absolute -bottom-6 -left-6 w-32 h-32 border-l border-b border-neutral-300 hidden lg:block" />
+              {/* Editorial corner detail */}
+              <div className="hidden lg:block absolute -bottom-8 -left-8 w-40 h-40 border-l border-b border-neutral-300" />
             </div>
           </div>
         </div>
 
-        {/* BOTTOM NAVIGATION: Pagination & Indicators */}
-        <div className="mt-16 flex items-center justify-between">
-          <div className="flex gap-4 items-center">
-            {slides.map((_, index) => (
+        {/* ================= PAGINATION ================= */}
+        <div className="mt-20 flex items-center justify-between">
+          <div className="flex gap-6">
+            {slides.map((_, i) => (
               <button
-                key={index}
-                onClick={() => setCurrent(index)}
-                className="group relative py-4 focus:outline-none"
+                key={i}
+                onClick={() => setCurrent(i)}
+                className="relative h-6 flex items-center"
               >
-                <div
-                  className={`h-[2px] transition-all duration-500 ${index === current ? "w-12 bg-neutral-900" : "w-8 bg-neutral-300 group-hover:bg-neutral-400"}`}
+                <span
+                  className={`block h-[1px] transition-all duration-500 ${
+                    i === current
+                      ? "w-12 bg-neutral-900"
+                      : "w-8 bg-neutral-300 hover:bg-neutral-400"
+                  }`}
                 />
               </button>
             ))}
           </div>
 
-          <div className="hidden md:block text-neutral-400 text-xs tracking-tighter">
+          <div className="hidden md:block text-[11px] tracking-widest text-neutral-400">
             <span className="text-neutral-900">0{current + 1}</span> / 0
             {slides.length}
           </div>

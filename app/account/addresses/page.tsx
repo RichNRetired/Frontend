@@ -100,7 +100,7 @@ export default function AddressesPage() {
   }, [addresses]);
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] pt-24 pb-20">
+    <div className="min-h-screen bg-[#F9FAFB] pt-24 mt-10 pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-6 border-b border-slate-200">
@@ -253,7 +253,7 @@ export default function AddressesPage() {
                       Country
                     </label>
                     <input
-                      name="Country"
+                      name="country"
                       placeholder="Country"
                       value={form.country}
                       onChange={handleChange}
@@ -266,7 +266,7 @@ export default function AddressesPage() {
                       State
                     </label>
                     <input
-                      name="State"
+                      name="state"
                       placeholder="State"
                       value={form.state}
                       onChange={handleChange}
@@ -336,7 +336,7 @@ export default function AddressesPage() {
                     name="default"
                     checked={form.default}
                     onChange={handleChange}
-                    className="w-5 h-5 accent-pink-600 rounded-lg cursor-pointer"
+                    className="w-5 h-5 accent-gray-600 rounded-lg cursor-pointer"
                   />
                   <label
                     htmlFor="default"
@@ -349,7 +349,7 @@ export default function AddressesPage() {
                 <button
                   type="submit"
                   disabled={isAdding}
-                  className="w-full py-4 bg-pink-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-pink-200 hover:bg-pink-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:bg-slate-200 mt-6 flex items-center justify-center gap-3"
+                  className="w-full py-4 bg-gray-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-gray-200 hover:bg-gray-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:bg-slate-200 mt-6 flex items-center justify-center gap-3"
                 >
                   {isAdding ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

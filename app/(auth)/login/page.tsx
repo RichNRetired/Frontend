@@ -9,8 +9,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -36,179 +36,160 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#fafafa]">
-      {/* ================= LEFT / VISUAL ================= */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+    <div className="min-h-screen mt-10 w-full flex flex-col lg:flex-row bg-white text-[#1a1a1a] selection:bg-black selection:text-white">
+      {/* ================= LEFT / VISUAL (Hidden on mobile) ================= */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-100">
         <motion.img
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.8, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ scale: 1.1, filter: "grayscale(100%)" }}
+          animate={{ scale: 1, filter: "grayscale(0%)" }}
+          transition={{ duration: 2.5, ease: [0.19, 1, 0.22, 1] }}
           src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80"
-          alt="Fashion"
-          className="absolute inset-0 w-full h-full object-cover"
+          alt="Luxury storefront"
+          className="absolute inset-0 w-full h-full object-cover opacity-90"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/40" />
+        {/* Minimalist Editorial Overlay */}
+        <div className="absolute inset-0 bg-black/5" />
+        <div className="relative z-10 p-20 flex flex-col justify-between h-full w-full">
+          <div className="space-y-2">
+            <span className="text-[10px] uppercase tracking-[0.5em] text-white/80">
+              Est. 2026
+            </span>
+            <div className="h-[1px] w-12 bg-white/50" />
+          </div>
 
-        <div className="relative z-10 m-14 self-end">
-          <motion.h2
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-            className="text-white text-4xl font-light leading-tight tracking-tight"
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.8, duration: 1 }}
           >
-            Elevate your <br />
-            <span className="font-serif italic text-5xl">Presence.</span>
-          </motion.h2>
+            <h2 className="text-white text-6xl font-light leading-[0.9] tracking-tighter mb-4">
+              The <br />
+              <span className="font-serif italic">Atelier</span>
+            </h2>
+            <p className="text-white/70 text-[10px] uppercase tracking-[0.3em] max-w-[280px] leading-loose">
+              Access your personal collection and bespoke recommendations.
+            </p>
+          </motion.div>
         </div>
       </div>
 
       {/* ================= RIGHT / FORM ================= */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 md:px-16">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-sm space-y-10"
-        >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24"
+      >
+        <div className="w-full max-w-[380px] space-y-12 lg:space-y-16">
           {/* HEADER */}
-          <div className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-              Welcome back
+          <div className="space-y-4">
+            <h1 className="text-4xl sm:text-5xl font-light tracking-tighter leading-none">
+              Sign In
             </h1>
-            <p className="text-sm text-gray-500">
-              New here?{" "}
-              <Link
-                href="/register"
-                className="font-semibold text-black underline underline-offset-4 hover:text-emerald-600 transition"
-              >
-                Create an account
-              </Link>
+            <p className="text-[11px] text-slate-400 uppercase tracking-[0.2em]">
+              Welcome back to your private account.
             </p>
           </div>
 
-          {/* ERROR */}
-          {error && (
-            <motion.p
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-sm text-red-500"
-            >
-              {error}
-            </motion.p>
-          )}
-
           {/* FORM */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* EMAIL */}
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-[0.25em] font-semibold text-gray-500">
-                Email address
-              </label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="
-                  h-12
-                  text-black
-                  border-0
-                  border-b
-                  border-gray-200
-                  rounded-none
-                  px-0
-                  bg-transparent
-                  focus-visible:ring-0
-                  focus-visible:border-black
-                  transition
-                "
-              />
-            </div>
-
-            {/* PASSWORD */}
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <label className="text-[10px] uppercase tracking-[0.25em] font-semibold text-gray-500">
-                  Password
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-6">
+              {/* EMAIL */}
+              <div className="group relative">
+                <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
+                  Email Address
                 </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-gray-400 hover:text-black transition"
-                >
-                  Forgot?
-                </Link>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-10 border-0 border-b border-slate-200 rounded-none px-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:border-black transition-all duration-500"
+                />
               </div>
 
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="
-                    h-12
-                    text-black
-                    border-0
-                    border-b
-                    border-gray-200
-                    rounded-none
-                    px-0
-                    bg-transparent
-                    pr-10
-                    focus-visible:ring-0
-                    focus-visible:border-black
-                    transition
-                  "
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              {/* PASSWORD */}
+              <div className="group relative">
+                <div className="flex justify-between items-end">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
+                    Password
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-[9px] uppercase tracking-widest text-slate-400 hover:text-black transition underline underline-offset-4"
+                  >
+                    Forgot?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-10 border-0 border-b border-slate-200 rounded-none px-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:border-black transition-all duration-500 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-0 bottom-2 text-slate-300 hover:text-black transition"
+                  >
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* CTA */}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="
-                w-full
-                h-12
-                mt-6
-                bg-black
-                text-white
-                rounded-full
-                font-medium
-                tracking-wide
-                flex
-                items-center
-                justify-center
-                gap-2
-                transition
-                active:scale-[0.98]
-                disabled:opacity-50
-              "
-            >
-              {isLoading ? (
-                "Verifying..."
-              ) : (
-                <>
-                  Sign In <ArrowRight size={16} />
-                </>
+            {/* ERROR MESSAGE */}
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-[10px] uppercase tracking-widest text-red-500 font-semibold"
+                >
+                  {error}
+                </motion.p>
               )}
-            </Button>
+            </AnimatePresence>
+
+            {/* CTA BUTTON - Sharp Rectangular Style */}
+            <div className="pt-4">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-14 bg-black hover:bg-[#222] text-white rounded-none text-[11px] uppercase tracking-[0.3em] font-medium transition-all duration-300 active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Sign In <ArrowRight size={14} strokeWidth={1.5} />
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
 
           {/* FOOTER */}
-          <p className="text-center text-xs tracking-[0.3em] uppercase text-gray-400">
-            Secure • Private • Encrypted
-          </p>
-        </motion.div>
-      </div>
+          <div className="pt-10 border-t border-slate-100 flex flex-col items-center gap-6">
+            <p className="text-[11px] text-slate-500 tracking-wide">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/register"
+                className="text-black font-bold uppercase tracking-widest hover:opacity-60 transition underline underline-offset-8"
+              >
+                Register
+              </Link>
+            </p>
+
+            <span className="text-[9px] uppercase tracking-[0.4em] text-slate-300">
+              Secure • Private • International
+            </span>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

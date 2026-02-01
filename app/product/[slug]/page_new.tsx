@@ -3,8 +3,8 @@ import ProductDetailsClient from "@/components/product/ProductDetailsClient";
 type Params = { params: { slug: string } };
 
 async function fetchProduct(id: number) {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
-  const res = await fetch(`${base}/products/${id}`, {
+  const base = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${base}/api/products/${id}`, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

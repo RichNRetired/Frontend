@@ -10,7 +10,7 @@ import {
   useUpdateProfileMutation,
 } from "../../../features/user/userApi";
 import { Button } from "../../../components/ui/Button";
-import { Input } from "../../../components/ui/Input";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   User,
   Mail,
@@ -18,6 +18,12 @@ import {
   Calendar,
   ChevronRight,
   Camera,
+  Settings,
+  ShoppingBag,
+  Heart,
+  Ticket,
+  MapPin,
+  Loader2,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -73,145 +79,152 @@ export default function ProfilePage() {
     }
   };
 
-  if (!isAuthenticated)
+  if (!isAuthenticated || profileLoading)
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen flex items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-black w-8 h-8" />
       </div>
     );
 
   return (
-    <div className="min-h-screen mt-10 bg-[#F9F9F9] pt-24 pb-20 px-4">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10">
-        <aside className="w-full md:w-64 space-y-2">
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm mb-6">
-            <div className="relative w-20 h-20 mx-auto mb-4">
-              <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-2xl font-bold text-pink-600 border-2 border-white shadow-sm">
-                {formData.fullName?.charAt(0) || "U"}
+    <div className="min-h-screen bg-white text-[#1a1a1a] pt-32 pb-20 px-4 sm:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* HEADER SECTION */}
+        <div className="mb-16 space-y-2">
+          <h1 className="text-4xl md:text-5xl font-light tracking-tighter uppercase">
+            My Profile
+          </h1>
+          <div className="h-[1px] w-24 bg-black" />
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-16">
+          {/* SIDE NAVIGATION - Refined Sidebar */}
+          <aside className="w-full lg:w-72 space-y-12">
+            <div className="flex flex-col items-center lg:items-start space-y-6">
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-none border border-slate-200 flex items-center justify-center text-3xl font-light tracking-tighter bg-slate-50 grayscale hover:grayscale-0 transition-all duration-500">
+                  {formData.fullName?.charAt(0) || "U"}
+                </div>
+                <button className="absolute -bottom-2 -right-2 bg-black text-white p-2 rounded-none hover:bg-slate-800 transition-colors">
+                  <Camera size={14} />
+                </button>
               </div>
-              <button className="absolute bottom-0 right-0 bg-white p-1.5 rounded-full shadow-md border border-gray-100 hover:text-pink-600 transition-colors">
-                <Camera size={14} />
-              </button>
-            </div>
-            <p className="text-center font-bold text-gray-800 tracking-tight">
-              {formData.fullName}
-            </p>
-          </div>
-
-          <nav className="space-y-1">
-            {[
-              { label: "Orders", href: "/account/orders" },
-              { label: "Wishlist", href: "/account/wishlist" },
-              { label: "Coupons", href: "/account/coupons" },
-              { label: "Addresses", href: "/account/addresses" },
-              { label: "Profile", href: "/account/profile" },
-            ].map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== "/account/profile" &&
-                  pathname?.startsWith(item.href));
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-lg transition-all ${active ? "bg-pink-50 text-pink-600" : "text-gray-500 hover:bg-white hover:shadow-sm"}`}
-                >
-                  <span>{item.label}</span>
-                  <ChevronRight size={14} />
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-
-        {/* MAIN CONTENT AREA */}
-        <main className="flex-1">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-8 py-8 border-b border-gray-50 flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-                  Account Settings
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Manage your personal information and preferences.
+              <div className="text-center lg:text-left">
+                <h2 className="text-xl font-medium tracking-tight uppercase">
+                  {formData.fullName}
+                </h2>
+                <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] mt-1">
+                  Exclusive Member
                 </p>
               </div>
-              <Button
-                onClick={() => setIsEditing(!isEditing)}
-                variant={isEditing ? "secondary" : "primary"}
-                className="rounded-full px-6 text-sm font-bold uppercase tracking-wider"
-              >
-                {isEditing ? "Discard" : "Edit Details"}
-              </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <nav className="flex flex-col space-y-1">
+              {[
+                { label: "Orders", href: "/account/orders", icon: ShoppingBag },
+                { label: "Wishlist", href: "/account/wishlist", icon: Heart },
+                { label: "Coupons", href: "/account/coupons", icon: Ticket },
+                {
+                  label: "Addresses",
+                  href: "/account/addresses",
+                  icon: MapPin,
+                },
+                { label: "Profile", href: "/account/profile", icon: Settings },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`group flex items-center justify-between py-4 border-b border-slate-100 transition-all ${
+                      active ? "border-black" : "hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Icon
+                        size={16}
+                        className={active ? "text-black" : "text-slate-400"}
+                      />
+                      <span
+                        className={`text-[11px] uppercase tracking-[0.2em] ${active ? "font-bold" : "font-light"}`}
+                      >
+                        {item.label}
+                      </span>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      className={`transition-transform duration-300 ${active ? "translate-x-0" : "-translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0"}`}
+                    />
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* MAIN CONTENT - Clean & Minimal Form */}
+          <main className="flex-1 max-w-2xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
+              <h3 className="text-xs uppercase tracking-[0.3em] font-bold text-slate-400">
+                Personal Information
+              </h3>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-[10px] uppercase tracking-widest font-bold underline underline-offset-8 hover:text-slate-500 transition-colors"
+              >
+                {isEditing ? "Cancel" : "Edit Profile"}
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                 {/* Full Name */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ml-1">
+                <div className="group space-y-2">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
                     Full Name
                   </label>
                   <div className="relative">
-                    <User
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
                     <input
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleInputChange}
                       disabled={!isEditing}
-                      placeholder="Enter your name"
-                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all outline-none text-gray-800 font-medium ${isEditing ? "border-pink-100 focus:border-pink-500 bg-white" : "border-transparent bg-gray-50"}`}
+                      className="w-full h-10 border-0 border-b border-slate-200 rounded-none bg-transparent px-0 text-sm focus:ring-0 focus:border-black transition-all disabled:text-slate-500"
                     />
                   </div>
                 </div>
 
-                {/* Email */}
+                {/* Email (Read Only Luxury) */}
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ml-1">
-                    Email Address
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400">
+                    Email Identity
                   </label>
-                  <div className="relative">
-                    <Mail
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
-                    <input
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      disabled={true} // Usually email is not editable directly
-                      className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-transparent bg-gray-50 text-gray-500 font-medium cursor-not-allowed"
-                    />
-                  </div>
+                  <input
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    disabled={true}
+                    className="w-full h-10 border-0 border-b border-slate-100 rounded-none bg-transparent px-0 text-sm text-slate-400 cursor-not-allowed italic"
+                  />
                 </div>
 
                 {/* Phone */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ml-1">
-                    Phone Number
+                <div className="group space-y-2">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black">
+                    Phone Contact
                   </label>
-                  <div className="relative">
-                    <Phone
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
-                    <input
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      placeholder="+91 XXXXX XXXXX"
-                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all outline-none text-gray-800 font-medium ${isEditing ? "border-pink-100 focus:border-pink-500 bg-white" : "border-transparent bg-gray-50"}`}
-                    />
-                  </div>
+                  <input
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    className="w-full h-10 border-0 border-b border-slate-200 rounded-none bg-transparent px-0 text-sm focus:ring-0 focus:border-black transition-all"
+                  />
                 </div>
 
                 {/* Gender */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ml-1">
+                <div className="group space-y-2">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black">
                     Gender
                   </label>
                   <select
@@ -219,9 +232,9 @@ export default function ProfilePage() {
                     value={formData.gender}
                     onChange={(e: any) => handleInputChange(e)}
                     disabled={!isEditing}
-                    className={`w-full px-4 py-3.5 rounded-xl border-2 transition-all outline-none text-gray-800 font-medium appearance-none ${isEditing ? "border-pink-100 focus:border-pink-500 bg-white" : "border-transparent bg-gray-50"}`}
+                    className="w-full h-10 border-0 border-b border-slate-200 rounded-none bg-transparent px-0 text-sm focus:ring-0 focus:border-black transition-all appearance-none cursor-pointer"
                   >
-                    <option value="">Select Gender</option>
+                    <option value="">Select</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                     <option value="other">Other</option>
@@ -229,40 +242,46 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Date of Birth */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ml-1">
+                <div className="group space-y-2">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black">
                     Date of Birth
                   </label>
-                  <div className="relative">
-                    <Calendar
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
-                    <input
-                      name="dob"
-                      type="date"
-                      value={formData.dob}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all outline-none text-gray-800 font-medium ${isEditing ? "border-pink-100 focus:border-pink-500 bg-white" : "border-transparent bg-gray-50"}`}
-                    />
-                  </div>
+                  <input
+                    name="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    className="w-full h-10 border-0 border-b border-slate-200 rounded-none bg-transparent px-0 text-sm focus:ring-0 focus:border-black transition-all"
+                  />
                 </div>
               </div>
 
-              {isEditing && (
-                <div className="flex gap-4 pt-4">
-                  <Button
-                    type="submit"
-                    className="flex-1 py-4 rounded-xl shadow-lg shadow-pink-100 font-bold uppercase tracking-wider"
+              <AnimatePresence>
+                {isEditing && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="pt-6"
                   >
-                    {isUpdating ? "Saving..." : "Save Changes"}
-                  </Button>
-                </div>
-              )}
+                    <Button
+                      type="submit"
+                      disabled={isUpdating}
+                      className="w-full sm:w-auto px-12 h-14 bg-black hover:bg-slate-800 text-white rounded-none text-[11px] uppercase tracking-[0.3em] font-medium transition-all"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="animate-spin w-4 h-4" />
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </form>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );
