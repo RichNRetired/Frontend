@@ -195,6 +195,7 @@ export default function Home() {
                 <div key={product.id} className="flex flex-col">
                   <ProductCard
                     id={product.id}
+                    slug={product.slug}
                     name={product.name}
                     price={product.price}
                     originalPrice={product.mrp}

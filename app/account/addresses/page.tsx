@@ -206,7 +206,7 @@ export default function AddressesPage() {
 
           {/* RIGHT: PREMIUM FORM CARD */}
           <div className="lg:col-span-5">
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 sticky top-28">
+            <div className="bg-white p-8 rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 sticky top-28">
               <div className="mb-8">
                 <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-4">
                   <Plus size={24} />

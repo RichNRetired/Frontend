@@ -41,7 +41,8 @@ export default function CartPage() {
       dispatch(
         setCart(
           cartData.map((item: any) => ({
-            id: String(item.cartId),
+            id: String(item.cartId), // Use actual cartId for backend operations
+            productId: item.productId,
             name: item.productName,
             price: item.price,
             quantity: item.quantity,

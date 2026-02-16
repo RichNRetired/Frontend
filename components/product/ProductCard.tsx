@@ -5,23 +5,26 @@ import Link from "next/link";
 import { useDispatch } from "react-redux";
 import { addItem } from "../../features/cart/cartSlice";
 import { useAddToCartMutation } from "../../features/cart/cartApi";
-import { Plus, ShoppingBag } from "lucide-react";
+import { Plus, ShoppingBag, Heart } from "lucide-react";
 import { useState } from "react";
 import { sendEvent } from "@/services/analytics.service";
+import { useWishlist } from "@/hooks/useWishlist";
 
 interface ProductCardProps {
   id: number | string;
+  slug: string;
   name: string;
   price: number;
   originalPrice?: number;
-  image?: string; // single image URL
-  images?: string[]; // API uses images array
+  image?: string;
+  images?: string[];
   isNew?: boolean;
   isOnSale?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   id,
+  slug,
   name,
   price,
   originalPrice,
@@ -33,6 +36,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const dispatch = useDispatch();
   const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
   const [adding, setAdding] = useState(false);
+  const {
+    addToWishlist,
+    removeFromWishlist,
+    wishlist,
+    isAdding: isWishlistLoading,
+    isRemoving,
+  } = useWishlist();
+  const [wishlistError, setWishlistError] = useState<string>("");
+  const isInWishlist = wishlist.some((item) => item.productId === Number(id));
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,7 +53,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       await addToCart({ productId: Number(id), qty: 1 }).unwrap();
       dispatch(
         addItem({
-          id: String(id),
+          id: String(id), // Will be set properly by backend response
+          productId: Number(id),
           name,
           price,
           quantity: 1,
@@ -65,11 +78,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      setWishlistError("");
+      if (isInWishlist) {
+        await removeFromWishlist(Number(id));
+        sendEvent("wishlist_removed", {
+          productId: Number(id),
+          source: "product_card",
+        });
+      } else {
+        await addToWishlist(Number(id));
+        sendEvent("wishlist_added", {
+          productId: Number(id),
+          source: "product_card",
+        });
+      }
+    } catch (err: any) {
+      const errorMsg = err?.data?.message || "Failed to update wishlist";
+      setWishlistError(errorMsg);
+      console.error("Wishlist error:", errorMsg);
+    }
+  };
+
   return (
     <div className="group relative flex flex-col bg-white">
       {/* Image Wrapper */}
       <Link
-        href={`/product/${id}`}
+        href={`/product/${id}-${slug}`}
         className="relative aspect-3/4 overflow-hidden bg-neutral-100 mb-4"
       >
         <img
@@ -92,6 +130,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
+        {/* Wishlist Button */}
+        <button
+          onClick={handleWishlistToggle}
+          disabled={isWishlistLoading || isRemoving}
+          className="absolute top-3 right-3 p-2.5 bg-white rounded-full shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+          title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <Heart
+            size={18}
+            className={`transition-colors ${
+              isInWishlist
+                ? "fill-red-600 text-red-600"
+                : "text-neutral-400 hover:text-red-600"
+            }`}
+          />
+        </button>
+
         {/* Premium Quick Add - Slides up from bottom */}
         <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out bg-white/90 backdrop-blur-md border-t border-neutral-100">
           <button
@@ -108,7 +163,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Product Details - Clean & Linear */}
       <div className="flex flex-col space-y-1 px-1">
         <div className="flex justify-between items-start gap-4">
-          <Link href={`/product/${id}`} className="flex-1">
+          <Link href={`/product/${id}-${slug}`} className="flex-1">
             <h3 className="text-sm font-normal text-neutral-800 tracking-tight leading-snug group-hover:underline decoration-neutral-300 underline-offset-4">
               {name}
             </h3>

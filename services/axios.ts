@@ -2,25 +2,47 @@ import axios from "axios";
 import { store } from "../store";
 import { logout, setCredentials } from "../features/auth/authSlice";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/';
+/**
+ * Detect environment
+ */
+const isServer = typeof window === "undefined";
+
+/**
+ * Correct base URL for SSR vs browser
+ */
+const API_BASE = isServer
+    ? `${(process.env.EXTERNAL_API_URL || '').trim()}/api`
+    : `${(process.env.NEXT_PUBLIC_API_URL || '').trim()}/api`;
 
 const instance = axios.create({
     baseURL: API_BASE,
     withCredentials: true,
 });
 
-// attach access token
+/**
+ * Attach access token (CLIENT ONLY)
+ */
 instance.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
+    if (!isServer) {
+        const token = localStorage.getItem("accessToken");
+        const tokenType = localStorage.getItem("tokenType") || "Bearer";
+
+        if (token) {
+            config.headers = config.headers || {};
+            config.headers.Authorization = `${tokenType} ${token}`;
+        }
     }
+
     return config;
 });
 
-// helper axios without our interceptors (for refresh)
-const axiosNoIntercept = axios.create({ baseURL: API_BASE, withCredentials: true });
+/**
+ * Axios without interceptors (for refresh)
+ */
+const axiosNoIntercept = axios.create({
+    baseURL: API_BASE,
+    withCredentials: true,
+});
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -30,31 +52,37 @@ let failedQueue: Array<{
 
 const processQueue = (error: any, token: string | null = null) => {
     failedQueue.forEach((prom) => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(token);
-        }
+        if (error) prom.reject(error);
+        else prom.resolve(token);
     });
     failedQueue = [];
 };
 
+/**
+ * Response interceptor (CLIENT ONLY refresh flow)
+ */
 instance.interceptors.response.use(
     (res) => res,
     async (err) => {
+        if (isServer) {
+            // ❗ Never try refresh logic on server
+            return Promise.reject(err);
+        }
+
         const originalConfig = err.config;
 
         if (!originalConfig) return Promise.reject(err);
 
-        if (err.response && err.response.status === 401 && !originalConfig._retry) {
-            const refreshToken = localStorage.getItem('refreshToken');
+        if (err.response?.status === 401 && !originalConfig._retry) {
+            const refreshToken = localStorage.getItem("refreshToken");
+
             if (!refreshToken) {
                 store.dispatch(logout());
                 return Promise.reject(err);
             }
 
             if (isRefreshing) {
-                return new Promise(function (resolve, reject) {
+                return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
                     .then((token) => {
@@ -68,20 +96,20 @@ instance.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const response = await axiosNoIntercept.post('/api/auth/refresh', { refreshToken });
+                const response = await axiosNoIntercept.post("/auth/refresh", {
+                    refreshToken,
+                });
+
                 const data = response.data;
-                if (data && data.accessToken) {
-                    localStorage.setItem('accessToken', data.accessToken);
-                }
-                if (data && data.refreshToken) {
-                    localStorage.setItem('refreshToken', data.refreshToken);
-                }
-                if (data && data.tokenType) {
-                    localStorage.setItem('tokenType', data.tokenType);
-                }
+
+                if (data?.accessToken) localStorage.setItem("accessToken", data.accessToken);
+                if (data?.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+                if (data?.tokenType) localStorage.setItem("tokenType", data.tokenType);
 
                 store.dispatch(setCredentials(data));
+
                 processQueue(null, data.accessToken);
+
                 originalConfig.headers.Authorization = `Bearer ${data.accessToken}`;
                 return instance(originalConfig);
             } catch (e) {
@@ -98,5 +126,4 @@ instance.interceptors.response.use(
 );
 
 export default instance;
-
 export { axiosNoIntercept };

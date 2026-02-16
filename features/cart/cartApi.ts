@@ -20,7 +20,7 @@ export const cartApi = createApi({
   reducerPath: 'cartApi',
   tagTypes: ['Cart'],
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api',
+    baseUrl: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim(),
     credentials: 'include',
     prepareHeaders: (headers) => {
       try {

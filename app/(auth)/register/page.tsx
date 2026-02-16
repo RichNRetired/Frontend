@@ -84,7 +84,7 @@ export default function RegisterPage() {
         transition={{ duration: 1, ease: [0.19, 1, 0.22, 1] }}
         className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-20 relative z-10"
       >
-        <div className="w-full max-w-[400px] space-y-10 lg:space-y-16">
+        <div className="w-full max-w-md space-y-10 lg:space-y-16">
           {/* BACK BUTTON - Refined */}
           <Link
             href="/"
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                   {passwordStrength}
                 </span>
               </div>
-              <div className="h-[1px] w-full bg-slate-100 relative">
+              <div className="h-px w-full bg-slate-100 relative">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{
@@ -238,7 +238,7 @@ export default function RegisterPage() {
           <img
             src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&q=80"
             alt="Haute Couture"
-            className="absolute inset-0 w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-1000"
+            className="absolute inset-0 w-full h-full object-cover grayscale-20 hover:grayscale-0 transition-all duration-1000"
           />
           <div className="absolute inset-0 bg-black/5" />
 

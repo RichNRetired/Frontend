@@ -26,6 +26,7 @@ export const useCart = () => {
                 setCart(
                     cartData.map((item: any) => ({
                         id: String(item.cartId),
+                        productId: item.productId,
                         name: item.productName,
                         price: item.price,
                         quantity: item.quantity,

@@ -122,7 +122,7 @@ export default function ProfilePage() {
             <nav className="flex flex-col space-y-1">
               {[
                 { label: "Orders", href: "/account/orders", icon: ShoppingBag },
-                { label: "Wishlist", href: "/account/wishlist", icon: Heart },
+                { label: "Wishlist", href: "/wishlist", icon: Heart },
                 { label: "Coupons", href: "/account/coupons", icon: Ticket },
                 {
                   label: "Addresses",

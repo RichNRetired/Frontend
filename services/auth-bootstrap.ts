@@ -45,7 +45,7 @@ export const doRefresh = async () => {
     }
 
     try {
-        const res = await axiosNoIntercept.post('/api/auth/refresh', { refreshToken });
+        const res = await axiosNoIntercept.post('/auth/refresh', { refreshToken });
         const data = res.data;
         if (data && data.accessToken) {
             localStorage.setItem('accessToken', data.accessToken);

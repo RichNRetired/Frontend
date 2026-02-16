@@ -6,6 +6,6 @@ export interface Category {
 }
 
 export const getCategories = async (): Promise<Category[]> => {
-    const response = await axios.get('/api/categories');
+    const response = await axios.get('/categories');
     return response.data;
 };

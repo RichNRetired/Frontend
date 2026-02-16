@@ -1,16 +1,21 @@
-import axios from './axios';
+import axios from "./axios";
+import { CheckoutPayload, Order, OrdersResponse } from "@/features/order/orderTypes";
 
-export const createOrder = async (orderData: any) => {
-    const response = await axios.post('/orders', orderData);
-    return response.data;
+export const checkoutOrder = async (payload: CheckoutPayload): Promise<Order> => {
+    const res = await axios.post("/orders/checkout", payload);
+    return res.data;
 };
 
-export const getOrders = async () => {
-    const response = await axios.get('/orders');
-    return response.data;
+export const cancelOrder = async (orderId: number): Promise<void> => {
+    await axios.post(`/orders/${orderId}/cancel`);
 };
 
-export const getOrder = async (id: string) => {
-    const response = await axios.get(`/orders/${id}`);
-    return response.data;
+export const getMyOrders = async (
+    page = 0,
+    size = 10
+): Promise<OrdersResponse> => {
+    const res = await axios.get("/orders/my-orders", {
+        params: { page, size },
+    });
+    return res.data;
 };

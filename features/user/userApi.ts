@@ -4,7 +4,7 @@ export const userApi = createApi({
     reducerPath: 'userApi',
     tagTypes: ['User', 'Addresses'],
     baseQuery: fetchBaseQuery({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api',
+        baseUrl: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim(),
         credentials: 'include',
         prepareHeaders: (headers) => {
             try {

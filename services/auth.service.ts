@@ -10,7 +10,7 @@ export const login = async (credentials: {
     email: string;
     password: string;
 }): Promise<AuthResponse> => {
-    const res = await axios.post("/api/auth/customer/login", credentials);
+    const res = await axios.post("/auth/customer/login", credentials);
     return res.data;
 };
 
@@ -19,17 +19,17 @@ export const register = async (userData: {
     email: string;
     password: string;
 }): Promise<AuthResponse> => {
-    const res = await axios.post("/api/auth/register", userData);
+    const res = await axios.post("/auth/register", userData);
     return res.data;
 };
 
 export const logout = async () => {
-    const res = await axios.post("/api/auth/logout");
+    const res = await axios.post("/auth/logout");
     return res.data;
 };
 
 export const refreshToken = async (token: string): Promise<AuthResponse> => {
-    const res = await axios.post("/api/auth/refresh", {
+    const res = await axios.post("/auth/refresh", {
         refreshToken: token,
     });
     return res.data;

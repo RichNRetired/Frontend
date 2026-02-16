@@ -12,7 +12,7 @@ export interface ApiCartItem {
 }
 
 export const getCart = async (): Promise<ApiCartItem[]> => {
-  const response = await axios.get("api/cart");
+  const response = await axios.get("/cart");
   return response.data;
 };
 
@@ -24,7 +24,7 @@ export const addToCart = async (
 ): Promise<void> => {
   const params: any = { productId, qty };
   if (size) params.size = size;
-  await axios.post("api/cart/add", null, {
+  await axios.post("/cart/add", null, {
     params,
   });
 };
@@ -34,19 +34,19 @@ export const updateCartItem = async (
   cartId: number,
   quantity: number
 ): Promise<void> => {
-  await axios.put(`api/cart/${cartId}`, null, {
+  await axios.put(`/cart/${cartId}`, null, {
     params: { qty: quantity },
   });
 };
 
 
 export const removeFromCart = async (cartId: number): Promise<void> => {
-  await axios.delete(`api/cart/${cartId}`);
+  await axios.delete(`/cart/${cartId}`);
 };
 
 
 export const mergeCart = async (
   items: { productId: number; quantity: number }[]
 ): Promise<void> => {
-  await axios.post("api/cart/merge", items);
+  await axios.post("/cart/merge", items);
 };

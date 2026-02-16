@@ -1,5 +1,6 @@
 export interface CartItem {
-    id: string;
+    id: string; // cartId from backend (for removal/updates)
+    productId: number; // actual product ID
     name: string;
     price: number;
     quantity: number;
