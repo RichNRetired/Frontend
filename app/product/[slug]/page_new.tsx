@@ -1,6 +1,5 @@
 import ProductDetailsClient from "@/components/product/ProductDetailsClient";
 import { getProduct } from "@/services/product.service";
-import { Product } from "@/types/product";
 
 /**
  * Server component page
@@ -24,7 +23,7 @@ export default async function ProductPage({
   }
 
   // ✅ fetch from server service
-  const product: Product | null = await getProduct(id);
+  const product = await getProduct(id);
 
   // ❌ not found or inactive
   if (!product || !product.is_active) {
@@ -41,7 +40,7 @@ export default async function ProductPage({
       <div className="bg-neutral-100 p-6 rounded-2xl">
         {product.images && product.images.length > 0 ? (
           <img
-            src={product.images[0]}
+            src={product.images[0]?.imageUrl}
             alt={product.name}
             className="w-full h-full object-cover rounded-xl"
           />
