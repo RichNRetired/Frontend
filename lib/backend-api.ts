@@ -4,7 +4,9 @@
  */
 
 export function getBackendUrl(): string {
-    const backendUrl = (process.env.EXTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || '').trim();
+    const externalUrl = (process.env.EXTERNAL_API_URL || '').trim();
+    const publicUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
+    const backendUrl = externalUrl || publicUrl || 'https://project-fnwy.onrender.com';
 
     if (!backendUrl) {
         throw new Error(
@@ -29,7 +31,6 @@ export async function fetchBackendApi<T>(
 
     const headers = new Headers(options?.headers || {});
 
-    // Add authorization header if token provided
     if (options?.token) {
         headers.set('Authorization', `Bearer ${options.token}`);
     }

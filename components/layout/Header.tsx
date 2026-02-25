@@ -5,6 +5,14 @@ import { useSelector } from "react-redux";
 import Link from "next/link";
 import { RootState } from "../../store";
 import {
+  useGetSectionsQuery,
+  useGetCategoriesQuery,
+} from "@/features/category/categoryApi";
+import {
+  Section as SectionType,
+  Category as CategoryType,
+} from "@/types/catalog";
+import {
   Search,
   User,
   Heart,
@@ -15,42 +23,29 @@ import {
   ChevronUp,
 } from "lucide-react";
 
+const getSectionDisplayName = (name: string) => {
+  const normalized = name.trim().toLowerCase();
+  if (normalized === "boys" || normalized === "men" || normalized === "mens") {
+    return "Mens";
+  }
+  if (
+    normalized === "girl" ||
+    normalized === "girls" ||
+    normalized === "women" ||
+    normalized === "womens"
+  ) {
+    return "Women";
+  }
+  if (normalized === "kids" || normalized === "kid") {
+    return "Kids";
+  }
+  return name;
+};
+
 // --- Shared Types & Data ---
-const SECTIONS = [
-  {
-    name: "New Arrivals",
-    categories: ["Just In", "Exclusives", "Limited Drop", "Summer Edit"],
-  },
-  {
-    name: "Men",
-    categories: [
-      "Polos",
-      "Linen Shirts",
-      "Tailored Trousers",
-      "Knitwear",
-      "Accessories",
-    ],
-  },
-  {
-    name: "Women",
-    categories: [
-      "Silk Dress",
-      "Evening Wear",
-      "Cashmere",
-      "Handbags",
-      "Jewelry",
-    ],
-  },
-  {
-    name: "Collections",
-    categories: [
-      "The Resort Look",
-      "Business Casual",
-      "Quiet Luxury",
-      "Archive",
-    ],
-  },
-];
+
+// When available, fetch sections from the backend via RTK Query.
+// Per-section categories are fetched in a child component (hooks cannot be used inside loops).
 
 // --- Mobile Menu Component ---
 const MobileMenu: React.FC<{
@@ -58,6 +53,10 @@ const MobileMenu: React.FC<{
   onClose: () => void;
 }> = ({ isOpen, onClose }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  // Fetch sections dynamically
+  const { data: sections = [], isLoading: isLoadingSections } =
+    useGetSectionsQuery();
 
   return (
     <>
@@ -88,18 +87,24 @@ const MobileMenu: React.FC<{
           </div>
 
           <nav className="flex-1 overflow-y-auto">
-            {SECTIONS.map((section) => (
-              <div key={section.name} className="border-b border-gray-50">
+            {isLoadingSections && (
+              <div className="p-6 text-sm text-gray-400">Loading...</div>
+            )}
+
+            {sections.map((section: SectionType) => (
+              <div key={section.id} className="border-b border-gray-50">
                 <button
                   onClick={() =>
                     setExpandedSection(
-                      expandedSection === section.name ? null : section.name,
+                      expandedSection === String(section.id)
+                        ? null
+                        : String(section.id),
                     )
                   }
                   className="w-full flex items-center text-black justify-between px-6 py-6 text-[11px] font-bold uppercase tracking-[0.2em]"
                 >
-                  {section.name}
-                  {expandedSection === section.name ? (
+                  {getSectionDisplayName(section.name)}
+                  {expandedSection === String(section.id) ? (
                     <ChevronUp size={14} strokeWidth={1} />
                   ) : (
                     <ChevronDown size={14} strokeWidth={1} />
@@ -108,24 +113,15 @@ const MobileMenu: React.FC<{
 
                 <div
                   className={`bg-gray-50 text-black transition-all duration-500 ease-in-out overflow-hidden ${
-                    expandedSection === section.name
+                    expandedSection === String(section.id)
                       ? "max-h-[400px] opacity-100"
                       : "max-h-0 opacity-0"
                   }`}
                 >
-                  <ul className="px-10 py-4 space-y-5">
-                    {section.categories.map((cat) => (
-                      <li key={cat}>
-                        <Link
-                          href={`/category/${cat.toLowerCase()}`}
-                          onClick={onClose}
-                          className="text-xs text-gray-500 italic font-serif hover:text-black block transition-colors"
-                        >
-                          {cat}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  <MobileSectionCategories
+                    sectionId={section.id}
+                    onClose={onClose}
+                  />
                 </div>
               </div>
             ))}
@@ -160,6 +156,57 @@ const MobileMenu: React.FC<{
 
 // ... (Keep SECTIONS and MobileMenu exactly as they are)
 
+// Child: fetch categories for mobile menu
+function MobileSectionCategories({
+  sectionId,
+  onClose,
+}: {
+  sectionId: number;
+  onClose: () => void;
+}) {
+  const { data: categories = [], isLoading } = useGetCategoriesQuery(
+    sectionId,
+    {
+      skip: !sectionId,
+    },
+  );
+
+  if (isLoading)
+    return <div className="p-6 text-sm text-gray-400">Loading...</div>;
+
+  return (
+    <ul className="px-10 py-4 space-y-5">
+      {categories.map((cat: CategoryType) => (
+        <li key={cat.id} className="space-y-2">
+          <Link
+            href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+            onClick={onClose}
+            className="text-xs text-gray-700 font-semibold hover:text-black block transition-colors"
+          >
+            {cat.name}
+          </Link>
+
+          {!!cat.subCategories?.length && (
+            <ul className="pl-3 space-y-1 border-l border-gray-200">
+              {cat.subCategories.map((subCategory) => (
+                <li key={`${cat.id}-${subCategory}`}>
+                  <Link
+                    href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+                    onClick={onClose}
+                    className="text-[11px] text-gray-500 italic font-serif hover:text-black block transition-colors"
+                  >
+                    {subCategory}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // --- Main Header Component ---
 export const Header: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -178,6 +225,10 @@ export const Header: React.FC = () => {
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
   }, [isMobileMenuOpen]);
+
+  // Fetch sections for desktop nav
+  const { data: sections = [], isLoading: isLoadingSections } =
+    useGetSectionsQuery();
 
   return (
     <>
@@ -208,24 +259,28 @@ export const Header: React.FC = () => {
 
             {/* Desktop Navigation - Reduced spacing and font size */}
             <nav className="hidden text-black lg:flex items-center space-x-6">
-              {SECTIONS.map((section) => (
+              {isLoadingSections && (
+                <div className="text-sm text-gray-400">Loading...</div>
+              )}
+
+              {sections.map((section: SectionType) => (
                 <div
-                  key={section.name}
+                  key={section.id}
                   className="relative group h-14 flex items-center"
-                  onMouseEnter={() => setActiveMenu(section.name)}
+                  onMouseEnter={() => setActiveMenu(String(section.id))}
                   onMouseLeave={() => setActiveMenu(null)}
                 >
                   <button className="text-[10px] uppercase tracking-[0.15em] font-bold hover:text-gray-500 transition-colors flex items-center gap-1">
-                    {section.name}
+                    {getSectionDisplayName(section.name)}
                     <ChevronDown
                       size={10}
-                      className={`transition-transform duration-300 ${activeMenu === section.name ? "rotate-180" : ""}`}
+                      className={`transition-transform duration-300 ${activeMenu === String(section.id) ? "rotate-180" : ""}`}
                     />
                   </button>
 
                   <div
                     className={`absolute top-full left-0 w-[500px] bg-white border border-gray-100 shadow-xl p-6 grid grid-cols-2 gap-6 transition-all duration-300 ${
-                      activeMenu === section.name
+                      activeMenu === String(section.id)
                         ? "opacity-100 visible translate-y-0"
                         : "opacity-0 invisible -translate-y-2"
                     }`}
@@ -234,18 +289,7 @@ export const Header: React.FC = () => {
                       <h4 className="text-[9px] font-black uppercase tracking-widest border-b pb-2">
                         Categories
                       </h4>
-                      <ul className="space-y-2">
-                        {section.categories.map((cat) => (
-                          <li key={cat}>
-                            <Link
-                              href={`/category/${cat.toLowerCase()}`}
-                              className="text-xs text-gray-500 hover:text-black transition-colors block italic font-serif"
-                            >
-                              {cat}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                      <DesktopSectionCategories sectionId={section.id} />
                     </div>
                     <div className="relative overflow-hidden aspect-square bg-gray-50">
                       <img
@@ -317,3 +361,45 @@ export const Header: React.FC = () => {
     </>
   );
 };
+
+// Child: fetch categories for desktop dropdown
+function DesktopSectionCategories({ sectionId }: { sectionId: number }) {
+  const { data: categories = [], isLoading } = useGetCategoriesQuery(
+    sectionId,
+    {
+      skip: !sectionId,
+    },
+  );
+
+  if (isLoading) return <div className="text-sm text-gray-400">Loading...</div>;
+
+  return (
+    <ul className="space-y-3">
+      {categories.map((cat: CategoryType) => (
+        <li key={cat.id} className="space-y-1">
+          <Link
+            href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+            className="text-xs text-gray-700 hover:text-black transition-colors block font-semibold"
+          >
+            {cat.name}
+          </Link>
+
+          {!!cat.subCategories?.length && (
+            <ul className="pl-3 border-l border-gray-200 space-y-1">
+              {cat.subCategories.map((subCategory) => (
+                <li key={`${cat.id}-${subCategory}`}>
+                  <Link
+                    href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+                    className="text-[11px] text-gray-500 hover:text-black transition-colors block italic font-serif"
+                  >
+                    {subCategory}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}

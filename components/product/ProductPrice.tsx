@@ -9,7 +9,10 @@ export const ProductPrice: React.FC<ProductPriceProps> = ({
   price,
   discount,
 }) => {
-  const discountedPrice = discount ? price * (1 - discount / 100) : price;
+  const safePrice = typeof price === "number" ? price : 0;
+  const discountedPrice = discount
+    ? safePrice * (1 - discount / 100)
+    : safePrice;
 
   return (
     <div>

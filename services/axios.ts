@@ -10,9 +10,15 @@ const isServer = typeof window === "undefined";
 /**
  * Correct base URL for SSR vs browser
  */
-const API_BASE = isServer
-    ? `${(process.env.EXTERNAL_API_URL || '').trim()}/api`
-    : `${(process.env.NEXT_PUBLIC_API_URL || '').trim()}/api`;
+const backendBase = (
+    isServer
+        ? process.env.EXTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
+        : process.env.NEXT_PUBLIC_API_URL
+);
+
+const API_BASE = `${(backendBase || 'https://project-fnwy.onrender.com')
+    .trim()
+    .replace(/\/$/, '')}/api`;
 
 const instance = axios.create({
     baseURL: API_BASE,

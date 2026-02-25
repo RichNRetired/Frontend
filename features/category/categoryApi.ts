@@ -1,14 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-
-export interface Category {
-    id: number;
-    name: string;
-}
+import { Section, Category, Subcategory, Filters } from '@/types/catalog';
 
 export const categoryApi = createApi({
     reducerPath: 'categoryApi',
     baseQuery: fetchBaseQuery({
-        baseUrl: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim(),
+        baseUrl: (process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, ''),
         credentials: 'include',
         prepareHeaders: (headers) => {
             try {
@@ -22,10 +18,31 @@ export const categoryApi = createApi({
         },
     }),
     endpoints: (builder) => ({
-        getCategories: builder.query<Category[], void>({
-            query: () => '/api/categories',
+        // Get all sections
+        getSections: builder.query<Section[], void>({
+            query: () => '/api/catalog/sections',
+        }),
+
+        // Get categories by section
+        getCategories: builder.query<Category[], number>({
+            query: (sectionId) => `/api/catalog/categories?sectionId=${sectionId}`,
+        }),
+
+        // Get subcategories by category
+        getSubcategories: builder.query<Subcategory[], number>({
+            query: (categoryId) => `/api/catalog/subcategories?categoryId=${categoryId}`,
+        }),
+
+        // Get filters by subcategory
+        getFilters: builder.query<Filters, number>({
+            query: (subCategoryId) => `/api/catalog/filters?subCategoryId=${subCategoryId}`,
         }),
     }),
 });
 
-export const { useGetCategoriesQuery } = categoryApi;
+export const {
+    useGetSectionsQuery,
+    useGetCategoriesQuery,
+    useGetSubcategoriesQuery,
+    useGetFiltersQuery
+} = categoryApi;

@@ -1,4 +1,8 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+export const API_BASE = (
+    process.env.NEXT_PUBLIC_API_URL || "https://project-fnwy.onrender.com"
+)
+    .trim()
+    .replace(/\/$/, "");
 
 export async function fetcher<T>(url: string): Promise<T> {
     const res = await fetch(`${API_BASE}${url}`, {

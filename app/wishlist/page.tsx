@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Trash2,
-  ShoppingBag,
-  Heart,
-  ArrowRight,
-} from "lucide-react";
+import { Trash2, ShoppingBag, Heart, ArrowRight } from "lucide-react";
 import {
   useGetWishlistQuery,
   useRemoveFromWishlistMutation,
@@ -17,10 +12,11 @@ import { useAddToCartMutation } from "../../features/cart/cartApi";
 
 export default function WishlistPage() {
   const [page, setPage] = useState(0);
-  const { data: wishlistData, isLoading: isLoadingWishlist } = useGetWishlistQuery({
-    page,
-    size: 10,
-  });
+  const { data: wishlistData, isLoading: isLoadingWishlist } =
+    useGetWishlistQuery({
+      page,
+      size: 10,
+    });
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
   const [addToCart] = useAddToCartMutation();
 
@@ -37,7 +33,6 @@ export default function WishlistPage() {
   const handleAddToCart = async (productId: number) => {
     try {
       await addToCart({ productId, qty: 1 }).unwrap();
-      alert("Added to cart!");
     } catch (err: any) {
       console.error("Failed to add to cart:", err);
       const errorMsg = err?.data?.message || "Failed to add to cart";
@@ -159,11 +154,17 @@ export default function WishlistPage() {
               Page {wishlistData.page + 1} of {wishlistData.totalPages}
             </span>
             <button
-              onClick={() => setPage((p) => Math.min(wishlistData.totalPages - 1, p + 1))}
+              onClick={() =>
+                setPage((p) => Math.min(wishlistData.totalPages - 1, p + 1))
+              }
               disabled={wishlistData.last}
               className="px-6 py-3 text-[11px] font-bold uppercase tracking-widest border border-neutral-200 text-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-all flex items-center gap-2 group"
             >
-              Next <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+              Next{" "}
+              <ArrowRight
+                size={12}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </button>
           </div>
         )}

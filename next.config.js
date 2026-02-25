@@ -6,6 +6,14 @@ const nextConfig = {
                 protocol: 'https',
                 hostname: 'example.com',
             },
+            {
+                protocol: "https",
+                hostname: "images.unsplash.com",
+            },
+            {
+                protocol: "https",
+                hostname: "project-fnwy.onrender.com",
+            },
         ],
     },
 };

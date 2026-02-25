@@ -5,7 +5,7 @@ export const wishlistApi = createApi({
     reducerPath: 'wishlistApi',
     tagTypes: ['Wishlist'],
     baseQuery: fetchBaseQuery({
-        baseUrl: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim(),
+        baseUrl: (process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, ''),
         credentials: 'include',
         prepareHeaders: (headers) => {
             try {

@@ -5,11 +5,35 @@ export interface Section {
     isActive: boolean;
 }
 
+export interface CatalogProductSummary {
+    id: number;
+    name: string;
+    status?: string;
+    slug?: string;
+    brand?: string;
+    shortDescription?: string;
+    description?: string;
+    price?: number;
+    taxPercent?: number;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+    stock?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    totalStock?: number;
+}
+
 export interface Category {
     id: number;
     name: string;
     isActive: boolean;
-    section: Section;
+    parent?: string;
+    subCategories?: string[];
+    products?: CatalogProductSummary[];
+    slug?: string;
+    section?: Section;
 }
 
 export interface Subcategory {

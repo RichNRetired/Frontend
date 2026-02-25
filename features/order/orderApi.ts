@@ -1,10 +1,10 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { CheckoutPayload, Order, OrdersResponse, ApiResponse, ReturnRequest, ReturnResponse } from "./orderTypes";
+import { CheckoutPayload, Order, OrdersResponse, ApiResponse, ReturnRequest, ReturnResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "./orderTypes";
 
 export const orderApi = createApi({
     reducerPath: "orderApi",
     baseQuery: fetchBaseQuery({
-        baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || '').trim()}/api`,
+        baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api`,
         credentials: "include",
         prepareHeaders: (headers) => {
             const token = typeof window !== 'undefined' ? localStorage.getItem("accessToken") : null;
@@ -59,6 +59,21 @@ export const orderApi = createApi({
             invalidatesTags: ["Orders"],
         }),
 
+        /** Initiate Payment for prepaid order */
+        initiatePayment: builder.mutation<InitiatePaymentResponse, { orderId: number; body: InitiatePaymentRequest } | InitiatePaymentRequest>({
+            query: (arg) => {
+                // support both (orderId, body) shape and single body containing orderId
+                const orderId = (arg as any).orderId;
+                const body = (arg as any).body ? (arg as any).body : arg;
+                return {
+                    url: `/orders/${orderId}/payment/initiate`,
+                    method: "POST",
+                    body,
+                };
+            },
+            invalidatesTags: ["Orders"],
+        }),
+
         /** My Orders - Get all user's orders */
         getMyOrders: builder.query<OrdersResponse, { page?: number; size?: number }>({
             query: ({ page = 0, size = 10 }) =>
@@ -83,6 +98,7 @@ export const {
     useGetOrderDetailsQuery,
     useCancelOrderMutation,
     useReorderOrderMutation,
+    useInitiatePaymentMutation,
     useGetMyOrdersQuery,
     useRequestReturnMutation,
 } = orderApi;

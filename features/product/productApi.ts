@@ -1,10 +1,28 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { Product, ProductsResponse } from "./productTypes";
+import {
+    GetProductsByLocationParams,
+    Product,
+    ProductBreadcrumbItem,
+    ProductFilterOptions,
+    ProductFilterRequest,
+    ProductsResponse,
+} from "./productTypes";
+
+const toFilterQueryParams = (filter: ProductFilterRequest) => {
+    const params: Record<string, string | number | boolean | string[]> = {};
+
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") return;
+        params[`filter.${key}`] = value as string | number | boolean | string[];
+    });
+
+    return params;
+};
 
 export const productApi = createApi({
     reducerPath: "productApi",
     baseQuery: fetchBaseQuery({
-        baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || '').trim()}/api`,
+        baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api`,
         credentials: "include",
         prepareHeaders: (headers) => {
             if (typeof window !== "undefined") {
@@ -22,35 +40,66 @@ export const productApi = createApi({
     tagTypes: ["Products"],
 
     endpoints: (builder) => ({
-        // Get all products - legacy endpoint
-        getProducts: builder.query<ProductsResponse, void>({
-            query: () => "/products",
-            providesTags: ["Products"],
-        }),
-
-        // Get products by location with pagination and sorting
-        getProductsByLocation: builder.query<
-            ProductsResponse,
-            {
-                locationId: number;
-                page?: number;
-                size?: number;
-                sortBy?: string;
-            }
-        >({
-            query: ({ locationId, page = 0, size = 10, sortBy = "createdAt" }) => ({
+        getProductsByLocation: builder.query<ProductsResponse, GetProductsByLocationParams>({
+            query: ({
+                locationId,
+                categoryId,
+                minPrice,
+                maxPrice,
+                size,
+                color,
+                brand,
+                sortBy,
+                page = 0,
+                limit = 20,
+            }) => ({
                 url: "/products",
                 params: {
                     locationId,
-                    page,
+                    categoryId,
+                    minPrice,
+                    maxPrice,
                     size,
+                    color,
+                    brand,
                     sortBy,
+                    page,
+                    limit,
                 },
             }),
             providesTags: ["Products"],
         }),
 
-        // Get product details by ID
+        filterProducts: builder.query<ProductsResponse, ProductFilterRequest>({
+            query: (filter) => ({
+                url: "/products/filter",
+                params: toFilterQueryParams(filter),
+            }),
+            providesTags: ["Products"],
+        }),
+
+        getFilterOptions: builder.query<
+            ProductFilterOptions,
+            { sectionId?: number; categoryId?: number; subCategoryId?: number }
+        >({
+            query: (params) => ({
+                url: "/products/filter/options",
+                params,
+            }),
+            providesTags: ["Products"],
+        }),
+
+        getProductBreadcrumb: builder.query<
+            ProductBreadcrumbItem[],
+            { sectionId?: number; categoryId?: number; subCategoryId?: number }
+        >({
+            query: (params) => ({
+                url: "/products/breadcrumb",
+                params,
+            }),
+            providesTags: ["Products"],
+        }),
+
         getProduct: builder.query<Product, number>({
             query: (id) => ({
                 url: `/products/${id}`,
@@ -59,20 +108,60 @@ export const productApi = createApi({
             providesTags: (result, error, id) => [{ type: "Products", id }],
         }),
 
-        // Get product by slug (alternative endpoint)
-        getProductBySlug: builder.query<Product, string>({
-            query: (slug) => ({
-                url: `/products/${slug}`,
-                method: "GET",
+        getRelatedProducts: builder.query<
+            ProductsResponse,
+            { productId: number; page?: number; size?: number }
+        >({
+            query: ({ productId, page = 0, size = 8 }) => ({
+                url: `/products/${productId}/related`,
+                params: { page, size },
             }),
-            providesTags: (result) => [{ type: "Products", id: result?.id }],
+            providesTags: ["Products"],
+        }),
+
+        getNewArrivals: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
+            query: (args) => ({
+                url: "/products/new-arrivals",
+                params: {
+                    page: args?.page ?? 0,
+                    size: args?.size ?? 10,
+                },
+            }),
+            providesTags: ["Products"],
+        }),
+
+        getFeaturedProducts: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
+            query: (args) => ({
+                url: "/products/featured",
+                params: {
+                    page: args?.page ?? 0,
+                    size: args?.size ?? 10,
+                },
+            }),
+            providesTags: ["Products"],
+        }),
+
+        getBestSellers: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
+            query: (args) => ({
+                url: "/products/best-sellers",
+                params: {
+                    page: args?.page ?? 0,
+                    size: args?.size ?? 10,
+                },
+            }),
+            providesTags: ["Products"],
         }),
     }),
 });
 
 export const {
-    useGetProductsQuery,
     useGetProductsByLocationQuery,
+    useFilterProductsQuery,
+    useGetFilterOptionsQuery,
+    useGetProductBreadcrumbQuery,
     useGetProductQuery,
-    useGetProductBySlugQuery,
+    useGetRelatedProductsQuery,
+    useGetNewArrivalsQuery,
+    useGetFeaturedProductsQuery,
+    useGetBestSellersQuery,
 } = productApi;

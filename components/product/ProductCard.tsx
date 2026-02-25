@@ -1,12 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useDispatch } from "react-redux";
 import { addItem } from "../../features/cart/cartSlice";
 import { useAddToCartMutation } from "../../features/cart/cartApi";
-import { Plus, ShoppingBag, Heart } from "lucide-react";
-import { useState } from "react";
+import { Plus, Heart, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
 import { useWishlist } from "@/hooks/useWishlist";
 
@@ -14,10 +13,10 @@ interface ProductCardProps {
   id: number | string;
   slug: string;
   name: string;
-  price: number;
-  originalPrice?: number;
+  price: number | null | undefined;
+  originalPrice?: number | null;
   image?: string;
-  images?: string[];
+  images?: Array<string | { imageUrl?: string | null }>;
   isNew?: boolean;
   isOnSale?: boolean;
 }
@@ -33,48 +32,77 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isNew = false,
   isOnSale = false,
 }) => {
+  const normalizeAmount = (amount: number | null | undefined) => {
+    const value = typeof amount === "number" ? amount : Number(amount ?? 0);
+    return Number.isFinite(value) ? value : 0;
+  };
+  const displayPrice = normalizeAmount(price);
+  const displayOriginalPrice = normalizeAmount(originalPrice);
+
   const dispatch = useDispatch();
-  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
-  const [adding, setAdding] = useState(false);
+  const [addToCart, { isLoading: isAddingMutation }] = useAddToCartMutation();
+  const [localAdding, setLocalAdding] = useState(false);
+  const isAdding = localAdding || isAddingMutation;
+  const imageList = useMemo(() => {
+    if (images && images.length > 0) {
+      return images
+        .map((entry) =>
+          typeof entry === "string" ? entry : (entry?.imageUrl ?? ""),
+        )
+        .filter(Boolean);
+    }
+    if (image) return [image];
+    return [];
+  }, [images, image]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const {
     addToWishlist,
     removeFromWishlist,
     wishlist,
-    isAdding: isWishlistLoading,
+    isAdding: isWishLoading,
     isRemoving,
   } = useWishlist();
-  const [wishlistError, setWishlistError] = useState<string>("");
+
   const isInWishlist = wishlist.some((item) => item.productId === Number(id));
+  const isWishActionLoading = isWishLoading || isRemoving;
+
+  const showPreviousImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === 0 ? imageList.length - 1 : prev - 1,
+    );
+  };
+
+  const showNextImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === imageList.length - 1 ? 0 : prev + 1,
+    );
+  };
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [id]);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
-    setAdding(true);
+    e.stopPropagation();
+    setLocalAdding(true);
     try {
       await addToCart({ productId: Number(id), qty: 1 }).unwrap();
       dispatch(
         addItem({
-          id: String(id), // Will be set properly by backend response
+          id: String(id),
           productId: Number(id),
           name,
-          price,
+          price: displayPrice,
           quantity: 1,
         }),
       );
-      sendEvent("quick_add", {
-        productId: Number(id),
-        source: "product_card",
-      });
+      sendEvent("quick_add", { productId: Number(id), source: "product_card" });
     } catch (err: any) {
-      const errorMsg = err?.data?.message || "Failed to add to cart";
-      console.error("Add to cart failed", errorMsg);
-      sendEvent("quick_add_failed", {
-        productId: Number(id),
-        error: errorMsg,
-      });
-      // Optionally show error notification here
-      alert(errorMsg);
+      console.error(err);
     } finally {
-      setAdding(false);
+      setLocalAdding(false);
     }
   };
 
@@ -82,110 +110,170 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     try {
-      setWishlistError("");
       if (isInWishlist) {
         await removeFromWishlist(Number(id));
-        sendEvent("wishlist_removed", {
-          productId: Number(id),
-          source: "product_card",
-        });
       } else {
         await addToWishlist(Number(id));
-        sendEvent("wishlist_added", {
-          productId: Number(id),
-          source: "product_card",
-        });
       }
-    } catch (err: any) {
-      const errorMsg = err?.data?.message || "Failed to update wishlist";
-      setWishlistError(errorMsg);
-      console.error("Wishlist error:", errorMsg);
+    } catch (err) {
+      console.error("Wishlist update failed", err);
     }
   };
 
   return (
-    <div className="group relative flex flex-col bg-white">
-      {/* Image Wrapper */}
-      <Link
-        href={`/product/${id}-${slug}`}
-        className="relative aspect-3/4 overflow-hidden bg-neutral-100 mb-4"
-      >
-        <img
-          src={image || (images && images[0]) || "/images/placeholder.png"}
-          alt={name}
-          className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
-        />
+    <div className="group relative flex flex-col bg-white transition-all duration-500">
+      {/* IMAGE SECTION */}
+      <div className="relative aspect-3/4 overflow-hidden bg-[#F9F9F9]">
+        <Link href={`/product/${id}-${slug}`} className="block h-full w-full">
+          {imageList.length > 0 ? (
+            <img
+              src={imageList[selectedImageIndex]}
+              alt={name}
+              className="h-full w-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110"
+            />
+          ) : null}
+        </Link>
 
-        {/* Minimalist Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        {imageList.length > 1 && (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showPreviousImage();
+              }}
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-black backdrop-blur-sm transition hover:bg-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showNextImage();
+              }}
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-black backdrop-blur-sm transition hover:bg-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+
+        {imageList.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 backdrop-blur-sm">
+            {imageList.map((_, index) => {
+              const isActive = index === selectedImageIndex;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`View image ${index + 1}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedImageIndex(index);
+                  }}
+                  className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
+                    isActive ? "bg-black" : "bg-black/30 hover:bg-black/50"
+                  }`}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* ELEGANT BADGES */}
+        <div className="absolute top-3 left-3 md:top-4 md:left-4 flex flex-col gap-2">
           {isNew && (
-            <span className="bg-white text-black text-[10px] tracking-widest font-bold px-2.5 py-1 uppercase shadow-sm">
+            <span className="bg-black text-white text-[8px] md:text-[9px] tracking-[0.2em] font-medium px-2 py-0.5 md:px-2.5 md:py-1 uppercase">
               New
             </span>
           )}
           {isOnSale && (
-            <span className="bg-red-600 text-white text-[10px] tracking-widest font-bold px-2.5 py-1 uppercase shadow-sm">
+            <span className="bg-white text-red-600 text-[8px] md:text-[9px] tracking-[0.2em] font-bold px-2 py-0.5 md:px-2.5 md:py-1 uppercase border border-red-50">
               Sale
             </span>
           )}
         </div>
 
-        {/* Wishlist Button */}
+        {/* WISHLIST - Visible on mobile, hover-animated on desktop */}
         <button
           onClick={handleWishlistToggle}
-          disabled={isWishlistLoading || isRemoving}
-          className="absolute top-3 right-3 p-2.5 bg-white rounded-full shadow-md hover:shadow-lg transition-all disabled:opacity-50"
-          title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          disabled={isWishActionLoading}
+          className={`absolute top-3 right-3 md:top-4 md:right-4 p-2.5 rounded-full bg-white/70 backdrop-blur-sm transition-all duration-300 shadow-sm
+            ${isWishActionLoading ? "opacity-50" : "opacity-100 md:opacity-0 md:-translate-y-2.5 md:group-hover:opacity-100 md:group-hover:translate-y-0"}`}
         >
-          <Heart
-            size={18}
-            className={`transition-colors ${
-              isInWishlist
-                ? "fill-red-600 text-red-600"
-                : "text-neutral-400 hover:text-red-600"
-            }`}
-          />
+          {isWishActionLoading ? (
+            <Loader2 size={16} className="animate-spin text-neutral-400" />
+          ) : (
+            <Heart
+              size={16}
+              className={`transition-colors duration-300 ${
+                isInWishlist
+                  ? "fill-red-500 text-red-500"
+                  : "text-neutral-600 hover:text-black"
+              }`}
+            />
+          )}
         </button>
 
-        {/* Premium Quick Add - Slides up from bottom */}
-        <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out bg-white/90 backdrop-blur-md border-t border-neutral-100">
+        {/* QUICK ADD - DESKTOP HOVER */}
+        <div className="hidden md:flex absolute inset-x-0 bottom-6 justify-center px-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
           <button
             onClick={handleAddToCart}
-            disabled={adding || isAdding}
-            className={`flex w-full items-center justify-center gap-2 py-4 text-[11px] font-bold uppercase tracking-[0.2em] text-black hover:bg-black hover:text-white transition-colors ${adding || isAdding ? "opacity-60 pointer-events-none" : ""}`}
+            disabled={isAdding}
+            className="flex w-full items-center justify-center gap-2 py-3 bg-white/90 backdrop-blur-md border border-neutral-200 text-[10px] font-bold uppercase tracking-[0.25em] text-black hover:bg-black hover:text-white transition-all duration-300 shadow-xl"
           >
-            <Plus className="w-3.5 h-3.5" />
-            {adding || isAdding ? "Adding..." : "Quick Add"}
-          </button>
-        </div>
-      </Link>
-
-      {/* Product Details - Clean & Linear */}
-      <div className="flex flex-col space-y-1 px-1">
-        <div className="flex justify-between items-start gap-4">
-          <Link href={`/product/${id}-${slug}`} className="flex-1">
-            <h3 className="text-sm font-normal text-neutral-800 tracking-tight leading-snug group-hover:underline decoration-neutral-300 underline-offset-4">
-              {name}
-            </h3>
-          </Link>
-          <button
-            onClick={handleAddToCart}
-            disabled={adding || isAdding}
-            className="md:hidden p-1 text-neutral-500 hover:text-black"
-          >
-            <ShoppingBag className="w-4 h-4" />
+            {isAdding ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" /> Add to cart
+              </>
+            )}
           </button>
         </div>
 
-        <div className="flex items-center gap-3 pt-0.5">
+        {/* QUICK ADD - MOBILE PERSISTENT BAR */}
+        <div className="md:hidden absolute inset-x-0 bottom-0">
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="flex w-full items-center justify-center gap-2 py-3 bg-white/80 backdrop-blur-md border-t border-neutral-100 text-[9px] font-bold uppercase tracking-[0.2em] text-black"
+          >
+            {isAdding ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <>
+                <Plus className="w-3 h-3" /> Add to bag
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* DETAILS SECTION */}
+      <div className="flex flex-col items-center pt-4 md:pt-6 pb-2 text-center">
+        <Link href={`/product/${id}-${slug}`} className="mb-1">
+          <h3 className="text-[12px] md:text-[13px] font-normal text-neutral-500 uppercase tracking-widest leading-relaxed transition-colors hover:text-black line-clamp-1 px-4">
+            {name}
+          </h3>
+        </Link>
+
+        <div className="flex items-center gap-2 md:gap-3">
           <span
-            className={`text-sm ${isOnSale ? "text-red-600 font-semibold" : "text-neutral-900 font-medium"}`}
+            className={`text-[14px] md:text-[15px] font-light tracking-tight ${isOnSale ? "text-red-600" : "text-black"}`}
           >
-            ₹{price.toLocaleString()}
+            ₹{displayPrice.toLocaleString()}
           </span>
-          {originalPrice && originalPrice > price && (
-            <span className="text-xs text-neutral-400 line-through decoration-neutral-300">
-              ₹{originalPrice.toLocaleString()}
+          {displayOriginalPrice > displayPrice && (
+            <span className="text-[11px] md:text-[13px] text-neutral-300 line-through decoration-[0.5px]">
+              ₹{displayOriginalPrice.toLocaleString()}
             </span>
           )}
         </div>

@@ -4,18 +4,31 @@ import { fetchBackendApi } from '@/lib/backend-api';
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const page = searchParams.get('page') || '0';
-        const size = searchParams.get('size') || '10';
-        const sortBy = searchParams.get('sortBy') || 'createdAt';
+        const params = new URLSearchParams();
+
         const locationId = searchParams.get('locationId');
+        const categoryId = searchParams.get('categoryId');
+        const minPrice = searchParams.get('minPrice');
+        const maxPrice = searchParams.get('maxPrice');
+        const size = searchParams.get('size');
+        const limit = searchParams.get('limit') || searchParams.get('size') || '20';
+        const page = searchParams.get('page') || '0';
+        const sortBy = searchParams.get('sortBy');
+        const color = searchParams.get('color');
+        const brand = searchParams.get('brand');
 
+        if (locationId) params.set('locationId', locationId);
+        if (categoryId) params.set('categoryId', categoryId);
+        if (minPrice) params.set('minPrice', minPrice);
+        if (maxPrice) params.set('maxPrice', maxPrice);
+        if (size && !searchParams.get('limit')) params.set('size', size);
+        params.set('limit', limit);
+        params.set('page', page);
+        if (sortBy) params.set('sortBy', sortBy);
+        if (color) params.set('color', color);
+        if (brand) params.set('brand', brand);
 
-
-        // Build query string
-        let queryString = `?page=${page}&size=${size}&sortBy=${sortBy}`;
-        if (locationId) {
-            queryString += `&locationId=${locationId}`;
-        }
+        const queryString = params.toString() ? `?${params.toString()}` : '';
 
         // Forward request to backend
         const result = await fetchBackendApi(`/products${queryString}`, {

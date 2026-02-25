@@ -1,4 +1,10 @@
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').trim();
+const backendUrl = (
+    process.env.NEXT_PUBLIC_API_URL || "https://project-fnwy.onrender.com"
+)
+    .trim()
+    .replace(/\/$/, "");
+
+export const API_URL = `${backendUrl}/api`;
 
 export const ITEMS_PER_PAGE = 20;
 

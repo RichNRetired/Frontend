@@ -2,15 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
-import { useGetCategoriesQuery } from "@/features/category/categoryApi";
+import { useGetSectionsQuery } from "@/features/category/categoryApi";
 
 export const Navbar: React.FC = () => {
-  const { data: categoriesData = [] } = useGetCategoriesQuery();
+  const { data: sectionsData = [] } = useGetSectionsQuery();
 
-  // Map API categories to navbar format
-  const categories = categoriesData.map((cat) => ({
-    name: cat.name,
-    href: `/${cat.name.toLowerCase()}`,
+  // Map API sections to navbar format
+  const categories = sectionsData.map((section) => ({
+    name: section.name,
+    href: `/shop?section=${section.name.toLowerCase()}`,
   }));
 
   return (

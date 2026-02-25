@@ -1,138 +1,205 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { ProductCard } from "../components/product/ProductCard";
 import HeroSection from "@/components/layout/Hero";
+import FeaturedBrands from "@/components/layout/FeaturedBrands";
+import QuickCategories from "@/components/layout/QuickCategories";
+import CampaignBanners from "@/components/layout/CampaignBanners";
 import {
   MoveRight,
   Truck,
   RotateCcw,
   ShieldCheck,
-  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { useProducts } from "@/hooks/useProducts";
-import { useGetCategoriesQuery } from "@/features/category/categoryApi";
-
-// Types for better DX
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  category: string;
-  isNew?: boolean;
-  isOnSale?: boolean;
-}
-
-const featuredProducts: Product[] = [
-  {
-    id: "1",
-    name: "Premium Cotton T-Shirt",
-    price: 1299,
-    originalPrice: 1799,
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80",
-    category: "men",
-    isNew: true,
-  },
-  {
-    id: "2",
-    name: "Floral Summer Dress",
-    price: 2499,
-    image:
-      "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",
-    category: "women",
-    isOnSale: true,
-  },
-  {
-    id: "3",
-    name: "Cozy Kids Hoodie",
-    price: 1899,
-    image:
-      "https://images.unsplash.com/photo-1503944168849-c1246463e59?w=800&q=80",
-    category: "kids",
-    isNew: true,
-  },
-  {
-    id: "4",
-    name: "Classic Denim Jacket",
-    price: 3999,
-    originalPrice: 4999,
-    image:
-      "https://images.unsplash.com/photo-1551537482-f2075a1d41f2?w=800&q=80",
-    category: "men",
-    isOnSale: true,
-  },
-];
+import {
+  useBestSellers,
+  useFeaturedProducts,
+  useNewArrivals,
+  useProducts,
+} from "@/hooks/useProducts";
+import { useGetSectionsQuery } from "@/features/category/categoryApi";
 
 export default function Home() {
-  const { data: categoriesData = [] } = useGetCategoriesQuery();
+  const { data: sectionsData = [], isLoading: sectionsLoading } =
+    useGetSectionsQuery();
+  const { data: productsResp, isLoading: productsLoading } = useProducts();
+  const { data: newArrivalsResp, isLoading: newArrivalsLoading } =
+    useNewArrivals(0, 10);
+  const { data: bestSellersResp, isLoading: bestSellersLoading } =
+    useBestSellers(0, 10);
+  const { data: featuredResp, isLoading: featuredLoading } =
+    useFeaturedProducts(0, 10);
+  const trendingRailRef = useRef<HTMLDivElement>(null);
 
-  // Map API categories with display properties
-  const categoryImages: Record<string, { image: string; description: string }> =
-    {
-      men: {
-        image:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80",
-        description: "Minimalist Essentials",
-      },
-      women: {
-        image:
-          "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
-        description: "Seasonal curation",
-      },
-      kids: {
-        image:
-          "https://images.unsplash.com/photo-1503944168849-c1246463e59?w=800&q=80",
-        description: "Comfort & Play",
-      },
-      sale: {
-        image:
-          "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80",
-        description: "Last chance pieces",
-      },
-    };
+  const scrollTrending = (direction: "left" | "right") => {
+    if (!trendingRailRef.current) return;
+    const amount = 340;
+    trendingRailRef.current.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  };
 
-  const categories = categoriesData.map((cat) => {
-    const slug = cat.name.toLowerCase();
-    const categoryInfo = categoryImages[slug] || {
-      image:
-        "https://images.unsplash.com/photo-1505228395891-9a51e7e86e81?w=800&q=80",
-      description: "New Collection",
-    };
+  const sectionDescriptions: Record<string, string> = {
+    men: "Minimalist Essentials",
+    women: "Seasonal curation",
+    kids: "Comfort & Play",
+    sale: "Last chance pieces",
+  };
+
+  const categories = sectionsData.map((section) => {
+    const originalSlug = section.name.toLowerCase();
+    const slug =
+      originalSlug === "girl" ||
+      originalSlug === "girls" ||
+      originalSlug === "women" ||
+      originalSlug === "womens"
+        ? "women"
+        : originalSlug;
+    const displayName =
+      originalSlug === "girl" ||
+      originalSlug === "girls" ||
+      originalSlug === "women" ||
+      originalSlug === "womens"
+        ? "Women"
+        : section.name;
     return {
-      name: cat.name,
-      href: `/${slug}`,
-      ...categoryInfo,
+      id: section.id,
+      name: displayName,
+      href: `/shop?section=${slug}`,
+      image: section.imageUrl,
+      description: sectionDescriptions[slug] || "New Collection",
     };
   });
+
   return (
     <div className="min-h-screen bg-white font-sans antialiased text-neutral-900">
       <HeroSection />
 
-      {/* Trust Bar - More Minimalist */}
-      <section className="border-y border-neutral-100 bg-neutral-50/50">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-4">
-            <div className="flex items-center justify-center gap-4 group">
-              <Truck className="w-5 h-5 stroke-[1.5px] text-neutral-500 group-hover:text-black transition-colors" />
-              <span className="text-xs uppercase tracking-[0.2em] font-medium">
-                Complimentary Shipping
-              </span>
+      {/* New Quick Categories (Like Reference) */}
+      <QuickCategories />
+
+      <CampaignBanners />
+
+      {/* Trending Now Section */}
+      <section className="py-16 md:py-20 bg-neutral-100 border-y border-neutral-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-10 md:mb-12">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-neutral-900">
+              Trending Now
+            </h2>
+            <p className="mt-3 text-2xl md:text-3xl font-light text-neutral-800 tracking-wide">
+              Based On Your Recent Activity
+            </p>
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Scroll left"
+              onClick={() => scrollTrending("left")}
+              className="absolute -left-3 top-1/2 z-10 hidden md:flex -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full border border-neutral-300 bg-white/90 text-neutral-700 shadow-sm hover:bg-white"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div
+              ref={trendingRailRef}
+              className="overflow-x-auto no-scrollbar scroll-smooth py-2"
+            >
+              <div className="flex gap-5 min-w-max">
+                {(productsResp?.content || [])
+                  .slice(0, 10)
+                  .map((product: any) => (
+                    <div key={product.id} className="w-64 shrink-0">
+                      <ProductCard
+                        {...product}
+                        originalPrice={product.mrp}
+                        isOnSale={!!product.discount_percent}
+                      />
+                    </div>
+                  ))}
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-4 group border-neutral-200 md:border-x">
-              <RotateCcw className="w-5 h-5 stroke-[1.5px] text-neutral-500 group-hover:text-black transition-colors" />
-              <span className="text-xs uppercase tracking-[0.2em] font-medium">
-                30-Day Returns Policy
-              </span>
+
+            <button
+              type="button"
+              aria-label="Scroll right"
+              onClick={() => scrollTrending("right")}
+              className="absolute -right-3 top-1/2 z-10 hidden md:flex -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full border border-neutral-300 bg-white/90 text-neutral-700 shadow-sm hover:bg-white"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-8 md:py-8">
+        <div className="max-w-7xl mx-auto px-0 md:px-6">
+          <div className="relative overflow-hidden bg-black aspect-video md:rounded-sm">
+            <video
+              className="h-full w-full object-cover"
+              src="https://s7ap1.scene7.com/is/content/adityabirlafashion/videoSpring%20SS26?wid=1366&hei=670px"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* New Arrivals */}
+      <section className="py-24 sm:py-28 bg-white border-y border-neutral-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-4">
+            <div className="max-w-xl">
+              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4">
+                New Arrivals
+              </h2>
+              <p className="text-neutral-500 font-light leading-relaxed">
+                Fresh drops curated from our latest collection.
+              </p>
             </div>
-            <div className="flex items-center justify-center gap-4 group">
-              <ShieldCheck className="w-5 h-5 stroke-[1.5px] text-neutral-500 group-hover:text-black transition-colors" />
-              <span className="text-xs uppercase tracking-[0.2em] font-medium">
-                Verified Security
-              </span>
-            </div>
+            <Link
+              href="/shop"
+              className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
+            >
+              View All
+              <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
+            {newArrivalsLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="animate-pulse bg-neutral-50 h-96 w-full"
+                  />
+                ))
+              : (newArrivalsResp?.content || [])
+                  .slice(0, 8)
+                  .map((product: any) => (
+                    <ProductCard
+                      key={product.id}
+                      {...product}
+                      images={product.images}
+                      image={
+                        product.main_image ||
+                        product.thumbnail_image ||
+                        product.medium_image
+                      }
+                      originalPrice={product.mrp}
+                      isOnSale={!!product.discount_percent}
+                      isNew
+                    />
+                  ))}
           </div>
         </div>
       </section>
@@ -140,139 +207,148 @@ export default function Home() {
       {/* Featured Products */}
       <section className="py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
             <div className="max-w-xl">
-              <h2 className="text-3xl md:text-4xl font-light tracking-tight mb-4">
+              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4 italic serif">
                 The Editorial Selection
               </h2>
               <p className="text-neutral-500 font-light leading-relaxed">
-                A selection of modern essentials designed for versatility and
-                longevity.
+                Modern essentials designed for versatility and longevity.
               </p>
             </div>
             <Link
               href="/shop"
-              className="group flex items-center gap-2 text-sm font-semibold tracking-widest uppercase border-b border-black pb-1"
+              className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
             >
-              Explore All{" "}
-              <MoveRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              Explore Archive{" "}
+              <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </div>
+          {/* Product Grid Render */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
+            {featuredLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="animate-pulse bg-neutral-50 h-96 w-full"
+                  />
+                ))
+              : (featuredResp?.content || []).map((product: any) => (
+                  <ProductCard
+                    key={product.id}
+                    {...product}
+                    images={product.images}
+                    image={
+                      product.main_image ||
+                      product.thumbnail_image ||
+                      product.medium_image
+                    }
+                    originalPrice={product.mrp}
+                    isOnSale={!!product.discount_percent}
+                  />
+                ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="py-24 sm:py-28 bg-neutral-50 border-y border-neutral-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-4">
+            <div className="max-w-xl">
+              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4">
+                Best Sellers
+              </h2>
+              <p className="text-neutral-500 font-light leading-relaxed">
+                Most loved products chosen by our shoppers.
+              </p>
+            </div>
+            <Link
+              href="/shop"
+              className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
+            >
+              Shop Best Sellers
+              <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-12 sm:gap-x-8">
-            {
-              // hook at top-level of component
-            }
-            {(() => {
-              // move hook here to top of component body is required by rules of hooks;
-              // useProducts is already imported; call it here and render based on state
-              const { data: productsResp, isLoading, isError } = useProducts();
-              if (isLoading) {
-                return Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={`skeleton-${i}`}
-                    className="flex flex-col animate-pulse"
-                  >
-                    <div className="bg-neutral-100 h-56 mb-4" />
-                    <div className="h-4 bg-neutral-100 w-3/4 mb-2" />
-                    <div className="h-4 bg-neutral-100 w-1/4" />
-                  </div>
-                ));
-              }
-
-              if (isError) {
-                return (
-                  <div className="col-span-2 lg:col-span-4 text-center text-red-500">
-                    Failed to load products.
-                  </div>
-                );
-              }
-
-              const list = productsResp?.content?.length
-                ? productsResp.content
-                : featuredProducts;
-              return list.map((product: any) => (
-                <div key={product.id} className="flex flex-col">
-                  <ProductCard
-                    id={product.id}
-                    slug={product.slug}
-                    name={product.name}
-                    price={product.price}
-                    originalPrice={product.mrp}
-                    images={product.images}
-                    isOnSale={!!product.discount_percent}
-                  />
-                </div>
-              ));
-            })()}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
+            {bestSellersLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-white h-96 w-full" />
+                ))
+              : (bestSellersResp?.content || [])
+                  .slice(0, 8)
+                  .map((product: any) => (
+                    <ProductCard
+                      key={product.id}
+                      {...product}
+                      images={product.images}
+                      image={
+                        product.main_image ||
+                        product.thumbnail_image ||
+                        product.medium_image
+                      }
+                      originalPrice={product.mrp}
+                      isOnSale={!!product.discount_percent}
+                    />
+                  ))}
           </div>
         </div>
       </section>
 
-      {/* Categories - Zara Style Grid */}
-      <section className="pb-24 sm:pb-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-xs uppercase tracking-[0.3em] font-bold mb-12 text-center text-neutral-400">
-            Discover More
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {categories.map((category) => (
-              <Link
-                key={category.name}
-                href={category.href}
-                className="group relative aspect-[3/4] overflow-hidden bg-neutral-100"
-              >
-                <img
-                  src={category.image}
-                  alt={category.name}
-                  className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 group-hover:scale-[1.03] transition-all duration-700 ease-out"
-                />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
-                <div className="absolute bottom-0 left-0 w-full p-8 text-white">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] mb-1 opacity-80">
-                        {category.description}
-                      </p>
-                      <h3 className="text-2xl font-light tracking-wide italic">
-                        {category.name}
-                      </h3>
-                    </div>
-                    <ArrowUpRight className="w-6 h-6 opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+      {/* Newsletter - visually enhanced */}
+      <section className="relative bg-[#0a0a0a] text-white py-32 overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src="/newsletter-bg.jpg"
+            alt="Newsletter background"
+            className="w-full h-full object-cover opacity-20"
+            loading="lazy"
+          />
         </div>
-      </section>
-
-      {/* Newsletter - Sophisticated & Clean */}
-      <section className="bg-[#1a1a1a] text-white py-24 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/5 to-transparent pointer-events-none" />
         <div className="max-w-2xl mx-auto px-6 text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-light tracking-tight mb-6">
-            Join the Inner Circle
+          <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-6">
+            The Inner Circle
           </h2>
-          <p className="text-neutral-400 font-light mb-10 leading-relaxed tracking-wide">
-            Subscribe to receive private sale invitations, early access to new
-            collections, and sartorial inspiration.
+          <p className="text-neutral-300 font-light mb-12 tracking-wide text-sm">
+            Join for private invitations and early collection access.
           </p>
-          <form className="flex flex-col sm:flex-row gap-0 border-b border-neutral-700 pb-2 focus-within:border-white transition-colors">
+          <form className="flex flex-col sm:flex-row gap-0 border-b border-neutral-700 pb-2 focus-within:border-white transition-colors group bg-black/10 rounded-lg">
             <input
               type="email"
-              placeholder="YOUR EMAIL ADDRESS"
-              className="flex-1 px-2 py-4 bg-transparent outline-none text-sm tracking-widest placeholder:text-neutral-600 uppercase"
+              placeholder="EMAIL ADDRESS"
+              className="flex-1 px-2 py-4 bg-transparent outline-none text-[10px] tracking-[0.3em] placeholder:text-neutral-500 uppercase"
               required
             />
-            <button className="px-6 py-4 text-xs font-bold tracking-[0.2em] uppercase hover:text-neutral-400 transition-colors">
+            <button className="px-6 py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:text-neutral-400 transition-colors">
               Subscribe
             </button>
           </form>
-          <p className="mt-6 text-[10px] text-neutral-500 uppercase tracking-widest leading-loose">
-            By signing up, you agree to our Privacy Policy. <br /> You can
-            unsubscribe at any time.
-          </p>
+        </div>
+
+        {/* Trust Bar integrated into footer area */}
+        <div className="mt-20 border-t border-neutral-800 pt-10">
+          <div className="flex flex-wrap justify-center gap-8 md:gap-16 text-neutral-500 italic">
+            <div className="flex items-center gap-3">
+              <Truck className="w-5 h-5 stroke-[1px]" />
+              <span className="text-[10px] uppercase tracking-[0.25em] font-medium">
+                Free Shipping
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <RotateCcw className="w-5 h-5 stroke-[1px]" />
+              <span className="text-[10px] uppercase tracking-[0.25em] font-medium">
+                Easy Returns
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 stroke-[1px]" />
+              <span className="text-[10px] uppercase tracking-[0.25em] font-medium">
+                Secure Payment
+              </span>
+            </div>
+          </div>
         </div>
       </section>
     </div>

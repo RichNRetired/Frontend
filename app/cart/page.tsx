@@ -36,6 +36,14 @@ export default function CartPage() {
   const [updateCartItem] = useUpdateCartItemMutation();
   const [removeFromCart] = useRemoveFromCartMutation();
 
+  const toSafeNumber = (value: unknown, fallback = 0) => {
+    const normalized = Number(value);
+    return Number.isFinite(normalized) ? normalized : fallback;
+  };
+
+  const formatCurrency = (value: unknown) =>
+    toSafeNumber(value, 0).toLocaleString();
+
   useEffect(() => {
     if (cartData) {
       dispatch(
@@ -44,8 +52,8 @@ export default function CartPage() {
             id: String(item.cartId), // Use actual cartId for backend operations
             productId: item.productId,
             name: item.productName,
-            price: item.price,
-            quantity: item.quantity,
+            price: toSafeNumber(item.price, 0),
+            quantity: Math.max(1, toSafeNumber(item.quantity, 1)),
             image: item.imageUrl,
           })),
         ),
@@ -151,7 +159,7 @@ export default function CartPage() {
                           Ref. 4829/001
                         </p>
                         <p className="text-sm font-semibold italic text-neutral-800">
-                          ₹{item.price.toLocaleString()}
+                          ₹{formatCurrency(item.price)}
                         </p>
                       </div>
 
@@ -211,7 +219,7 @@ export default function CartPage() {
                 <div className="flex justify-between text-sm font-light text-neutral-600">
                   <span>Subtotal</span>
                   <span className="font-medium text-neutral-900">
-                    ₹{subtotal.toLocaleString()}
+                    ₹{formatCurrency(subtotal)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-light text-neutral-600">
@@ -222,7 +230,7 @@ export default function CartPage() {
                     </span>
                   </div>
                   <span className="font-medium text-neutral-900">
-                    ₹{tax.toLocaleString()}
+                    ₹{formatCurrency(tax)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-light text-neutral-600">
@@ -238,7 +246,7 @@ export default function CartPage() {
                   </span>
                   <div className="text-right">
                     <span className="text-2xl font-light italic tracking-tight">
-                      ₹{total.toLocaleString()}
+                      ₹{formatCurrency(total)}
                     </span>
                     <p className="text-[10px] text-neutral-400">VAT Included</p>
                   </div>

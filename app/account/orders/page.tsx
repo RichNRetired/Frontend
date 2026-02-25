@@ -117,7 +117,7 @@ export default function OrdersPage() {
         <div className="w-20 h-20 bg-neutral-50 rounded-full flex items-center justify-center mb-6">
           <ShoppingBag className="text-neutral-300" size={40} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight mb-2">
+        <h1 className="text-2xl text-black font-bold tracking-tight mb-2">
           No orders yet
         </h1>
         <p className="text-neutral-500 mb-8 max-w-xs">
@@ -202,11 +202,13 @@ export default function OrdersPage() {
                 {order.items.map((item) => (
                   <div key={item.productId} className="flex-shrink-0 w-20">
                     <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-100 mb-2">
-                      <img
-                        src={item.imageUrl || "/images/placeholder.png"}
-                        alt={item.productName}
-                        className="w-full h-full object-cover"
-                      />
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.productName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
                     </div>
                     <p className="text-[10px] font-medium truncate text-neutral-600">
                       {item.productName}

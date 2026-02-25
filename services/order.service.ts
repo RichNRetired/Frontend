@@ -1,5 +1,5 @@
 import axios from "./axios";
-import { CheckoutPayload, Order, OrdersResponse } from "@/features/order/orderTypes";
+import { CheckoutPayload, Order, OrdersResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "@/features/order/orderTypes";
 
 export const checkoutOrder = async (payload: CheckoutPayload): Promise<Order> => {
     const res = await axios.post("/orders/checkout", payload);
@@ -17,5 +17,13 @@ export const getMyOrders = async (
     const res = await axios.get("/orders/my-orders", {
         params: { page, size },
     });
+    return res.data;
+};
+
+export const initiatePayment = async (
+    orderId: number,
+    payload: InitiatePaymentRequest
+): Promise<InitiatePaymentResponse> => {
+    const res = await axios.post(`/orders/${orderId}/payment/initiate`, payload);
     return res.data;
 };

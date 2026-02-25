@@ -39,11 +39,13 @@ export default async function ProductPage({
     <div className="max-w-6xl mx-auto py-12 grid grid-cols-1 md:grid-cols-2 gap-10">
       {/* Product Image */}
       <div className="bg-neutral-100 p-6 rounded-2xl">
-        <img
-          src={product.images?.[0] || "/images/placeholder.png"}
-          alt={product.name}
-          className="w-full h-full object-cover rounded-xl"
-        />
+        {product.images && product.images.length > 0 ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            className="w-full h-full object-cover rounded-xl"
+          />
+        ) : null}
       </div>
 
       {/* Product Details */}

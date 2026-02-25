@@ -1,190 +1,190 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  getSections,
-  getCategories,
-  getSubcategories,
-  getFilters,
-} from "@/services/catalog";
-
-// 1. Define Types
-interface CatalogItem {
-  id: number;
-  name: string;
-}
+import { useState } from "react";
+import { useCatalogFlow } from "@/hooks/useCatalogFlow";
+import { FilterSidebar } from "@/components/catalog/FilterSidebar";
+import { FilterDisplay } from "@/components/catalog/FilterDisplay";
+import { CatalogBreadcrumb } from "@/components/catalog/CatalogBreadcrumb";
+import { CatalogEmptyState } from "@/components/catalog/CatalogEmptyState";
+import { Menu, X, SlidersHorizontal } from "lucide-react";
 
 export default function CatalogPage() {
-  const [sections, setSections] = useState<CatalogItem[]>([]);
-  const [categories, setCategories] = useState<CatalogItem[]>([]);
-  const [subcategories, setSubcategories] = useState<CatalogItem[]>([]);
-  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [sectionId, setSectionId] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [subCategoryId, setSubCategoryId] = useState<string>("");
+  const {
+    state,
+    setSectionId,
+    setCategoryId,
+    setSubCategoryId,
+    sections,
+    categories,
+    subcategories,
+    filters,
+    isLoadingSections,
+    isLoadingCategories,
+    isLoadingSubcategories,
+    isLoadingFilters,
+  } = useCatalogFlow();
 
-  const [loading, setLoading] = useState({
-    cats: false,
-    subs: false,
-    filters: false,
-  });
+  const selectedSection = sections.find((s) => s.id === state.sectionId);
+  const selectedCategory = categories.find((c) => c.id === state.categoryId);
+  const selectedSubcategory = subcategories.find(
+    (sc) => sc.id === state.subCategoryId,
+  );
 
-  /** Load initial sections */
-  useEffect(() => {
-    getSections().then(setSections).catch(console.error);
-  }, []);
-
-  /** Load categories & RESET children */
-  useEffect(() => {
-    if (!sectionId) {
-      setCategories([]);
-      return;
-    }
-    setLoading((prev) => ({ ...prev, cats: true }));
-    getCategories(Number(sectionId))
-      .then(setCategories)
-      .finally(() => setLoading((prev) => ({ ...prev, cats: false })));
-
-    // Reset lower levels
-    setCategoryId("");
-    setSubCategoryId("");
-    setSubcategories([]);
-    setFilters({});
-  }, [sectionId]);
-
-  /** Load subcategories & RESET filters */
-  useEffect(() => {
-    if (!categoryId) {
-      setSubcategories([]);
-      return;
-    }
-    setLoading((prev) => ({ ...prev, subs: true }));
-    getSubcategories(Number(categoryId))
-      .then(setSubcategories)
-      .finally(() => setLoading((prev) => ({ ...prev, subs: false })));
-
-    setSubCategoryId("");
-    setFilters({});
-  }, [categoryId]);
-
-  /** Load filters */
-  useEffect(() => {
-    if (!subCategoryId) {
-      setFilters({});
-      return;
-    }
-    setLoading((prev) => ({ ...prev, filters: true }));
-    getFilters(Number(subCategoryId))
-      .then(setFilters)
-      .finally(() => setLoading((prev) => ({ ...prev, filters: false })));
-  }, [subCategoryId]);
+  const breadcrumbItems = [
+    ...(selectedSection ? [{ label: selectedSection.name.toUpperCase() }] : []),
+    ...(selectedCategory
+      ? [{ label: selectedCategory.name.toUpperCase() }]
+      : []),
+    ...(selectedSubcategory
+      ? [{ label: selectedSubcategory.name.toUpperCase() }]
+      : []),
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-8">
-      <header className="border-b pb-4">
-        <h1 className="text-3xl font-bold text-gray-800">Product Catalog</h1>
-        <p className="text-gray-500">
-          Refine your search by selecting categories below.
-        </p>
+    <main className="min-h-screen bg-white text-black selection:bg-black selection:text-white overflow-x-hidden">
+      {/* Editorial Header */}
+      <header className="pt-12 mt-10 md:pt-20 pb-6 px-6 md:px-12 border-b border-gray-100 lg:border-transparent">
+        <div className="max-w-[1800px] mx-auto flex justify-between items-end">
+          <div className="flex flex-col gap-2 md:gap-4">
+            <nav className="text-[9px] md:text-[10px] tracking-[0.2em] uppercase text-gray-400">
+              <CatalogBreadcrumb items={breadcrumbItems} />
+            </nav>
+            <h1 className="text-2xl md:text-7xl font-bold tracking-tighter uppercase leading-[0.8]">
+              {selectedCategory?.name ||
+                selectedSection?.name ||
+                "The Collection"}
+            </h1>
+          </div>
+
+          {/* Mobile Toggle Trigger */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden flex items-center gap-2 uppercase text-[10px] tracking-widest font-bold pb-1 border-b border-black"
+          >
+            Filters <Menu className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Section Select */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Section</label>
-          <select
-            className="border rounded-lg p-2 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            value={sectionId}
-            onChange={(e) => setSectionId(e.target.value)}
-          >
-            <option value="">All Sections</option>
-            {sections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Grid Layout */}
+      <div className="max-w-[1800px] mx-auto px-0 md:px-12 py-4 md:py-8">
+        <div className="flex flex-col lg:flex-row gap-12">
+          {/* Desktop Sidebar (Left side, hidden on mobile) */}
+          <aside className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-24 space-y-10">
+              <section>
+                <h2 className="text-xs font-bold uppercase tracking-widest mb-6 border-b border-black pb-2">
+                  Refine By
+                </h2>
+                <div className="space-y-8 text-[11px]">
+                  <FilterSidebar
+                    isLoading={isLoadingSections}
+                    options={sections}
+                    selectedId={state.sectionId}
+                    onSelect={setSectionId}
+                    label="SECTION"
+                  />
+                  <FilterSidebar
+                    isLoading={isLoadingCategories}
+                    options={categories}
+                    selectedId={state.categoryId}
+                    onSelect={setCategoryId}
+                    label="CATEGORY"
+                    disabled={!state.sectionId}
+                  />
+                  <FilterSidebar
+                    isLoading={isLoadingSubcategories}
+                    options={subcategories}
+                    selectedId={state.subCategoryId}
+                    onSelect={setSubCategoryId}
+                    label="SUBCATEGORY"
+                    disabled={!state.categoryId}
+                  />
+                </div>
+              </section>
+            </div>
+          </aside>
 
-        {/* Category Select */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Category</label>
-          <select
-            disabled={!sectionId || loading.cats}
-            className="border rounded-lg p-2 bg-white shadow-sm disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+          {/* Mobile Right Sidebar Drawer */}
+          <div
+            className={`fixed inset-0 z-[100] transition-opacity duration-300 lg:hidden ${isMobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}
           >
-            <option value="">
-              {loading.cats ? "Loading..." : "Select Category"}
-            </option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
 
-        {/* Subcategory Select */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">
-            Subcategory
-          </label>
-          <select
-            disabled={!categoryId || loading.subs}
-            className="border rounded-lg p-2 bg-white shadow-sm disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-            value={subCategoryId}
-            onChange={(e) => setSubCategoryId(e.target.value)}
-          >
-            <option value="">
-              {loading.subs ? "Loading..." : "Select Subcategory"}
-            </option>
-            {subcategories.map((sc) => (
-              <option key={sc.id} value={sc.id}>
-                {sc.name}
-              </option>
-            ))}
-          </select>
+            {/* Content Container (Sliding from right) */}
+            <div
+              className={`absolute right-0 top-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-500 ease-out p-8 ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"}`}
+            >
+              <div className="flex justify-between items-center mb-12">
+                <span className="text-[10px] font-bold tracking-[0.3em] uppercase">
+                  Navigation
+                </span>
+                <button onClick={() => setIsMobileMenuOpen(false)}>
+                  <X className="w-6 h-6 stroke-1" />
+                </button>
+              </div>
+
+              <div className="space-y-12">
+                {/* We reuse the components but they'll be styled by your CSS for the drawer */}
+                <FilterSidebar
+                  isLoading={isLoadingSections}
+                  options={sections}
+                  selectedId={state.sectionId}
+                  onSelect={setSectionId}
+                  label="SECTION"
+                />
+                <FilterSidebar
+                  isLoading={isLoadingCategories}
+                  options={categories}
+                  selectedId={state.categoryId}
+                  onSelect={setCategoryId}
+                  label="CATEGORY"
+                  disabled={!state.sectionId}
+                />
+                <FilterSidebar
+                  isLoading={isLoadingSubcategories}
+                  options={subcategories}
+                  selectedId={state.subCategoryId}
+                  onSelect={setSubCategoryId}
+                  label="SUBCATEGORY"
+                  disabled={!state.categoryId}
+                />
+              </div>
+
+              <div className="absolute bottom-8 left-8 right-8">
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full bg-black text-white py-4 text-[10px] font-bold uppercase tracking-widest"
+                >
+                  View Results
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <section className="flex-1 px-4 md:px-0">
+            <div className="min-h-[60vh]">
+              {!state.sectionId ? (
+                <CatalogEmptyState type="start" />
+              ) : (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                  <FilterDisplay
+                    filters={filters}
+                    isLoading={isLoadingFilters}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </div>
-
-      {/* Filters Display */}
-      {subCategoryId && (
-        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-4">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            Available Filters
-            {loading.filters && (
-              <span className="text-xs font-normal text-gray-400 animate-pulse">
-                (Updating...)
-              </span>
-            )}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(filters).map(([key, values]) => (
-              <div
-                key={key}
-                className="bg-white p-3 rounded-md shadow-sm border"
-              >
-                <span className="block text-xs uppercase tracking-wider text-gray-400 font-bold mb-1">
-                  {key}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {values.map((v) => (
-                    <span
-                      key={v}
-                      className="px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded"
-                    >
-                      {v}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    </main>
   );
 }

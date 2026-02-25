@@ -27,6 +27,8 @@ export interface Order {
     shippingCharges?: number;
     discountAmount?: number;
     totalAmount: number;
+    requiresPayment?: boolean;
+    paymentMessage?: string;
     deliveryAddress?: DeliveryAddress;
     items: OrderItem[];
     createdAt: string;
@@ -43,6 +45,7 @@ export interface OrdersResponse {
 
 export interface CheckoutPayload {
     addressId: number;
+    paymentMethod?: "COD" | "PREPAID" | "CARD" | "UPI";
     items: {
         productId: number;
         quantity: number;
@@ -78,4 +81,24 @@ export interface ReturnDetails extends ReturnResponse {
     refundAmount?: number;
     comment?: string;
     adminComment?: string;
+}
+
+export interface InitiatePaymentRequest {
+    orderId: number;
+    amount: number;
+    currency: string;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+}
+
+export interface InitiatePaymentResponse {
+    razorpayOrderId?: string;
+    razorpayKeyId?: string;
+    orderId?: number;
+    amount?: number;
+    currency?: string;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
 }
