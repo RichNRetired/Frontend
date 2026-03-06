@@ -35,6 +35,8 @@ export default function CartPage() {
   const { data: cartData, isLoading: isLoadingCart } = useGetCartQuery();
   const [updateCartItem] = useUpdateCartItemMutation();
   const [removeFromCart] = useRemoveFromCartMutation();
+  // Optionally, get cart summary with pricing
+  // const { data: cartSummary } = useGetCartQuery();
 
   const toSafeNumber = (value: unknown, fallback = 0) => {
     const normalized = Number(value);
@@ -49,12 +51,17 @@ export default function CartPage() {
       dispatch(
         setCart(
           cartData.map((item: any) => ({
-            id: String(item.cartId), // Use actual cartId for backend operations
+            id: String(item.cartItemId), // Use actual cartItemId for backend operations
             productId: item.productId,
+            variantId: toSafeNumber(item.variantId),
             name: item.productName,
             price: toSafeNumber(item.price, 0),
             quantity: Math.max(1, toSafeNumber(item.quantity, 1)),
             image: item.imageUrl,
+            color: item.color,
+            size: item.size,
+            mrp: item.mrp,
+            discountPercentage: item.discountPercentage,
           })),
         ),
       );
@@ -63,8 +70,15 @@ export default function CartPage() {
 
   const handleUpdateQuantity = async (id: string, quantity: number) => {
     if (quantity <= 0) return;
+    const cartItem = items.find((item) => item.id === id);
+    if (!cartItem) return;
+
     try {
-      await updateCartItem({ cartId: Number(id), qty: quantity }).unwrap();
+      await updateCartItem({
+        cartItemId: Number(id),
+        qty: quantity,
+        variantId: cartItem.variantId,
+      }).unwrap();
       dispatch(updateQuantity({ id, quantity }));
     } catch (err: any) {
       console.error("Failed to update quantity:", err);

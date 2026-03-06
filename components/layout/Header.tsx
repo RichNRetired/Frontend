@@ -226,7 +226,6 @@ export const Header: React.FC = () => {
     document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
   }, [isMobileMenuOpen]);
 
-  // Fetch sections for desktop nav
   const { data: sections = [], isLoading: isLoadingSections } =
     useGetSectionsQuery();
 
@@ -293,8 +292,8 @@ export const Header: React.FC = () => {
                     </div>
                     <div className="relative overflow-hidden aspect-square bg-gray-50">
                       <img
-                        src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&q=80&w=300"
-                        alt="Featured"
+                        src={section.imageUrl}
+                        alt={section.name}
                         className="w-full h-full object-cover grayscale opacity-80"
                       />
                     </div>
@@ -309,7 +308,7 @@ export const Header: React.FC = () => {
               className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
             >
               <span className="text-sm lg:text-lg text-black font-black uppercase tracking-[0.3em] leading-none whitespace-nowrap transition-all duration-500">
-                Rich <span className="text-black">&</span> Retired
+                Rich <span className="text-black">N</span> Retired
               </span>
             </Link>
 

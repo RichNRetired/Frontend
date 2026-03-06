@@ -141,14 +141,17 @@ export default function ProductDetailsClient({ product }: Props) {
   const handleAddToCart = async () => {
     setAdding(true);
     try {
+      if (!selectedVariant) throw new Error("Please select a variant");
       await addToCart({
         productId: Number(product.id),
+        variantId: selectedVariant.id ?? 0,
         qty: quantity,
       }).unwrap();
       dispatch(
         addItem({
-          id: String(product.id),
+          id: String(selectedVariant.id),
           productId: product.id,
+          variantId: selectedVariant.id ?? 0,
           name: product.name,
           price: effectivePrice,
           quantity,

@@ -88,11 +88,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.stopPropagation();
     setLocalAdding(true);
     try {
-      await addToCart({ productId: Number(id), qty: 1 }).unwrap();
+      // If variantId is available, pass it. Here, we assume no variant selection, so pass undefined or 0.
+      await addToCart({
+        productId: Number(id),
+        variantId: 0,
+        qty: 1,
+      }).unwrap();
       dispatch(
         addItem({
           id: String(id),
           productId: Number(id),
+          variantId: 0,
           name,
           price: displayPrice,
           quantity: 1,

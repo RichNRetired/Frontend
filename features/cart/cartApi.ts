@@ -1,13 +1,18 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export interface ApiCartItem {
-  cartId: number;
+  cartItemId: number;
   productId: number;
+  variantId: number;
+  color: string;
+  size: string;
   productName: string;
   imageUrl: string;
   price: number;
+  mrp: number;
   quantity: number;
   totalPrice: number;
+  discountPercentage: number;
 }
 
 export interface ApiResponse<T = any> {
@@ -38,45 +43,64 @@ export const cartApi = createApi({
     getCart: builder.query<ApiCartItem[], void>({
       query: () => ({
         url: 'api/cart',
-        method: 'GET'
+        method: 'GET',
       }),
       providesTags: ['Cart'],
     }),
 
+    // GET /api/cart/summary - Get cart with pricing
+    getCartSummary: builder.query<any, { couponCode?: string } | void>({
+      query: (params) => {
+        if (!params) {
+          return {
+            url: 'api/cart/summary',
+            method: 'GET',
+          };
+        }
+
+        return {
+          url: 'api/cart/summary',
+          method: 'GET',
+          params,
+        };
+      },
+      providesTags: ['Cart'],
+    }),
+
     // POST /api/cart/add - Add product to cart
-    // Params: productId (int64), qty (int32)
-    addToCart: builder.mutation<ApiResponse, { productId: number; qty: number }>({
-      query: ({ productId, qty }) => ({
+    // Params: productId (int64), variantId (int64), qty (int32)
+    addToCart: builder.mutation<ApiResponse, { productId: number; variantId: number; qty: number }>({
+      query: ({ productId, variantId, qty }) => ({
         url: 'api/cart/add',
         method: 'POST',
-        params: { productId, qty },
+        params: { productId, variantId, qty },
       }),
       invalidatesTags: ['Cart'],
     }),
 
-    // PUT /api/cart/{cartId} - Update cart item quantity
-    // Params: qty (int32 in query)
-    updateCartItem: builder.mutation<ApiResponse, { cartId: number; qty: number }>({
-      query: ({ cartId, qty }) => ({
-        url: `api/cart/${cartId}`,
+    // PUT /api/cart/{cartItemId} - Update cart item quantity/variant
+    // Params: qty (int32), variantId (int32)
+    updateCartItem: builder.mutation<ApiResponse, { cartItemId: number; qty: number; variantId: number }>({
+      query: ({ cartItemId, qty, variantId }) => ({
+        url: `api/cart/${cartItemId}`,
         method: 'PUT',
-        params: { qty },
+        params: { qty, variantId },
       }),
       invalidatesTags: ['Cart'],
     }),
 
-    // DELETE /api/cart/{cartId} - Remove item from cart
+    // DELETE /api/cart/{cartItemId} - Remove item from cart
     removeFromCart: builder.mutation<ApiResponse, number>({
-      query: (cartId) => ({
-        url: `api/cart/${cartId}`,
+      query: (cartItemId) => ({
+        url: `api/cart/${cartItemId}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Cart'],
     }),
 
     // POST /api/cart/merge - Merge guest cart with authenticated user cart
-    // Body: Array of { productId: int64, quantity: int32 }
-    mergeCart: builder.mutation<ApiResponse, Array<{ productId: number; quantity: number }>>({
+    // Body: Array of { productId: int64, variantId: int64, quantity: int32 }
+    mergeCart: builder.mutation<ApiResponse, Array<{ productId: number; variantId: number; quantity: number }>>({
       query: (items) => ({
         url: 'api/cart/merge',
         method: 'POST',
@@ -89,6 +113,7 @@ export const cartApi = createApi({
 
 export const {
   useGetCartQuery,
+  useGetCartSummaryQuery,
   useAddToCartMutation,
   useUpdateCartItemMutation,
   useRemoveFromCartMutation,

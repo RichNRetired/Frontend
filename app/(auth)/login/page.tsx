@@ -36,39 +36,42 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen mt-10 w-full flex flex-col lg:flex-row bg-white text-[#1a1a1a] selection:bg-black selection:text-white">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#FBFBFB] text-[#1a1a1a] selection:bg-black selection:text-white">
       {/* ================= LEFT / VISUAL (Hidden on mobile) ================= */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-100">
+      {/* Uses a 3:4 aspect ratio feel common in fashion photography */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-neutral-200">
         <motion.img
-          initial={{ scale: 1.1, filter: "grayscale(100%)" }}
-          animate={{ scale: 1, filter: "grayscale(0%)" }}
-          transition={{ duration: 2.5, ease: [0.19, 1, 0.22, 1] }}
+          initial={{ scale: 1.1, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.19, 1, 0.22, 1] }}
           src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80"
           alt="Luxury storefront"
-          className="absolute inset-0 w-full h-full object-cover opacity-90"
+          className="absolute inset-0 w-full h-full object-cover"
         />
 
         {/* Minimalist Editorial Overlay */}
-        <div className="absolute inset-0 bg-black/5" />
-        <div className="relative z-10 p-20 flex flex-col justify-between h-full w-full">
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.5em] text-white/80">
-              Est. 2026
+        <div className="absolute inset-0 bg-black/10 transition-opacity hover:opacity-0 duration-700" />
+
+        <div className="relative z-10 p-16 flex flex-col justify-between h-full w-full">
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] uppercase tracking-[0.6em] text-white font-bold">
+              Collection 2026
             </span>
-            <div className="h-[1px] w-12 bg-white/50" />
+            <div className="h-[1px] flex-1 bg-white/30" />
           </div>
 
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.8, duration: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 1 }}
           >
-            <h2 className="text-white text-6xl font-light leading-[0.9] tracking-tighter mb-4">
+            <h2 className="text-white text-7xl font-light leading-[0.85] tracking-tighter mb-6">
               The <br />
-              <span className="font-serif italic">Atelier</span>
+              <span className="font-serif italic">Identity</span>
             </h2>
-            <p className="text-white/70 text-[10px] uppercase tracking-[0.3em] max-w-[280px] leading-loose">
-              Access your personal collection and bespoke recommendations.
+            <p className="text-white/80 text-[10px] uppercase tracking-[0.4em] max-w-[300px] leading-loose border-l border-white/40 pl-4">
+              Membership grants priority access to seasonal drops and bespoke
+              tailoring.
             </p>
           </motion.div>
         </div>
@@ -78,45 +81,46 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24"
+        className="w-full lg:w-1/2 flex items-start lg:items-center justify-center px-6 sm:px-12 lg:px-24 pt-24 pb-12 lg:py-0"
       >
-        <div className="w-full max-w-[380px] space-y-12 lg:space-y-16">
+        <div className="w-full max-w-[400px] space-y-12">
+          {/* MOBILE LOGO/TAG (Only visible on small screens) */}
+          <div className="lg:hidden flex flex-col items-center mb-8"></div>
+
           {/* HEADER */}
-          <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl font-light tracking-tighter leading-none">
+          <div className="space-y-3 text-center lg:text-left">
+            <h1 className="text-4xl sm:text-5xl font-medium tracking-tighter leading-none">
               Sign In
             </h1>
-            <p className="text-[11px] text-slate-400 uppercase tracking-[0.2em]">
-              Welcome back to your private account.
-            </p>
           </div>
 
           {/* FORM */}
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-10">
+            <div className="space-y-8">
               {/* EMAIL */}
               <div className="group relative">
-                <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
+                <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400 group-focus-within:text-black transition-colors mb-2">
                   Email Address
                 </label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
                   required
-                  className="h-10 border-0 border-b border-slate-200 rounded-none px-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:border-black transition-all duration-500"
+                  className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300"
                 />
               </div>
 
               {/* PASSWORD */}
               <div className="group relative">
-                <div className="flex justify-between items-end">
-                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400 group-focus-within:text-black transition-colors">
                     Password
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-[9px] uppercase tracking-widest text-slate-400 hover:text-black transition underline underline-offset-4"
+                    className="text-[9px] uppercase tracking-widest text-neutral-400 hover:text-black transition decoration-neutral-300 underline underline-offset-4"
                   >
                     Forgot?
                   </Link>
@@ -126,15 +130,20 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
                     required
-                    className="h-10 border-0 border-b border-slate-200 rounded-none px-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:border-black transition-all duration-500 pr-10"
+                    className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-0 bottom-2 text-slate-300 hover:text-black transition"
+                    className="absolute right-0 bottom-3 text-neutral-300 hover:text-black transition-colors"
                   >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {showPassword ? (
+                      <EyeOff size={16} strokeWidth={1.5} />
+                    ) : (
+                      <Eye size={16} strokeWidth={1.5} />
+                    )}
                   </button>
                 </div>
               </div>
@@ -143,29 +152,36 @@ export default function LoginPage() {
             {/* ERROR MESSAGE */}
             <AnimatePresence>
               {error && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="text-[10px] uppercase tracking-widest text-red-500 font-semibold"
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="p-4 bg-red-50 border border-red-100"
                 >
-                  {error}
-                </motion.p>
+                  <p className="text-[10px] uppercase tracking-widest text-red-600 font-bold">
+                    Authentication Error: {error}
+                  </p>
+                </motion.div>
               )}
             </AnimatePresence>
 
-            {/* CTA BUTTON - Sharp Rectangular Style */}
-            <div className="pt-4">
+            {/* CTA BUTTON */}
+            <div className="pt-2">
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-14 bg-black hover:bg-[#222] text-white rounded-none text-[11px] uppercase tracking-[0.3em] font-medium transition-all duration-300 active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full h-14 bg-black hover:bg-[#1a1a1a] text-white rounded-none text-[11px] uppercase tracking-[0.4em] font-black transition-all duration-500 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 overflow-hidden group"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
                   <>
-                    Sign In <ArrowRight size={14} strokeWidth={1.5} />
+                    Secure Login
+                    <ArrowRight
+                      size={16}
+                      className="group-hover:translate-x-1 transition-transform"
+                      strokeWidth={2}
+                    />
                   </>
                 )}
               </Button>
@@ -173,20 +189,18 @@ export default function LoginPage() {
           </form>
 
           {/* FOOTER */}
-          <div className="pt-10 border-t border-slate-100 flex flex-col items-center gap-6">
-            <p className="text-[11px] text-slate-500 tracking-wide">
-              Don&apos;t have an account?{" "}
+          <div className="pt-12 border-t border-neutral-100 flex flex-col items-center gap-8">
+            <p className="text-[11px] text-neutral-500 tracking-tight">
+              New to the brand?{" "}
               <Link
                 href="/register"
-                className="text-black font-bold uppercase tracking-widest hover:opacity-60 transition underline underline-offset-8"
+                className="text-black font-black uppercase tracking-[0.1em] hover:text-neutral-500 transition decoration-black underline underline-offset-[12px]"
               >
-                Register
+                Create Account
               </Link>
             </p>
 
-            <span className="text-[9px] uppercase tracking-[0.4em] text-slate-300">
-              Secure • Private • International
-            </span>
+            <div className="flex gap-6 items-center opacity-30"></div>
           </div>
         </div>
       </motion.div>

@@ -30,9 +30,13 @@ export default function WishlistPage() {
     }
   };
 
-  const handleAddToCart = async (productId: number) => {
+  const handleAddToCart = async (productId: number, variantId?: number) => {
     try {
-      await addToCart({ productId, qty: 1 }).unwrap();
+      await addToCart({
+        productId,
+        variantId: variantId ?? 0,
+        qty: 1,
+      }).unwrap();
     } catch (err: any) {
       console.error("Failed to add to cart:", err);
       const errorMsg = err?.data?.message || "Failed to add to cart";

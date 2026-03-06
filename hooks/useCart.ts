@@ -6,6 +6,7 @@ import {
     useUpdateCartItemMutation,
     useRemoveFromCartMutation,
     useMergeCartMutation,
+    useGetCartSummaryQuery,
 } from '../features/cart/cartApi';
 import { removeItem, updateQuantity, setCart } from '../features/cart/cartSlice';
 import { useEffect } from 'react';
@@ -14,6 +15,8 @@ export const useCart = () => {
     const cart = useSelector((state: RootState) => state.cart);
     const dispatch = useDispatch();
     const { data: cartData, isLoading, error, refetch } = useGetCartQuery();
+    // Optionally, get cart summary with pricing
+    // const { data: cartSummary } = useGetCartSummaryQuery();
     const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
     const [updateCart, { isLoading: isUpdating }] = useUpdateCartItemMutation();
     const [removeFromCart, { isLoading: isRemoving }] = useRemoveFromCartMutation();
@@ -25,12 +28,17 @@ export const useCart = () => {
             dispatch(
                 setCart(
                     cartData.map((item: any) => ({
-                        id: String(item.cartId),
+                        id: String(item.cartItemId),
                         productId: item.productId,
                         name: item.productName,
                         price: Number(item.price ?? 0),
                         quantity: Number(item.quantity ?? 1),
                         image: item.imageUrl,
+                        variantId: item.variantId,
+                        color: item.color,
+                        size: item.size,
+                        mrp: item.mrp,
+                        discountPercentage: item.discountPercentage,
                     })),
                 ),
             );
@@ -51,17 +59,17 @@ export const useCart = () => {
         isMerging,
 
         // Mutations with auto state sync
-        addToCart: async (productId: number, qty: number) => {
-            return addToCart({ productId, qty }).unwrap();
+        addToCart: async (productId: number, variantId: number, qty: number) => {
+            return addToCart({ productId, variantId, qty }).unwrap();
         },
-        updateQuantity: async (cartId: number, qty: number) => {
+        updateQuantity: async (cartItemId: number, qty: number, variantId: number) => {
             if (qty <= 0) return;
-            return updateCart({ cartId, qty }).unwrap();
+            return updateCart({ cartItemId, qty, variantId }).unwrap();
         },
-        removeFromCart: async (cartId: number) => {
-            return removeFromCart(cartId).unwrap();
+        removeFromCart: async (cartItemId: number) => {
+            return removeFromCart(cartItemId).unwrap();
         },
-        mergeCart: async (items: Array<{ productId: number; quantity: number }>) => {
+        mergeCart: async (items: Array<{ productId: number; variantId: number; quantity: number }>) => {
             return mergeCart(items).unwrap();
         },
 

@@ -12,6 +12,7 @@ import {
   Package,
   CreditCard,
   HeadphonesIcon,
+  LogOut,
 } from "lucide-react";
 import { RootState } from "../../store";
 import { logout } from "../../features/auth/authSlice";
@@ -35,7 +36,7 @@ export default function AccountPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-10 h-10 border border-slate-200 border-t-slate-900 rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-neutral-200 border-t-black rounded-full animate-spin" />
       </div>
     );
   }
@@ -43,151 +44,125 @@ export default function AccountPage() {
   const navItems = [
     {
       title: "Orders",
-      desc: "Track, return or buy again",
+      desc: "Track & returns",
       icon: Package,
       href: "/account/orders",
     },
-    {
-      title: "Collections",
-      desc: "Your saved favourites",
-      icon: Heart,
-      href: "/wishlist",
-    },
+    { title: "Wishlist", desc: "Saved pieces", icon: Heart, href: "/wishlist" },
     {
       title: "Profile",
-      desc: "Personal information",
+      desc: "Identity settings",
       icon: User,
       href: "/account/profile",
     },
     {
       title: "Addresses",
-      desc: "Shipping locations",
+      desc: "Shipping info",
       icon: MapPin,
       href: "/account/addresses",
     },
     {
       title: "Payments",
-      desc: "Saved cards & methods",
+      desc: "Cards & credit",
       icon: CreditCard,
       href: "/account/payments",
     },
     {
-      title: "Help",
-      desc: "Support & FAQs",
+      title: "Support",
+      desc: "Help & FAQs",
       icon: HeadphonesIcon,
       href: "/help",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-28">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FBFBFB] text-[#1A1A1A]">
+      <div className="max-w-[1200px] mx-auto px-6 pt-24 pb-20 md:pt-32">
         {/* ================= HEADER ================= */}
-        <div className="mt-12 mb-20">
-          <h1 className="text-[38px] sm:text-[42px] md:text-[46px] font-extralight tracking-tight text-slate-900">
-            My <span className="font-medium">Account</span>
-          </h1>
-
-          <p className="mt-4 text-[12px] tracking-[0.35em] uppercase text-slate-400">
-            Personal dashboard
-          </p>
-
-          <div className="mt-8 h-px w-full bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 md:mb-20">
+          <div>
+            <h1 className="text-4xl md:text-6xl font-medium tracking-tighter">
+              My Account.
+            </h1>
+          </div>
           <button
             onClick={handleLogout}
-            className="
-            px-6 py-2.5
-            text-xs
-            tracking-[0.35em]
-            uppercase
-            font-medium
-            text-slate-500
-            border border-slate-300
-            rounded-full
-            transition-all duration-300
-            hover:text-red-600
-            hover:border-red-500
-            hover:bg-red-50
-            active:scale-95
-            mt-8"
+            className="flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase font-bold text-neutral-400 hover:text-red-500 transition-colors group"
           >
-            Sign out
+            <LogOut
+              size={14}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
+            Sign Out
           </button>
-        </div>
+        </header>
 
-        {/* ================= LAYOUT ================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-          {/* ========== PROFILE CARD ========== */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-28">
-              <div className="bg-white rounded-3xl p-10 border border-slate-100 shadow-[0_30px_60px_-40px_rgba(0,0,0,0.2)]">
-                <div className="relative w-28 h-28 mb-10">
-                  <div className="w-full h-full rounded-full bg-neutral-100 flex items-center justify-center text-[42px] font-extralight text-slate-700 uppercase">
-                    {user?.name?.charAt(0)}
-                  </div>
-
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[10px] tracking-[0.25em] uppercase text-slate-400">
-                    Member
-                  </div>
-                </div>
-
-                <h2 className="text-2xl font-light tracking-tight text-slate-900">
+        {/* ================= MAIN CONTENT ================= */}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-12 lg:gap-20">
+          {/* PROFILE SUMMARY */}
+          <aside className="lg:col-span-4 lg:border-r border-neutral-200 lg:pr-12">
+            <div className="flex items-center lg:flex-col lg:items-start gap-6">
+              <div className="w-20 h-20 md:w-32 md:h-32 rounded-full bg-neutral-900 flex items-center justify-center text-white text-2xl md:text-4xl font-light">
+                {user?.name?.charAt(0)}
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-medium tracking-tight">
                   {user?.name}
                 </h2>
-
-                <p className="mt-2 text-[13px] tracking-wide text-slate-400 break-all">
+                <p className="text-sm text-neutral-400 font-light mt-1">
                   {user?.email}
                 </p>
+                <div className="inline-block mt-4 px-3 py-1 bg-neutral-100 rounded-full"></div>
               </div>
             </div>
-          </div>
+          </aside>
 
-          {/* ========== NAVIGATION CARDS ========== */}
-          <div className="lg:col-span-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {/* GRID NAVIGATION */}
+          <main className="lg:col-span-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[1px] bg-neutral-200 border border-neutral-200">
               {navItems.map((item, idx) => (
                 <Link
                   key={idx}
                   href={item.href}
-                  className="group relative bg-white p-8 rounded-2xl border border-slate-100
-                  hover:border-slate-200 hover:shadow-[0_20px_60px_-30px_rgba(0,0,0,0.15)]
-                  transition-all duration-500 h-[180px] flex flex-col justify-between"
+                  className="group bg-white p-8 md:p-10 flex flex-col justify-between transition-colors hover:bg-[#F9F9F9]"
                 >
-                  <div className="w-12 h-12 rounded-full bg-neutral-50 flex items-center justify-center text-slate-500 group-hover:text-slate-900 transition-colors">
-                    <item.icon size={22} strokeWidth={1.25} />
+                  <div className="flex justify-between items-start mb-12">
+                    <div className="text-neutral-900">
+                      <item.icon size={24} strokeWidth={1} />
+                    </div>
+                    <ChevronRight
+                      size={18}
+                      className="text-neutral-300 group-hover:text-black group-hover:translate-x-1 transition-all"
+                    />
                   </div>
-
                   <div>
-                    <h3 className="text-[16px] font-medium tracking-tight text-slate-900 mb-2">
+                    <h3 className="text-sm font-bold uppercase tracking-widest mb-2">
                       {item.title}
                     </h3>
-
-                    <p className="text-[13px] text-slate-400 leading-relaxed max-w-[90%]">
+                    <p className="text-xs text-neutral-400 font-light tracking-wide uppercase">
                       {item.desc}
                     </p>
                   </div>
-
-                  <ChevronRight
-                    size={14}
-                    className="absolute bottom-8 right-8 text-slate-300 opacity-0
-                    group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
-                  />
                 </Link>
               ))}
             </div>
 
-            {/* ========== FOOTER CTA ========== */}
-            <div className="mt-20">
+            {/* SHOPPING CTA */}
+            <div className="mt-16 text-center lg:text-left">
               <Link
-                href="/"
-                className="block text-center text-[11px] tracking-[0.35em] uppercase text-slate-900
-                border-t border-slate-200 pt-10 hover:text-slate-500 transition"
+                href="/shop"
+                className="inline-flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] group"
               >
-                Continue Shopping
+                <span className="border-b border-black pb-1">
+                  Continue Shopping
+                </span>
+                <ChevronRight
+                  size={14}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
               </Link>
             </div>
-          </div>
+          </main>
         </div>
       </div>
     </div>

@@ -61,6 +61,7 @@ export default function OrdersPage() {
           addItem({
             id: String(item.cartId || item.productId),
             productId: item.productId,
+            variantId: Number(item.variantId || 0),
             name: item.productName,
             price: item.price,
             quantity: item.quantity,
