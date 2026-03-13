@@ -1,12 +1,12 @@
-export default function CategoryPage({
+"use client";
+
+import { redirect } from "next/navigation";
+
+export default function MenCategoryPage({
   params,
 }: {
   params: { category: string };
 }) {
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold capitalize">{params.category}</h1>
-      <p className="mt-4">Browse our {params.category} collection.</p>
-    </div>
-  );
+  // Redirect to shop with mens section filter
+  redirect("/shop?section=mens");
 }

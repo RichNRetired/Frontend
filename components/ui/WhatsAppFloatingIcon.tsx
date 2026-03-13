@@ -3,7 +3,7 @@
 import React from "react";
 import { ArrowUp } from "lucide-react";
 
-const whatsappNumber = "919999999999";
+const whatsappNumber = "919889808605";
 const whatsappLink = `https://wa.me/${whatsappNumber}`;
 
 export const WhatsAppFloatingIcon = () => {

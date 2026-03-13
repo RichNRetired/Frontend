@@ -147,7 +147,7 @@ export default function ProductPageClient({
       <div className="max-w-7xl mx-auto pb-14 px-6 lg:pb-20">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-light tracking-tight text-black">
-            You may also like
+            Similar Products
           </h2>
         </div>
 
@@ -171,6 +171,12 @@ export default function ProductPageClient({
                 price={related.price}
                 originalPrice={related.mrp}
                 images={related.images}
+                image={
+                  related.main_image ||
+                  related.thumbnail_image ||
+                  related.medium_image
+                }
+                variants={related.variants}
                 isOnSale={!!related.discount_percent}
                 isNew={Boolean(related.status?.toLowerCase() === "new")}
               />

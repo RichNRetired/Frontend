@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import Link from "next/link";
+import Image from "next/image";
 import { RootState } from "../../store";
 import {
   useGetSectionsQuery,
@@ -13,7 +14,6 @@ import {
   Category as CategoryType,
 } from "@/types/catalog";
 import {
-  Search,
   User,
   Heart,
   ShoppingBag,
@@ -21,26 +21,50 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Search,
 } from "lucide-react";
+import { GlobalSearchBar } from "./GlobalSearchBar";
 
 const getSectionDisplayName = (name: string) => {
   const normalized = name.trim().toLowerCase();
-  if (normalized === "boys" || normalized === "men" || normalized === "mens") {
-    return "Mens";
-  }
-  if (
-    normalized === "girl" ||
-    normalized === "girls" ||
-    normalized === "women" ||
-    normalized === "womens"
-  ) {
-    return "Women";
-  }
-  if (normalized === "kids" || normalized === "kid") {
-    return "Kids";
-  }
+  if (normalized === "mens" || normalized === "men") return "Mens";
+  if (normalized === "womens" || normalized === "women") return "Womens";
+  if (normalized === "girls" || normalized === "girl") return "Girls";
+  if (normalized === "boys" || normalized === "boy") return "Boys";
+  if (normalized === "kids" || normalized === "kid") return "Kids";
   return name;
 };
+
+const normalizeSectionName = (name: string) => {
+  const rawName = name.trim().toLowerCase();
+  if (rawName === "men") return "mens";
+  if (rawName === "women") return "womens";
+  if (rawName === "girl") return "girls";
+  if (rawName === "boy") return "boys";
+  if (rawName === "kid") return "kids";
+  return rawName;
+};
+
+const sortSectionsByQuickCategoryOrder = (sections: SectionType[]) => {
+  const sectionPriority: Record<string, number> = {
+    mens: 1,
+    womens: 2,
+    girls: 3,
+    boys: 4,
+    kids: 5,
+  };
+
+  return [...sections].sort((a, b) => {
+    const aPriority =
+      sectionPriority[normalizeSectionName(a.name)] ?? Number.MAX_SAFE_INTEGER;
+    const bPriority =
+      sectionPriority[normalizeSectionName(b.name)] ?? Number.MAX_SAFE_INTEGER;
+    return aPriority - bPriority;
+  });
+};
+
+const getSectionShopHref = (sectionName: string) =>
+  `/shop?section=${encodeURIComponent(sectionName.trim().toLowerCase())}`;
 
 // --- Shared Types & Data ---
 
@@ -57,6 +81,10 @@ const MobileMenu: React.FC<{
   // Fetch sections dynamically
   const { data: sections = [], isLoading: isLoadingSections } =
     useGetSectionsQuery();
+
+  const orderedSections = useMemo(() => {
+    return sortSectionsByQuickCategoryOrder(sections);
+  }, [sections]);
 
   return (
     <>
@@ -86,12 +114,22 @@ const MobileMenu: React.FC<{
             </button>
           </div>
 
+          {/* Mobile Search Bar
+          <div className="px-6 py-4 border-b border-gray-100">
+            <GlobalSearchBar
+              placeholder="Search products"
+              inputClassName="text-[10px] uppercase tracking-widest w-full"
+              wrapperClassName="w-full"
+              onSearch={onClose}
+            />
+          </div> */}
+
           <nav className="flex-1 overflow-y-auto">
             {isLoadingSections && (
               <div className="p-6 text-sm text-gray-400">Loading...</div>
             )}
 
-            {sections.map((section: SectionType) => (
+            {orderedSections.map((section: SectionType) => (
               <div key={section.id} className="border-b border-gray-50">
                 <button
                   onClick={() =>
@@ -120,6 +158,7 @@ const MobileMenu: React.FC<{
                 >
                   <MobileSectionCategories
                     sectionId={section.id}
+                    sectionName={section.name}
                     onClose={onClose}
                   />
                 </div>
@@ -145,7 +184,7 @@ const MobileMenu: React.FC<{
               </Link>
             </div>
             <p className="mt-8 text-[9px] text-gray-400 leading-relaxed uppercase tracking-[0.2em]">
-              Rich & Retired — Leisure Curated.
+              Rich N Retired — Leisure Curated.
             </p>
           </div>
         </div>
@@ -159,9 +198,11 @@ const MobileMenu: React.FC<{
 // Child: fetch categories for mobile menu
 function MobileSectionCategories({
   sectionId,
+  sectionName,
   onClose,
 }: {
   sectionId: number;
+  sectionName: string;
   onClose: () => void;
 }) {
   const { data: categories = [], isLoading } = useGetCategoriesQuery(
@@ -179,7 +220,7 @@ function MobileSectionCategories({
       {categories.map((cat: CategoryType) => (
         <li key={cat.id} className="space-y-2">
           <Link
-            href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+            href={getSectionShopHref(sectionName)}
             onClick={onClose}
             className="text-xs text-gray-700 font-semibold hover:text-black block transition-colors"
           >
@@ -191,7 +232,7 @@ function MobileSectionCategories({
               {cat.subCategories.map((subCategory) => (
                 <li key={`${cat.id}-${subCategory}`}>
                   <Link
-                    href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+                    href={getSectionShopHref(sectionName)}
                     onClick={onClose}
                     className="text-[11px] text-gray-500 italic font-serif hover:text-black block transition-colors"
                   >
@@ -212,6 +253,7 @@ export const Header: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { items } = useSelector((state: RootState) => state.cart);
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
@@ -229,6 +271,10 @@ export const Header: React.FC = () => {
   const { data: sections = [], isLoading: isLoadingSections } =
     useGetSectionsQuery();
 
+  const orderedSections = useMemo(() => {
+    return sortSectionsByQuickCategoryOrder(sections);
+  }, [sections]);
+
   return (
     <>
       <header
@@ -238,12 +284,22 @@ export const Header: React.FC = () => {
             : "bg-white"
         }`}
       >
-        {/* Top Announcement Bar - Slightly thinner for desktop */}
-        <div className="bg-black text-white py-1.5 md:py-2 overflow-hidden border-b border-white/10">
-          <div className="whitespace-nowrap animate-marquee text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium text-center">
-            Free Shipping on orders over ₹5,000 • Priority Delivery
-          </div>
-        </div>
+     <div className="bg-black text-white py-1.5 md:py-2 overflow-hidden border-b border-white/10 flex">
+  <div className="animate-marquee whitespace-nowrap flex">
+    {/* First set of text */}
+    <span className="text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium px-4">
+      Free Shipping on orders over ₹5,000 • Priority Delivery • Luxury Curated •
+    </span>
+    {/* Duplicate set of text */}
+    <span className="text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium px-4">
+      Free Shipping on orders over ₹5,000 • Priority Delivery • Luxury Curated •
+    </span>
+    {/* Add a third if your screen is very wide (Ultra-wide monitors) */}
+    <span className="text-[9px] md:text-[10px] uppercase tracking-[0.3em] font-medium px-4 lg:inline hidden">
+      Free Shipping on orders over ₹5,000 • Priority Delivery • Luxury Curated •
+    </span>
+  </div>
+</div>
 
         <div className="container mx-auto px-4 md:px-8">
           {/* Height reduced from h-20 to h-14 for a sleeker desktop look */}
@@ -262,7 +318,7 @@ export const Header: React.FC = () => {
                 <div className="text-sm text-gray-400">Loading...</div>
               )}
 
-              {sections.map((section: SectionType) => (
+              {orderedSections.map((section: SectionType) => (
                 <div
                   key={section.id}
                   className="relative group h-14 flex items-center"
@@ -288,7 +344,10 @@ export const Header: React.FC = () => {
                       <h4 className="text-[9px] font-black uppercase tracking-widest border-b pb-2">
                         Categories
                       </h4>
-                      <DesktopSectionCategories sectionId={section.id} />
+                      <DesktopSectionCategories
+                        sectionId={section.id}
+                        sectionName={section.name}
+                      />
                     </div>
                     <div className="relative overflow-hidden aspect-square bg-gray-50">
                       <img
@@ -307,21 +366,31 @@ export const Header: React.FC = () => {
               href="/"
               className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
             >
-              <span className="text-sm lg:text-lg text-black font-black uppercase tracking-[0.3em] leading-none whitespace-nowrap transition-all duration-500">
-                Rich <span className="text-black">N</span> Retired
-              </span>
+              <Image
+                src="/RichLogo.png"
+                alt="Rich N Retired"
+                width={480}
+                height={100}
+                priority
+                className="h-16 w-auto lg:h-14"
+              />
             </Link>
 
             {/* Right Actions - Tightened icons */}
             <div className="flex items-center space-x-2 lg:space-x-5">
-              <div className="hidden xl:flex items-center border-b border-transparent focus-within:border-black transition-all pb-0.5">
-                <Search size={16} strokeWidth={1.5} className="text-black" />
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="bg-transparent text-black text-[10px] uppercase tracking-widest outline-none pl-2 w-20 focus:w-32 transition-all"
-                />
-              </div>
+              <GlobalSearchBar
+                placeholder="Search"
+                inputClassName="text-[10px] uppercase tracking-widest w-20 focus:w-32 transition-all"
+                wrapperClassName="hidden xl:block"
+              />
+
+              <button
+                className="xl:hidden p-1.5 text-black hover:opacity-60 transition-opacity"
+                onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+                aria-label="Toggle search"
+              >
+                {isMobileSearchOpen ? <X size={18} strokeWidth={1.5} /> : <Search size={18} strokeWidth={1.5} />}
+              </button>
 
               <Link
                 href="/account"
@@ -350,6 +419,21 @@ export const Header: React.FC = () => {
               </Link>
             </div>
           </div>
+
+          {/* Mobile inline search bar */}
+          <div
+            className={`xl:hidden transition-all duration-300 ${
+              isMobileSearchOpen ? "max-h-16 opacity-100 pb-3" : "max-h-0 opacity-0 overflow-hidden"
+            }`}
+          >
+            <GlobalSearchBar
+              placeholder="Search products…"
+              inputClassName="text-[11px] uppercase tracking-widest w-full"
+              wrapperClassName="w-full"
+              autoFocus={isMobileSearchOpen}
+              onSearch={() => setIsMobileSearchOpen(false)}
+            />
+          </div>
         </div>
       </header>
 
@@ -362,7 +446,13 @@ export const Header: React.FC = () => {
 };
 
 // Child: fetch categories for desktop dropdown
-function DesktopSectionCategories({ sectionId }: { sectionId: number }) {
+function DesktopSectionCategories({
+  sectionId,
+  sectionName,
+}: {
+  sectionId: number;
+  sectionName: string;
+}) {
   const { data: categories = [], isLoading } = useGetCategoriesQuery(
     sectionId,
     {
@@ -377,7 +467,7 @@ function DesktopSectionCategories({ sectionId }: { sectionId: number }) {
       {categories.map((cat: CategoryType) => (
         <li key={cat.id} className="space-y-1">
           <Link
-            href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+            href={getSectionShopHref(sectionName)}
             className="text-xs text-gray-700 hover:text-black transition-colors block font-semibold"
           >
             {cat.name}
@@ -388,7 +478,7 @@ function DesktopSectionCategories({ sectionId }: { sectionId: number }) {
               {cat.subCategories.map((subCategory) => (
                 <li key={`${cat.id}-${subCategory}`}>
                   <Link
-                    href={`/catalog?sectionId=${sectionId}&categoryId=${cat.id}`}
+                    href={getSectionShopHref(sectionName)}
                     className="text-[11px] text-gray-500 hover:text-black transition-colors block italic font-serif"
                   >
                     {subCategory}

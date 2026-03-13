@@ -1,8 +1,30 @@
 import axios from "./axios";
-import { CheckoutPayload, Order, OrdersResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "@/features/order/orderTypes";
+import { CheckoutPayload, CheckoutRequest, CheckoutResponse, Order, OrdersResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "@/features/order/orderTypes";
 
 export const checkoutOrder = async (payload: CheckoutPayload): Promise<Order> => {
     const res = await axios.post("/orders/checkout", payload);
+    return res.data;
+};
+
+export const checkoutSummary = async (payload: CheckoutRequest): Promise<CheckoutResponse> => {
+    const res = await axios.post("/orders/checkout", payload);
+    return res.data;
+};
+
+export const placeOrder = async (payload: CheckoutPayload): Promise<Order> => {
+    const { addressId, paymentMethod } = payload;
+    const qp: string[] = [];
+    if (addressId !== undefined && addressId !== null) {
+        qp.push(`addressId=${encodeURIComponent(addressId)}`);
+    }
+    if (paymentMethod) {
+        qp.push(`paymentMethod=${encodeURIComponent(paymentMethod)}`);
+    }
+    let url = "/orders/place";
+    if (qp.length) {
+        url += "?" + qp.join("&");
+    }
+    const res = await axios.post(url, payload);
     return res.data;
 };
 

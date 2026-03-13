@@ -169,9 +169,7 @@ export default function CartPage() {
                         <h3 className="text-sm md:text-base font-medium tracking-tight text-neutral-900 mb-1">
                           {item.name}
                         </h3>
-                        <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-bold mb-4">
-                          Ref. 4829/001
-                        </p>
+                       
                         <p className="text-sm font-semibold italic text-neutral-800">
                           ₹{formatCurrency(item.price)}
                         </p>

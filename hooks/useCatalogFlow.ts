@@ -10,13 +10,15 @@ export interface CatalogFlowState {
     sectionId: number | null;
     categoryId: number | null;
     subCategoryId: number | null;
+    search?: string;
 }
 
-export function useCatalogFlow() {
+export function useCatalogFlow(initialSearch?: string) {
     const [state, setState] = useState<CatalogFlowState>({
         sectionId: null,
         categoryId: null,
         subCategoryId: null,
+        search: initialSearch,
     });
 
     // Queries - skip when dependencies are not set

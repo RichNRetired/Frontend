@@ -6,31 +6,38 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 import { ProductCard } from "@/components/product/ProductCard";
 import {
+  useFilterProductsQuery,
   useGetFilterOptionsQuery,
-  useGetProductsByLocationQuery,
 } from "@/features/product/productApi";
+import { useGetSectionsQuery } from "@/features/category/categoryApi";
 
 type PriceFilter = "all" | "under1000" | "1000to2000" | "above2000";
 type SortFilter = "featured" | "priceLowToHigh" | "priceHighToLow" | "discount";
 
 const sectionTitle: Record<string, string> = {
-  men: "Men",
-  women: "Women",
+  mens: "Mens",
+  womens: "Womens",
+  girls: "Girls",
+  boys: "Boys",
   kids: "Kids",
-  sale: "Sale",
-  all: "Shop",
+  all: "All",
 };
 
 const aliases: Record<string, string> = {
-  mens: "men",
-  men: "men",
-  womens: "women",
-  women: "women",
+  mens: "mens",
+  men: "mens",
+  womens: "womens",
+  women: "womens",
+  girls: "girls",
+  girl: "girls",
+  boys: "boys",
+  boy: "boys",
   kid: "kids",
   kids: "kids",
-  sale: "sale",
   all: "all",
 };
+
+const normalizeSectionKey = (value: string) => aliases[value.trim().toLowerCase()] || value.trim().toLowerCase();
 
 const allowedPriceFilters: PriceFilter[] = [
   "all",
@@ -83,6 +90,30 @@ const pickFilterOptions = (options: Record<string, unknown> | undefined) => {
   };
 };
 
+const extractProductTypes = (products: any[]): string[] => {
+  const typeKeywords = [
+    "shirt", "t-shirt", "tshirt", "dress", "pants", "pant",
+    "jeans", "skirt", "top", "blouse", "sweater", "hoodie",
+    "jacket", "coat", "shorts", "lehenga", "saree", "kurta",
+    "bottom", "trouser", "cardigan", "vest", "tank"
+  ];
+
+  const typesSet = new Set<string>();
+  
+  products.forEach(product => {
+    const name = product.name?.toLowerCase() || "";
+    typeKeywords.forEach(keyword => {
+      if (name.includes(keyword)) {
+        // Capitalize first letter
+        const formatted = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+        typesSet.add(formatted);
+      }
+    });
+  });
+
+  return Array.from(typesSet).sort();
+};
+
 export default function ShopPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,11 +124,24 @@ export default function ShopPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<PriceFilter>("all");
   const [sortBy, setSortBy] = useState<SortFilter>("featured");
 
   const requestedSection = (searchParams.get("section") || "all").toLowerCase();
   const section = aliases[requestedSection] || "all";
+  const { data: sections = [] } = useGetSectionsQuery();
+
+  const selectedSectionId = useMemo(() => {
+    if (section === "all") return undefined;
+
+    const matchedSection = sections.find((item) => {
+      const sectionName = normalizeSectionKey(item.name || "");
+      return sectionName === section;
+    });
+
+    return matchedSection?.id;
+  }, [section, sections]);
 
   const locationId = useMemo(() => {
     const value = Number(searchParams.get("locationId") || DEFAULT_LOCATION_ID);
@@ -110,21 +154,37 @@ export default function ShopPage() {
     data: productsResp,
     isLoading,
     isFetching,
-  } = useGetProductsByLocationQuery({
-    locationId,
-    page: 0,
-    limit: 24,
-    sortBy: mapSortBy(sortBy),
+  } = useFilterProductsQuery({
+    sectionId: selectedSectionId,
     minPrice,
     maxPrice,
     brand: selectedBrand || undefined,
     size: selectedSize || undefined,
     color: selectedColor || undefined,
+    sortBy: mapSortBy(sortBy),
+    page: 0,
+    limit: 24,
   });
 
-  const { data: filterOptionsResp } = useGetFilterOptionsQuery({});
+  const { data: filterOptionsResp } = useGetFilterOptionsQuery({
+    sectionId: selectedSectionId,
+  });
 
   const products = productsResp?.content || [];
+
+  const availableProductTypes = useMemo(() => {
+    return extractProductTypes(products);
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    if (!selectedProductType) return products;
+    
+    return products.filter(product => {
+      const name = product.name?.toLowerCase() || "";
+      const typeKeyword = selectedProductType.toLowerCase();
+      return name.includes(typeKeyword);
+    });
+  }, [products, selectedProductType]);
 
   const derivedBrands = useMemo(
     () =>
@@ -178,6 +238,7 @@ export default function ShopPage() {
     setSelectedBrand(null);
     setSelectedSize(null);
     setSelectedColor(null);
+    setSelectedProductType(null);
     setSelectedPrice("all");
     setSortBy("featured");
   };
@@ -262,27 +323,47 @@ export default function ShopPage() {
                   : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
               }`}
             >
-              All Sections
+              All
             </Link>
             <Link
-              href={`/shop?section=men${locationId ? `&locationId=${locationId}` : ""}`}
+              href={`/shop?section=mens${locationId ? `&locationId=${locationId}` : ""}`}
               className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
-                section === "men"
+                section === "mens"
                   ? "border-black bg-black text-white"
                   : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
               }`}
             >
-              Men
+              Mens
             </Link>
             <Link
-              href={`/shop?section=women${locationId ? `&locationId=${locationId}` : ""}`}
+              href={`/shop?section=womens${locationId ? `&locationId=${locationId}` : ""}`}
               className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
-                section === "women"
+                section === "womens"
                   ? "border-black bg-black text-white"
                   : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
               }`}
             >
-              Women
+              Womens
+            </Link>
+            <Link
+              href={`/shop?section=girls${locationId ? `&locationId=${locationId}` : ""}`}
+              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
+                section === "girls"
+                  ? "border-black bg-black text-white"
+                  : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
+              }`}
+            >
+              Girls
+            </Link>
+            <Link
+              href={`/shop?section=boys${locationId ? `&locationId=${locationId}` : ""}`}
+              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
+                section === "boys"
+                  ? "border-black bg-black text-white"
+                  : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
+              }`}
+            >
+              Boys
             </Link>
             <Link
               href={`/shop?section=kids${locationId ? `&locationId=${locationId}` : ""}`}
@@ -297,6 +378,39 @@ export default function ShopPage() {
           </div>
         </div>
 
+        {/* {availableProductTypes.length > 0 && (
+          <div className="mb-8 border-b border-neutral-200 pb-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] mb-3 text-neutral-600">
+              Quick Category
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedProductType(null)}
+                className={`rounded-full border px-3 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
+                  selectedProductType === null
+                    ? "border-black bg-black text-white"
+                    : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
+                }`}
+              >
+                All
+              </button>
+              {availableProductTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setSelectedProductType(type)}
+                  className={`rounded-full border px-3 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
+                    selectedProductType === type
+                      ? "border-black bg-black text-white"
+                      : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+        )} */}
+
         <div className="mb-6 flex items-center justify-between gap-4 lg:hidden">
           <button
             onClick={() => setIsMobileFiltersOpen(true)}
@@ -305,7 +419,7 @@ export default function ShopPage() {
             Filters <SlidersHorizontal className="h-4 w-4" />
           </button>
           <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-            {products.length} Products
+            {filteredProducts.length} Products
           </p>
         </div>
 
@@ -347,7 +461,7 @@ export default function ShopPage() {
                 {[
                   { key: "all", label: "All Prices" },
                   { key: "under1000", label: "Under ₹1000" },
-                  { key: "1000to2000", label: "₹1000 - ₹2000" },
+                  { key: "1000to2000", label: "₹1000 – ₹2000" },
                   { key: "above2000", label: "Above ₹2000" },
                 ].map((priceOption) => (
                   <label
@@ -453,7 +567,7 @@ export default function ShopPage() {
           <section>
             <div className="mb-4 hidden items-center justify-between lg:flex">
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                {products.length} Products
+                {filteredProducts.length} Products
               </p>
             </div>
 
@@ -466,9 +580,9 @@ export default function ShopPage() {
                   />
                 ))}
               </div>
-            ) : products.length > 0 ? (
+            ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-8 transition-opacity duration-300 opacity-100">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     id={product.id}
@@ -477,6 +591,8 @@ export default function ShopPage() {
                     price={product.price}
                     originalPrice={product.mrp}
                     images={product.images}
+                    image={product.main_image || product.medium_image || product.thumbnail_image}
+                    variants={product.variants}
                     isOnSale={!!product.discount_percent}
                     isNew={Boolean(product.status?.toLowerCase() === "new")}
                   />
@@ -521,7 +637,7 @@ export default function ShopPage() {
                 {[
                   { key: "all", label: "All Prices" },
                   { key: "under1000", label: "Under ₹1000" },
-                  { key: "1000to2000", label: "₹1000 - ₹2000" },
+                  { key: "1000to2000", label: "₹1000 – ₹2000" },
                   { key: "above2000", label: "Above ₹2000" },
                 ].map((priceOption) => (
                   <label

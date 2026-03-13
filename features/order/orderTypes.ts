@@ -6,6 +6,16 @@ export interface OrderItem {
     quantity: number;
     totalPrice?: number;
     total?: number;
+    // additional optional fields returned during checkout summary
+    variantId?: number;
+    size?: string;
+    color?: string;
+    sku?: string;
+    mrp?: number;
+    discountPercentage?: number;
+    subtotal?: number;
+    inStock?: boolean;
+    availableStock?: number;
 }
 
 export interface DeliveryAddress {
@@ -29,6 +39,11 @@ export interface Order {
     totalAmount: number;
     requiresPayment?: boolean;
     paymentMessage?: string;
+    // additional properties returned by the /place endpoint
+    expectedDelivery?: string; // ISO date
+    deliveryDays?: number;
+    paymentExpiry?: string; // ISO datetime
+    message?: string;
     deliveryAddress?: DeliveryAddress;
     items: OrderItem[];
     createdAt: string;
@@ -50,6 +65,34 @@ export interface CheckoutPayload {
         productId: number;
         quantity: number;
     }[];
+}
+
+// request/response models for the new /orders/checkout summary API
+export interface CheckoutRequest {
+    addressId?: number;
+    paymentMethod?: "COD" | "PREPAID" | "CARD" | "UPI";
+    cartId?: number;
+}
+
+export interface CheckoutResponse {
+    subtotal: number;
+    taxAmount: number;
+    shippingCharges: number;
+    discountAmount: number;
+    totalAmount: number;
+    items: OrderItem[]; // enhanced with optional fields above
+    totalItems: number;
+    deliveryAddress: DeliveryAddress;
+    deliveryDays: number;
+    expectedDelivery: string;
+    isDeliveryAvailable: boolean;
+    paymentMethod: string;
+    requiresPayment: boolean;
+    paymentMessage: string;
+    isCodAvailable: boolean;
+    cartId: number;
+    isValidForCheckout: boolean;
+    validationErrors: string[];
 }
 
 export interface ApiResponse<T = any> {

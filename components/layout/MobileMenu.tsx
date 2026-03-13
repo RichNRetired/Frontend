@@ -41,7 +41,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
           {/* Top Bar: Clean & Minimal */}
           <div className="flex items-center justify-between p-6 pb-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-black">
-              Rich & Retired
+              Rich N Retired
             </span>
             <button
               onClick={onClose}
@@ -51,7 +51,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             </button>
           </div>
 
-          {/* Search Bar - Integrated & Subtle */}
+          {/* Search Bar - Integrated & Subtle
           <div className="px-6 py-4">
             <div className="relative border-b border-gray-200 focus-within:border-black transition-colors duration-300 pb-2">
               <Search
@@ -65,7 +65,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                 className="w-full bg-transparent pl-8 text-[10px] tracking-widest uppercase outline-none placeholder:text-gray-900"
               />
             </div>
-          </div>
+          </div> */}
 
           {/* Navigation Items */}
           <div className="flex-1 overflow-y-auto mt-4 px-6 custom-scrollbar">

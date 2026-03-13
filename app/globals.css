@@ -24,3 +24,21 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes marquee {
+  /* Start at 0% for a seamless transition */
+  0% { transform: translateX(0%); }
+  /* End at -100% so the second set of text replaces the first perfectly */
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: flex; /* Changed from inline-block to flex for better alignment */
+  animation: marquee 20s linear infinite; /* Adjusted speed for a more premium feel */
+  min-width: max-content;
+}
+
+/* Optional: Pause on hover so people can read the promo */
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

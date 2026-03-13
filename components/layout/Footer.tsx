@@ -9,28 +9,26 @@ export const Footer: React.FC = () => {
     {
       title: "Selection",
       links: [
-        { name: "Men", href: "/men" },
-        { name: "Women", href: "/women" },
-        { name: "Kids", href: "/kids" },
-        { name: "Sale", href: "/sale" },
-        { name: "New Arrivals", href: "/new-arrivals" },
+        { name: "Men", href: "/shop?section=mens" },
+        { name: "Women", href: "/shop?section=womens" },
+        { name: "Kids", href: "/shop?section=kids" },
+        { name: "Sale", href: "/shop" },
+        { name: "New Arrivals", href: "/" },
       ],
     },
     {
       title: "Company",
       links: [
         { name: "About Us", href: "/about" },
-        { name: "Sustainability", href: "/sustainability" },
         { name: "Careers", href: "/careers" },
-        { name: "Press", href: "/press" },
+        { name: "Contact Us", href: "/contact" },
       ],
     },
     {
       title: "Help",
       links: [
-        { name: "Contact Us", href: "/contact" },
-        { name: "Shipping Info", href: "/shipping" },
-        { name: "Returns", href: "/returns" },
+        { name: "Shipping Info", href: "/faq" },
+        { name: "Returns", href: "/contact" },
         { name: "Size Guide", href: "/size-guide" },
         { name: "FAQ", href: "/faq" },
       ],
@@ -45,7 +43,7 @@ export const Footer: React.FC = () => {
           {/* Logo & Manifesto Section */}
           <div className="col-span-2 lg:col-span-2 pr-0 lg:pr-20">
             <h2 className="text-xl text-black font-bold tracking-[0.3em] uppercase mb-6">
-              RICH & RETIRED
+              RICH N RETIRED
             </h2>
             <p className="text-sm text-neutral-500 leading-relaxed font-light max-w-sm">
               Elevated essentials for the modern wardrobe. We believe in

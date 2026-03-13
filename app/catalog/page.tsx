@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useCatalogFlow } from "@/hooks/useCatalogFlow";
 import { FilterSidebar } from "@/components/catalog/FilterSidebar";
 import { FilterDisplay } from "@/components/catalog/FilterDisplay";
@@ -9,6 +10,8 @@ import { CatalogEmptyState } from "@/components/catalog/CatalogEmptyState";
 import { Menu, X, SlidersHorizontal } from "lucide-react";
 
 export default function CatalogPage() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const {
@@ -24,7 +27,7 @@ export default function CatalogPage() {
     isLoadingCategories,
     isLoadingSubcategories,
     isLoadingFilters,
-  } = useCatalogFlow();
+  } = useCatalogFlow(searchQuery);
 
   const selectedSection = sections.find((s) => s.id === state.sectionId);
   const selectedCategory = categories.find((c) => c.id === state.categoryId);
@@ -52,9 +55,11 @@ export default function CatalogPage() {
               <CatalogBreadcrumb items={breadcrumbItems} />
             </nav>
             <h1 className="text-2xl md:text-7xl font-bold tracking-tighter uppercase leading-[0.8]">
-              {selectedCategory?.name ||
-                selectedSection?.name ||
-                "The Collection"}
+              {searchQuery
+                ? `Search Results: "${searchQuery}"`
+                : selectedCategory?.name ||
+                  selectedSection?.name ||
+                  "The Collection"}
             </h1>
           </div>
 
@@ -171,7 +176,7 @@ export default function CatalogPage() {
           {/* Content Area */}
           <section className="flex-1 px-4 md:px-0">
             <div className="min-h-[60vh]">
-              {!state.sectionId ? (
+              {!state.sectionId && !searchQuery ? (
                 <CatalogEmptyState type="start" />
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">

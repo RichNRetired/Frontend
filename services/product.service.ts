@@ -45,14 +45,14 @@ export const getBestSellers = async (page = 0, size = 10): Promise<ProductsRespo
 };
 
 export const filterProducts = async (filter: ProductFilterRequest): Promise<ProductsResponse> => {
-    const params: Record<string, string | number | boolean | string[]> = {};
+    const payload: Record<string, string | number | boolean | string[]> = {};
 
     Object.entries(filter).forEach(([key, value]) => {
         if (value === undefined || value === null || value === '') return;
-        params[`filter.${key}`] = value as string | number | boolean | string[];
+        payload[key] = value as string | number | boolean | string[];
     });
 
-    const response = await axios.get('/products/filter', { params });
+    const response = await axios.post('/products/filter', payload);
     return response.data;
 };
 

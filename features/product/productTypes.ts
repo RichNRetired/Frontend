@@ -82,6 +82,7 @@ export interface GetProductsByLocationParams {
 }
 
 export interface ProductFilterRequest {
+    search?: string;
     sectionId?: number;
     categoryId?: number;
     subCategoryId?: number;

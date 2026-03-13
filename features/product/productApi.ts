@@ -8,12 +8,12 @@ import {
     ProductsResponse,
 } from "./productTypes";
 
-const toFilterQueryParams = (filter: ProductFilterRequest) => {
+const sanitizeFilter = (filter: ProductFilterRequest) => {
     const params: Record<string, string | number | boolean | string[]> = {};
 
     Object.entries(filter).forEach(([key, value]) => {
         if (value === undefined || value === null || value === "") return;
-        params[`filter.${key}`] = value as string | number | boolean | string[];
+        params[key] = value as string | number | boolean | string[];
     });
 
     return params;
@@ -73,7 +73,8 @@ export const productApi = createApi({
         filterProducts: builder.query<ProductsResponse, ProductFilterRequest>({
             query: (filter) => ({
                 url: "/products/filter",
-                params: toFilterQueryParams(filter),
+                method: "POST",
+                body: sanitizeFilter(filter),
             }),
             providesTags: ["Products"],
         }),

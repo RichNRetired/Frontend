@@ -43,6 +43,17 @@ export const userApi = createApi({
             query: (body) => ({ url: '/api/user/addresses', method: 'POST', body }),
             invalidatesTags: [{ type: 'Addresses', id: 'LIST' }],
         }),
+        updateAddress: builder.mutation<any, { addressId: number | string; body: Partial<any> }>({
+            query: ({ addressId, body }) => ({
+                url: `/api/user/addresses/${addressId}`,
+                method: 'PUT',
+                body,
+            }),
+            invalidatesTags: (_result, _error, { addressId }) => [
+                { type: 'Addresses', id: addressId },
+                { type: 'Addresses', id: 'LIST' },
+            ],
+        }),
         deleteAddress: builder.mutation<void, number | string>({
             query: (id) => ({ url: `/api/user/addresses/${id}`, method: 'DELETE' }),
             invalidatesTags: (_result, _error, id) => [{ type: 'Addresses', id }],
@@ -55,5 +66,6 @@ export const {
     useUpdateProfileMutation,
     useGetAddressesQuery,
     useAddAddressMutation,
+    useUpdateAddressMutation,
     useDeleteAddressMutation,
 } = userApi;

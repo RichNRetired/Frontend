@@ -6,7 +6,6 @@ import { Trash2, ShoppingBag, Heart, ArrowRight } from "lucide-react";
 import {
   useGetWishlistQuery,
   useRemoveFromWishlistMutation,
-  useAddToWishlistMutation,
 } from "../../features/wishlist/wishlistApi";
 import { useAddToCartMutation } from "../../features/cart/cartApi";
 
@@ -20,9 +19,9 @@ export default function WishlistPage() {
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
   const [addToCart] = useAddToCartMutation();
 
-  const handleRemove = async (productId: number) => {
+  const handleRemove = async (wishlistItemId: number) => {
     try {
-      await removeFromWishlist(productId).unwrap();
+      await removeFromWishlist(wishlistItemId).unwrap();
     } catch (err: any) {
       console.error("Failed to remove item:", err);
       const errorMsg = err?.data?.message || "Failed to remove item";
@@ -89,13 +88,13 @@ export default function WishlistPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {items.map((item) => (
             <div
-              key={item.productId}
+              key={item.id}
               className="group relative border border-neutral-100 hover:border-neutral-300 transition-all duration-300 overflow-hidden"
             >
               {/* Product Image */}
               <div className="w-full h-80 overflow-hidden bg-neutral-100 relative">
                 <img
-                  src={item.image}
+                  src={item.productImage}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   alt={item.productName}
                 />
@@ -113,13 +112,9 @@ export default function WishlistPage() {
                 <h3 className="text-sm md:text-base font-medium tracking-tight text-neutral-900 mb-2">
                   {item.productName}
                 </h3>
-                <p className="text-sm font-semibold italic text-neutral-800 mb-4">
-                  ₹{item.price.toLocaleString()}
-                </p>
-
                 <div className="space-y-3">
                   <button
-                    onClick={() => handleAddToCart(item.productId)}
+                    onClick={() => handleAddToCart(item.productId, item.variantId)}
                     disabled={!item.inStock}
                     className={`w-full py-3 text-[11px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
                       item.inStock
@@ -132,7 +127,7 @@ export default function WishlistPage() {
                   </button>
 
                   <button
-                    onClick={() => handleRemove(item.productId)}
+                    onClick={() => handleRemove(item.id)}
                     className="w-full py-3 text-[11px] font-bold uppercase tracking-[0.2em] border border-neutral-200 text-neutral-900 hover:bg-neutral-50 transition-all flex items-center justify-center gap-2"
                   >
                     <Trash2 size={14} />

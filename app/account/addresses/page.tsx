@@ -4,19 +4,15 @@ import React, { useState, useEffect } from "react";
 import {
   Plus,
   Trash2,
-  MapPin,
-  CheckCircle2,
   Loader2,
   Edit3,
-  Home,
-  Briefcase,
-  Navigation,
+  MapPin,
 } from "lucide-react";
 import {
   useGetAddressesQuery,
-  useAddAddressMutation,
   useDeleteAddressMutation,
 } from "../../../features/user/userApi";
+import { AddressFormModal } from "@/components/account/AddressFormModal";
 
 /* ---------------- TYPES ---------------- */
 interface Address {
@@ -33,51 +29,29 @@ interface Address {
 
 export default function AddressesPage() {
   const { data: addresses = [], isLoading, refetch } = useGetAddressesQuery();
-  const [localAddresses, setLocalAddresses] = useState<Address[]>([]);
-  const [addAddress, { isLoading: isAdding }] = useAddAddressMutation();
   const [deleteAddress] = useDeleteAddressMutation();
+  const [localAddresses, setLocalAddresses] = useState<Address[]>([]);
   const [deletingId, setDeletingId] = useState<string | number | null>(null);
 
-  const [form, setForm] = useState<Omit<Address, "id">>({
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "",
-    addressType: "Home",
-    default: false,
-  });
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  useEffect(() => {
+    if (Array.isArray(addresses)) setLocalAddresses(addresses as Address[]);
+  }, [addresses]);
+
+  const handleEdit = (address: Address) => {
+    setSelectedAddress(address);
+    setModalMode("edit");
+    setIsModalOpen(true);
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await addAddress(form).unwrap();
-      setLocalAddresses((prev) => (res ? [...prev, res] : prev));
-      setForm({
-        addressLine1: "",
-        addressLine2: "",
-        city: "",
-        state: "",
-        postalCode: "",
-        country: "",
-        addressType: "Home",
-        default: false,
-      });
-    } catch (err) {
-      console.error("Add address failed", err);
-    }
+  const handleAddNew = () => {
+    setSelectedAddress(null);
+    setModalMode("add");
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number | string) => {
@@ -95,275 +69,134 @@ export default function AddressesPage() {
     }
   };
 
-  useEffect(() => {
-    if (Array.isArray(addresses)) setLocalAddresses(addresses as Address[]);
-  }, [addresses]);
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedAddress(null);
+  };
+
+  const handleModalSuccess = () => {
+    refetch();
+  };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] pt-24 mt-10 pb-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+    <div className="min-h-screen bg-white pt-24 pb-20 font-sans text-black">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8">
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-6 border-b border-slate-200">
-          <div>
-            <h1 className="text-3xl font-light text-slate-900 tracking-tight">
-              Saved <span className="font-bold">Addresses</span>
-            </h1>
-            <p className="text-slate-500 text-sm mt-2 font-medium">
-              Manage your delivery locations for a faster checkout experience.
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            <Navigation size={12} /> {localAddresses.length} Saved Locations
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* LEFT: ADDRESS CARDS */}
-          <div className="lg:col-span-7 space-y-6">
-            <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
-              Your Saved Addresses
-            </h2>
-
-            {isLoading ? (
-              [1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-44 bg-slate-200 animate-pulse rounded-2xl"
-                />
-              ))
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {localAddresses.map((a) => (
-                  <div
-                    key={a.id}
-                    className={`group bg-white rounded-2xl border-2 transition-all duration-300 ${
-                      a.default
-                        ? "border-pink-500 shadow-md"
-                        : "border-transparent shadow-sm hover:border-slate-200"
-                    } relative overflow-hidden`}
-                  >
-                    {a.default && (
-                      <div className="absolute top-4 right-4 text-pink-500 flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-widest bg-pink-50 px-3 py-1 rounded-full">
-                        <CheckCircle2 size={12} /> Default
-                      </div>
-                    )}
-
-                    <div className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.addressType === "Home" ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"}`}
-                        >
-                          {a.addressType === "Home" ? (
-                            <Home size={18} />
-                          ) : (
-                            <Briefcase size={18} />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                            {a.addressType}
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                            Verified Location
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-[15px] text-slate-600 leading-relaxed font-medium">
-                        <p className="text-slate-900 font-bold mb-1">
-                          {a.addressLine1}
-                        </p>
-                        <p>{a.addressLine2}</p>
-                        <p>
-                          {a.city}, {a.state} - {a.postalCode}
-                        </p>
-                      </div>
-
-                      {/* MODERN ACTIONS */}
-                      <div className="mt-6 pt-6 border-t border-slate-50 flex items-center gap-4">
-                        <button className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 hover:text-pink-600 transition-colors">
-                          <Edit3 size={14} /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(a.id)}
-                          disabled={deletingId === a.id}
-                          className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 hover:text-red-500 transition-colors disabled:opacity-50"
-                        >
-                          {deletingId === a.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT: PREMIUM FORM CARD */}
-          <div className="lg:col-span-5">
-            <div className="bg-white p-8 rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 sticky top-28">
-              <div className="mb-8">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-4">
-                  <Plus size={24} />
-                </div>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  New Address
-                </h2>
-                <p className="text-slate-400 text-xs font-medium mt-1 uppercase tracking-widest">
-                  Global Shipping Standards
-                </p>
-              </div>
-
-              <form onSubmit={handleAdd} className="space-y-4">
-                <div className="group relative">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-black ml-1 mb-1 block group-focus-within:text-pink-600 transition-colors">
-                    Address Line 1
-                  </label>
-                  <input
-                    name="addressLine1"
-                    placeholder="E.g. 123, Fashion Street"
-                    value={form.addressLine1}
-                    onChange={handleChange}
-                    className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 ring-pink-500/20 outline-none transition-all text-black placeholder:text-slate-800"
-                    required
-                  />
-                </div>
-
-                <div className="group relative">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-1 block group-focus-within:text-pink-600 transition-colors">
-                    Area / Locality
-                  </label>
-                  <input
-                    name="addressLine2"
-                    placeholder="Apartment, Area"
-                    value={form.addressLine2}
-                    onChange={handleChange}
-                    className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 ring-pink-500/20 outline-none transition-all text-black placeholder:text-slate-800"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-1 block">
-                      Country
-                    </label>
-                    <input
-                      name="country"
-                      placeholder="Country"
-                      value={form.country}
-                      onChange={handleChange}
-                      className="w-full px-5 py-3.5  text-black placeholder:text-slate-800 bg-slate-50 border-none rounded-2xl text-sm outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-1 block">
-                      State
-                    </label>
-                    <input
-                      name="state"
-                      placeholder="State"
-                      value={form.state}
-                      onChange={handleChange}
-                      className="w-full px-5  text-black placeholder:text-slate-800 py-3.5 bg-slate-50 border-none rounded-2xl text-sm outline-none transition-all"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-1 block">
-                      City
-                    </label>
-                    <input
-                      name="city"
-                      placeholder="City"
-                      value={form.city}
-                      onChange={handleChange}
-                      className="w-full px-5 py-3.5  text-black placeholder:text-slate-800 bg-slate-50 border-none rounded-2xl text-sm outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-1 block">
-                      Pincode
-                    </label>
-                    <input
-                      name="postalCode"
-                      placeholder="XXXXXX"
-                      value={form.postalCode}
-                      onChange={handleChange}
-                      className="w-full px-5  text-black placeholder:text-slate-800 py-3.5 bg-slate-50 border-none rounded-2xl text-sm outline-none transition-all"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 ml-1 mb-2 block">
-                    Address Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["Home", "Work"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() =>
-                          setForm((f) => ({ ...f, addressType: type as any }))
-                        }
-                        className={`py-3 rounded-2xl text-xs font-bold uppercase tracking-widest border-2 transition-all ${
-                          form.addressType === type
-                            ? "border-slate-900 bg-slate-900 text-white"
-                            : "border-slate-100 text-slate-400 hover:border-slate-200"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-4 px-1">
-                  <input
-                    type="checkbox"
-                    id="default"
-                    name="default"
-                    checked={form.default}
-                    onChange={handleChange}
-                    className="w-5 h-5 accent-gray-600 rounded-lg cursor-pointer"
-                  />
-                  <label
-                    htmlFor="default"
-                    className="text-xs text-slate-500 font-bold uppercase tracking-wide cursor-pointer"
-                  >
-                    Set as default address
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isAdding}
-                  className="w-full py-4 bg-gray-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-gray-200 hover:bg-gray-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:bg-slate-200 mt-6 flex items-center justify-center gap-3"
-                >
-                  {isAdding ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Plus size={16} /> Save Address
-                    </>
-                  )}
-                </button>
-              </form>
+        <div className="mb-16 border-b border-black pb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-medium tracking-tighter uppercase">
+                Your Addresses
+              </h1>
+              <p className="text-sm text-gray-500 mt-2 tracking-tight">
+                Manage your delivery details for a seamless shopping experience.
+              </p>
             </div>
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-2 px-6 py-3 bg-black text-white font-bold uppercase tracking-[0.2em] text-[11px] hover:bg-gray-800 transition-colors"
+            >
+              <Plus size={18} />
+              Add Address
+            </button>
           </div>
         </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+            ))}
+          </div>
+        ) : localAddresses.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-6">
+              <MapPin size={24} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-light tracking-tight mb-2">
+              No addresses yet
+            </h3>
+            <p className="text-gray-500 text-sm mb-8">
+              Add your first delivery address to get started.
+            </p>
+            <button
+              onClick={handleAddNew}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-black text-white font-bold uppercase tracking-[0.2em] text-[11px] hover:bg-gray-800 transition-colors"
+            >
+              <Plus size={18} />
+              Add First Address
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {localAddresses.map((address) => (
+              <div
+                key={address.id}
+                className="group relative border-2 border-gray-100 rounded-2xl p-6 hover:border-black transition-all duration-300 hover:shadow-lg"
+              >
+                {/* Address Type & Default Badge */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2.5 py-1 rounded">
+                      {address.addressType}
+                    </span>
+                    {address.default && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest border border-black px-2.5 py-1 rounded">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address Details */}
+                <div className="space-y-2 mb-6">
+                  <p className="font-bold text-sm uppercase tracking-tight leading-snug">
+                    {address.addressLine1}
+                  </p>
+                  {address.addressLine2 && (
+                    <p className="text-sm text-gray-600">{address.addressLine2}</p>
+                  )}
+                  <p className="text-sm text-gray-700">
+                    {address.city}, {address.state} {address.postalCode}
+                  </p>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wider">
+                    {address.country}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => handleEdit(address)}
+                    className="flex-1 py-3 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-widest border border-gray-200 rounded hover:border-black hover:bg-black hover:text-white transition-all"
+                  >
+                    <Edit3 size={14} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(address.id)}
+                    disabled={deletingId === address.id}
+                    className="flex-1 py-3 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-400 border border-gray-100 rounded hover:border-red-200 hover:text-red-600 transition-all disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    {deletingId === address.id ? "Removing..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+          </div>
+        )}
       </div>
+
+      {/* Modal */}
+      <AddressFormModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
+        editingAddress={selectedAddress}
+        mode={modalMode}
+      />
     </div>
   );
 }

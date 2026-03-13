@@ -1,9 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { WishlistItem, WishlistResponse, ApiResponse } from '../../types/wishlist';
+import {
+    WishlistResponse,
+    ApiResponse,
+    AddWishlistRequest,
+    MoveWishlistToCartRequest,
+} from '../../types/wishlist';
 
 export const wishlistApi = createApi({
     reducerPath: 'wishlistApi',
-    tagTypes: ['Wishlist'],
+    tagTypes: ['Wishlist', 'Cart'],
     baseQuery: fetchBaseQuery({
         baseUrl: (process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, ''),
         credentials: 'include',
@@ -29,19 +34,39 @@ export const wishlistApi = createApi({
             providesTags: ['Wishlist'],
         }),
 
-        // POST /api/wishlist/{productId} - Add product to wishlist
-        addToWishlist: builder.mutation<ApiResponse, number>({
-            query: (productId) => ({
-                url: `api/wishlist/${productId}`,
+        // POST /api/wishlist - Add product to wishlist
+        addToWishlist: builder.mutation<ApiResponse, AddWishlistRequest>({
+            query: (body) => ({
+                url: 'api/wishlist',
                 method: 'POST',
+                body,
             }),
             invalidatesTags: ['Wishlist'],
         }),
 
-        // DELETE /api/wishlist/{productId} - Remove product from wishlist
+        // POST /api/wishlist/move-to-cart - Move multiple items to cart
+        moveWishlistToCart: builder.mutation<ApiResponse, MoveWishlistToCartRequest>({
+            query: (body) => ({
+                url: 'api/wishlist/move-to-cart',
+                method: 'POST',
+                body,
+            }),
+            invalidatesTags: ['Wishlist', 'Cart'],
+        }),
+
+        // DELETE /api/wishlist/{wishlistItemId} - Remove item from wishlist
         removeFromWishlist: builder.mutation<ApiResponse, number>({
-            query: (productId) => ({
-                url: `api/wishlist/${productId}`,
+            query: (wishlistItemId) => ({
+                url: `api/wishlist/${wishlistItemId}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: ['Wishlist'],
+        }),
+
+        // DELETE /api/wishlist/clear - Clear entire wishlist
+        clearWishlist: builder.mutation<ApiResponse, void>({
+            query: () => ({
+                url: 'api/wishlist/clear',
                 method: 'DELETE',
             }),
             invalidatesTags: ['Wishlist'],
@@ -52,5 +77,7 @@ export const wishlistApi = createApi({
 export const {
     useGetWishlistQuery,
     useAddToWishlistMutation,
+    useMoveWishlistToCartMutation,
     useRemoveFromWishlistMutation,
+    useClearWishlistMutation,
 } = wishlistApi;

@@ -43,7 +43,7 @@ const PDPImageGallery: React.FC<PDPImageGalleryProps> = ({ images, name }) => {
                   type="button"
                   aria-label={`View image ${idx + 1}`}
                   onClick={() => setSelectedImageIndex(idx)}
-                  className={`w-full aspect-square overflow-hidden rounded-lg border transition-all ${
+                  className={`w-full h-24 overflow-hidden rounded-lg border transition-all flex items-center justify-center bg-neutral-50 ${
                     isActive
                       ? "border-black"
                       : "border-neutral-200 hover:border-neutral-400"
@@ -52,7 +52,7 @@ const PDPImageGallery: React.FC<PDPImageGalleryProps> = ({ images, name }) => {
                   <img
                     src={image}
                     alt={`${name} thumbnail ${idx + 1}`}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-1"
                   />
                 </button>
               );
@@ -61,11 +61,11 @@ const PDPImageGallery: React.FC<PDPImageGalleryProps> = ({ images, name }) => {
         </div>
       )}
 
-      <div className="flex-1 bg-neutral-50 rounded-2xl overflow-hidden aspect-square flex items-center justify-center border border-neutral-100 relative group touch-none">
+      <div className="flex-1 bg-neutral-50 rounded-2xl overflow-hidden flex items-center justify-center border border-neutral-100 relative group touch-none min-h-96">
         <img
           src={imageList[selectedImageIndex]}
           alt={name}
-          className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
+          className="w-full h-full object-contain transition-transform duration-500 md:group-hover:scale-105 p-4"
         />
       </div>
     </div>

@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { calculateTax } from "@/features/cart/cartUtils";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import {
   useCheckoutMutation,
+  usePlaceOrderMutation,
   useInitiatePaymentMutation,
 } from "@/features/order/orderApi";
 import { getCurrentUser } from "@/lib/auth";
 import { useGetAddressesQuery } from "@/features/user/userApi";
+import { useGetLocationsQuery } from "@/features/location/locationApi";
+import { AddAddressModal } from "@/components/checkout/AddAddressModal";
 import { Button } from "@/components/ui/Button";
 import {
   ArrowLeft,
-  MapPin,
   Loader2,
   AlertCircle,
   CreditCard,
@@ -22,6 +24,8 @@ import {
   ShieldCheck,
   ChevronRight,
   ShoppingBag,
+  Plus,
+  LogIn,
 } from "lucide-react";
 import Link from "next/link";
 import { sendEvent } from "@/services/analytics.service";
@@ -44,31 +48,119 @@ export default function CheckoutPage() {
   const isAuthenticated = useSelector(
     (state: RootState) => state.auth.isAuthenticated,
   );
+  const user = useSelector((state: RootState) => state.auth.user);
 
   const [selectedAddressId, setSelectedAddressId] = useState<
     number | string | null
   >(null);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
+    null,
+  );
   const [orderError, setOrderError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<
     "COD" | "PREPAID" | "CARD" | "UPI"
   >("COD");
+  const [isAddAddressModalOpen, setIsAddAddressModalOpen] = useState(false);
 
-  const { data: addresses = [], isLoading: addressesLoading } =
+  const { data: addresses = [], isLoading: addressesLoading, refetch: refetchAddresses } =
     useGetAddressesQuery();
-  const [checkout, { isLoading: checkoutLoading }] = useCheckoutMutation();
+  const { data: serviceableLocations = [], isLoading: locationsLoading } =
+    useGetLocationsQuery();
+  const [checkoutSummary, { isLoading: summaryLoading }] =
+    useCheckoutMutation();
+  const [placeOrder, { isLoading: placingOrder }] = usePlaceOrderMutation();
   const [initiatePayment, { isLoading: initiatingPayment }] =
     useInitiatePaymentMutation();
+
+  const [checkoutData, setCheckoutData] = useState<
+    import("@/features/order/orderTypes").CheckoutResponse | null
+  >(null);
+
+  // fetch summary whenever address/payment/cart changes
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const req: import("@/features/order/orderTypes").CheckoutRequest = {
+      addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
+      paymentMethod,
+      cartId: user?.id ? Number(user.id) : undefined,
+    };
+    checkoutSummary(req)
+      .unwrap()
+      .then(setCheckoutData)
+      .catch((err) => {
+        console.warn("checkout summary error", err);
+      });
+  }, [isAuthenticated, selectedAddressId, paymentMethod, cartItems.length]);
 
   useEffect(() => {
     if (!isAuthenticated) router.push("/login");
   }, [isAuthenticated, router]);
 
+  const selectedLocation = useMemo(
+    () =>
+      selectedLocationId
+        ? serviceableLocations.find((location) => location.id === selectedLocationId)
+        : null,
+    [selectedLocationId, serviceableLocations],
+  );
+
+  const filteredAddresses = useMemo(() => {
+    const allAddresses = addresses as Address[];
+    if (!selectedLocation) return allAddresses;
+
+    return allAddresses.filter(
+      (address) =>
+        String(address.postalCode || "").trim() ===
+        String(selectedLocation.pincode || "").trim(),
+    );
+  }, [addresses, selectedLocation]);
+
   useEffect(() => {
-    if (addresses.length > 0 && !selectedAddressId) {
-      const defaultAddr = (addresses as Address[]).find((a) => a.default);
-      setSelectedAddressId(defaultAddr?.id || (addresses[0] as Address)?.id);
+    if (!filteredAddresses.length) {
+      setSelectedAddressId(null);
+      return;
     }
-  }, [addresses, selectedAddressId]);
+
+    const selectedAddressStillVisible = filteredAddresses.some(
+      (address) => address.id === selectedAddressId,
+    );
+
+    if (!selectedAddressId || !selectedAddressStillVisible) {
+      const defaultAddr = filteredAddresses.find((a) => a.default);
+      setSelectedAddressId(defaultAddr?.id || filteredAddresses[0]?.id || null);
+    }
+  }, [filteredAddresses, selectedAddressId]);
+
+  // If not authenticated, show login page
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="p-4 bg-neutral-50 rounded-full">
+              <LogIn size={32} className="text-neutral-400" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-light tracking-tight text-black mb-3">
+            Login Required
+          </h1>
+          <p className="text-neutral-600 text-sm mb-8 leading-relaxed">
+            You need to be logged in to complete your purchase.
+          </p>
+          <Link href="/login">
+            <Button className="w-full py-6 text-[11px] uppercase tracking-[0.2em] bg-black text-white hover:bg-neutral-900">
+              Login to Continue
+            </Button>
+          </Link>
+          <Link href="/register" className="block mt-4">
+            <button className="w-full py-6 text-[11px] uppercase tracking-[0.2em] border border-neutral-800 text-black hover:bg-neutral-50 transition-colors">
+              Create New Account
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -92,44 +184,38 @@ export default function CheckoutPage() {
     );
   }
 
-  const subtotal = cartItems.reduce(
+  // compute totals locally but override with backend summary when available
+  const subtotal = checkoutData?.subtotal ?? cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-  const taxAmount = Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
-  const shippingCharges = subtotal > 100 ? 0 : 10;
-  const totalAmount = subtotal + taxAmount + shippingCharges;
+  const taxAmount = checkoutData?.taxAmount ?? Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
+  const shippingCharges = checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
+  const totalAmount = checkoutData?.totalAmount ?? subtotal + taxAmount + shippingCharges;
 
   const handleCheckout = async () => {
     if (!selectedAddressId) {
       setOrderError("Please select a delivery address");
       return;
     }
+
     try {
       setOrderError(null);
-      const checkoutPayload = {
-        addressId: Number(selectedAddressId),
-        paymentMethod: paymentMethod,
-        items: cartItems.map((item) => ({
-          productId: Number(item.productId),
-          quantity: item.quantity,
-        })),
-      };
 
-      const result = await checkout(checkoutPayload).unwrap();
+      const result = await placeOrder({
+        addressId: Number(selectedAddressId),
+        paymentMethod: (paymentMethod === "COD" ? "COD" : "PREPAID") as string,
+      }).unwrap();
 
       if (result.requiresPayment) {
-        const user = typeof window !== "undefined" ? getCurrentUser() : null;
+        const user = globalThis.window === undefined ? null : getCurrentUser();
         const payResp = await initiatePayment({
           orderId: result.orderId,
-          body: {
-            orderId: result.orderId,
-            amount: result.totalAmount,
-            currency: "INR",
-            customerName: user?.name || (user?.fullName ?? "") || "",
-            customerEmail: user?.email || "",
-            customerPhone: user?.phone || "",
-          },
+          amount: result.totalAmount,
+          currency: "INR",
+          customerName: user?.name || (user?.fullName ?? "") || "",
+          customerEmail: user?.email || "",
+          customerPhone: user?.phone || "",
         }).unwrap();
         sessionStorage.setItem(
           `payment_init_${result.orderId}`,
@@ -143,7 +229,8 @@ export default function CheckoutPage() {
         orderId: result.orderId,
         totalAmount: result.totalAmount,
         itemCount: cartItems.length,
-      });
+      }); // event name kept same for analytics consistency
+
       sessionStorage.setItem("lastOrderId", String(result.orderId));
       router.push(`/checkout/success?orderId=${result.orderId}`);
     } catch (err: any) {
@@ -191,35 +278,99 @@ export default function CheckoutPage() {
                 </h2>
               </div>
 
+              <div className="mb-6 md:mb-8">
+                <label
+                  htmlFor="delivery-location"
+                  className="block text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500 mb-2"
+                >
+                  Delivery Location
+                </label>
+                <select
+                  id="delivery-location"
+                  value={selectedLocationId ?? ""}
+                  onChange={(e) => {
+                    const nextId = e.target.value ? Number(e.target.value) : null;
+                    setSelectedLocationId(nextId);
+                  }}
+                  className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-black"
+                  disabled={locationsLoading}
+                >
+                  <option value="">
+                    {locationsLoading
+                      ? "Loading serviceable locations..."
+                      : "All serviceable locations"}
+                  </option>
+                  {serviceableLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name} - {location.city}, {location.state} ({location.pincode})
+                    </option>
+                  ))}
+                </select>
+                {selectedLocation && (
+                  <p className="mt-2 text-[11px] text-neutral-500">
+                    Delivery in {selectedLocation.deliveryDays} days • COD {selectedLocation.codAvailable ? "available" : "not available"}
+                  </p>
+                )}
+              </div>
+
               {addressesLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="animate-spin text-neutral-200" />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                  {(addresses as Address[]).map((address) => (
-                    <div
-                      key={address.id}
-                      onClick={() => setSelectedAddressId(address.id)}
-                      className={`group relative p-5 rounded-2xl border-2 cursor-pointer transition-all duration-500 ${
-                        selectedAddressId === address.id
-                          ? "border-black bg-white shadow-xl shadow-black/5 ring-1 ring-black"
-                          : "border-neutral-100 bg-white hover:border-neutral-300"
-                      }`}
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    {filteredAddresses.map((address) => (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => setSelectedAddressId(address.id)}
+                        className={`group relative p-5 rounded-2xl border-2 cursor-pointer transition-all duration-500 ${
+                          selectedAddressId === address.id
+                            ? "border-black bg-white shadow-xl shadow-black/5 ring-1 ring-black"
+                            : "border-neutral-100 bg-white hover:border-neutral-300"
+                        }`}
+                      >
+                        <p className="font-bold text-black text-xs md:text-sm mb-1 uppercase tracking-tight">
+                          {address.addressLine1}
+                        </p>
+                        <p className="text-[11px] md:text-xs text-neutral-500 leading-relaxed font-light">
+                          {address.addressLine2 && `${address.addressLine2}, `}
+                          {address.city}, {address.state} {address.postalCode}
+                        </p>
+                        {address.default && (
+                          <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-neutral-300" />
+                        )}
+                      </button>
+                    ))}
+
+                    {/* Add New Address Button */}
+                    <button
+                      onClick={() => setIsAddAddressModalOpen(true)}
+                      className="group relative p-5 rounded-2xl border-2 border-dashed border-neutral-200 cursor-pointer transition-all duration-300 hover:border-black bg-neutral-50 hover:bg-white flex flex-col items-center justify-center min-h-[140px] text-center"
                     >
-                      <p className="font-bold text-black text-xs md:text-sm mb-1 uppercase tracking-tight">
-                        {address.addressLine1}
+                      <Plus size={24} className="text-neutral-400 group-hover:text-black mb-2 transition-colors" />
+                      <p className="font-bold text-black text-xs uppercase tracking-tight">
+                        Add New
                       </p>
-                      <p className="text-[11px] md:text-xs text-neutral-500 leading-relaxed font-light">
-                        {address.addressLine2 && `${address.addressLine2}, `}
-                        {address.city}, {address.state} {address.postalCode}
+                      <p className="text-[11px] text-neutral-400 mt-1">
+                        Address
                       </p>
-                      {address.default && (
-                        <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-neutral-300" />
-                      )}
+                    </button>
+                  </div>
+
+                  {!filteredAddresses.length && (
+                    <div className="sm:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
+                      <p className="mb-4">No saved addresses found for this delivery location.</p>
+                      <button
+                        onClick={() => setIsAddAddressModalOpen(true)}
+                        className="inline-flex items-center gap-2 text-black font-semibold text-sm hover:underline"
+                      >
+                        <Plus size={16} /> Add an address
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </section>
 
@@ -382,19 +533,28 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {checkoutData && !checkoutData.isValidForCheckout && checkoutData.validationErrors.length > 0 && (
+                  <div className="mb-6 p-4 bg-yellow-50 rounded-xl text-yellow-800 text-[10px] font-bold uppercase tracking-tight">
+                    {checkoutData.validationErrors.join(", ")}
+                  </div>
+                )}
+
                 <button
                   onClick={handleCheckout}
                   disabled={
-                    checkoutLoading || initiatingPayment || !selectedAddressId
+                    summaryLoading || placingOrder || initiatingPayment || !selectedAddressId ||
+                    (!!checkoutData && !checkoutData.isValidForCheckout) ||
+                    (!!checkoutData && !checkoutData.isDeliveryAvailable) ||
+                    (!!checkoutData && paymentMethod === "COD" && !checkoutData.isCodAvailable)
                   }
                   className="w-full group relative overflow-hidden bg-black text-white py-5 md:py-6 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-neutral-800 disabled:opacity-20 transition-all shadow-2xl shadow-black/20"
                 >
                   <div className="flex items-center justify-center gap-3">
-                    {checkoutLoading || initiatingPayment ? (
+                    {placingOrder || initiatingPayment ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
                       <>
-                        Complete Purchase
+                        Confirm Order
                         <ChevronRight
                           size={14}
                           className="group-hover:translate-x-1 transition-transform"
@@ -422,6 +582,15 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      <AddAddressModal
+        isOpen={isAddAddressModalOpen}
+        onClose={() => setIsAddAddressModalOpen(false)}
+        onAddressAdded={() => {
+          refetchAddresses();
+          setIsAddAddressModalOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { userApi } from '../features/user/userApi';
 import { categoryApi } from '../features/category/categoryApi';
 import { cartApi } from '../features/cart/cartApi';
 import { wishlistApi } from '../features/wishlist/wishlistApi';
+import { locationApi } from '../features/location/locationApi';
 
 export const store = configureStore({
     reducer: {
@@ -23,6 +24,7 @@ export const store = configureStore({
         [categoryApi.reducerPath]: categoryApi.reducer,
         [cartApi.reducerPath]: cartApi.reducer,
         [wishlistApi.reducerPath]: wishlistApi.reducer,
+        [locationApi.reducerPath]: locationApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware().concat(
@@ -32,7 +34,8 @@ export const store = configureStore({
             userApi.middleware,
             categoryApi.middleware,
             cartApi.middleware,
-            wishlistApi.middleware
+            wishlistApi.middleware,
+            locationApi.middleware
         ),
 });
 

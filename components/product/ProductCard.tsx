@@ -16,7 +16,17 @@ interface ProductCardProps {
   price: number | null | undefined;
   originalPrice?: number | null;
   image?: string;
-  images?: Array<string | { imageUrl?: string | null }>;
+  images?: Array<
+    | string
+    | {
+        imageUrl?: string | null;
+        image_url?: string | null;
+        url?: string | null;
+        src?: string | null;
+      }
+  >;
+  variantId?: number | null;
+  variants?: Array<{ id: number; isActive?: boolean }>;
   isNew?: boolean;
   isOnSale?: boolean;
 }
@@ -29,6 +39,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   originalPrice,
   image,
   images,
+  variantId,
+  variants,
   isNew = false,
   isOnSale = false,
 }) => {
@@ -38,6 +50,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
   const displayPrice = normalizeAmount(price);
   const displayOriginalPrice = normalizeAmount(originalPrice);
+  const resolvedVariantId = useMemo(() => {
+    if (typeof variantId === "number" && Number.isFinite(variantId) && variantId > 0) {
+      return variantId;
+    }
+
+    if (variants && variants.length > 0) {
+      const activeVariant = variants.find(
+        (variant) =>
+          variant?.isActive !== false &&
+          typeof variant.id === "number" &&
+          Number.isFinite(variant.id) &&
+          variant.id > 0,
+      );
+      if (activeVariant) return activeVariant.id;
+
+      const firstValidVariant = variants.find(
+        (variant) =>
+          typeof variant?.id === "number" &&
+          Number.isFinite(variant.id) &&
+          variant.id > 0,
+      );
+      if (firstValidVariant) return firstValidVariant.id;
+    }
+
+    return 0;
+  }, [variantId, variants]);
 
   const dispatch = useDispatch();
   const [addToCart, { isLoading: isAddingMutation }] = useAddToCartMutation();
@@ -47,7 +85,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     if (images && images.length > 0) {
       return images
         .map((entry) =>
-          typeof entry === "string" ? entry : (entry?.imageUrl ?? ""),
+          typeof entry === "string"
+            ? entry
+            : (entry?.imageUrl ??
+              entry?.image_url ??
+              entry?.url ??
+              entry?.src ??
+              ""),
         )
         .filter(Boolean);
     }
@@ -55,10 +99,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return [];
   }, [images, image]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const touchStartX = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 40) {
+      if (delta < 0) showNextImage();
+      else showPreviousImage();
+    }
+    touchStartX.current = null;
+  };
 
   const {
     addToWishlist,
-    removeFromWishlist,
+    removeFromWishlistByProductId,
     wishlist,
     isAdding: isWishLoading,
     isRemoving,
@@ -83,22 +142,61 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     setSelectedImageIndex(0);
   }, [id]);
 
+  const resolveVariantIdForAction = async () => {
+    if (resolvedVariantId > 0) return resolvedVariantId;
+
+    try {
+      const detailsResponse = await fetch(`/api/products/${Number(id)}`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!detailsResponse.ok) return 0;
+
+      const productDetails = await detailsResponse.json();
+      const detailVariants = Array.isArray(productDetails?.variants)
+        ? productDetails.variants
+        : [];
+
+      const activeVariant = detailVariants.find(
+        (variant: any) =>
+          variant?.isActive !== false &&
+          typeof variant?.id === "number" &&
+          Number.isFinite(variant.id) &&
+          variant.id > 0,
+      );
+
+      const firstValidVariant = detailVariants.find(
+        (variant: any) =>
+          typeof variant?.id === "number" &&
+          Number.isFinite(variant.id) &&
+          variant.id > 0,
+      );
+
+      return activeVariant?.id ?? firstValidVariant?.id ?? 0;
+    } catch (variantFetchError) {
+      console.error("Failed to resolve variant from product details", variantFetchError);
+      return 0;
+    }
+  };
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setLocalAdding(true);
     try {
-      // If variantId is available, pass it. Here, we assume no variant selection, so pass undefined or 0.
+      const variantIdForCart = await resolveVariantIdForAction();
+
       await addToCart({
         productId: Number(id),
-        variantId: 0,
+        variantId: variantIdForCart,
         qty: 1,
       }).unwrap();
       dispatch(
         addItem({
           id: String(id),
           productId: Number(id),
-          variantId: 0,
+          variantId: variantIdForCart,
           name,
           price: displayPrice,
           quantity: 1,
@@ -117,9 +215,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.stopPropagation();
     try {
       if (isInWishlist) {
-        await removeFromWishlist(Number(id));
+        await removeFromWishlistByProductId(Number(id));
       } else {
-        await addToWishlist(Number(id));
+        const variantIdForWishlist = await resolveVariantIdForAction();
+        await addToWishlist(Number(id), variantIdForWishlist, 1);
       }
     } catch (err) {
       console.error("Wishlist update failed", err);
@@ -129,7 +228,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <div className="group relative flex flex-col bg-white transition-all duration-500">
       {/* IMAGE SECTION */}
-      <div className="relative aspect-3/4 overflow-hidden bg-[#F9F9F9]">
+      <div
+        className="relative aspect-3/4 overflow-hidden bg-[#F9F9F9]"
+        onTouchStart={imageList.length > 1 ? handleTouchStart : undefined}
+        onTouchEnd={imageList.length > 1 ? handleTouchEnd : undefined}
+      >
         <Link href={`/product/${id}-${slug}`} className="block h-full w-full">
           {imageList.length > 0 ? (
             <img

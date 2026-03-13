@@ -8,21 +8,30 @@ import { ChevronRight } from "lucide-react";
 
 const slides = [
   {
-    image: "/slide-1-home4-1 - Copy.jpg",
-    subtitle: "New Collection",
-    title: "New Collection\nEdit",
-    description: "Relaxed layering for the golden hour.",
+    image: "/SlideImage1.jpg",
+    subtitle: "New In",
+    title: "THE REFINED\nCOLLECTION",
+    description: "Architectural silhouettes met with premium fabrics.",
     button: "Shop Now",
-    link: "/shop?collection=sundowner",
-    align: "center",
+    link: "/shop?category=men",
+    align: "left",
   },
   {
-    image: "/slide-2-home4-1 - Copy.jpg",
-    subtitle: "Spring / Summer 2026",
-    title: "The Art of\nMinimalism",
-    description: "Timeless forms, conscious materials.",
+    image: "/SlideImage2.jpg",
+    subtitle: "Spring Summer 2026",
+    title: "PURE\nMINIMALISM",
+    description: "A study in form and understated elegance.",
     button: "Explore",
-    link: "/shop?collection=minimalism",
+    link: "/shop?category=men",
+    align: "left",
+  },
+  {
+    image: "/SlideImage3.jpg",
+    subtitle: "Seasonal Edition",
+    title: "URBAN\nSTRUCTURE",
+    description: "Versatile essentials for the modern wardrobe.",
+    button: "View All",
+    link: "/shop?category=men",
     align: "left",
   },
 ];
@@ -33,103 +42,126 @@ export default function HeroSection() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, 7000); // Slightly longer for a more relaxed premium feel
     return () => clearInterval(interval);
   }, []);
 
   const slide = slides[current];
 
   return (
-    <section className="relative h-[85vh] md:h-[90vh] w-full bg-neutral-100 overflow-hidden">
+    <section className="relative h-screen w-full bg-black overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1 }}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
-          <Image
-            src={slide.image}
-            alt="Hero Banner"
-            fill
-            priority
-            className="object-cover object-top"
-          />
-          <div className="absolute inset-0 bg-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          {/* Ken Burns Effect (Slow Scale) */}
+          <motion.div 
+            initial={{ scale: 1 }}
+            animate={{ scale: 1.08 }}
+            transition={{ duration: 7, ease: "linear" }}
+            className="relative w-full h-full"
+          >
+            <Image
+              src={slide.image}
+              alt="Hero Banner"
+              fill
+              priority
+              className="object-cover object-top grayscale-[20%] contrast-[110%]"
+            />
+          </motion.div>
+          
+          {/* Editorial Overlays */}
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
         </motion.div>
       </AnimatePresence>
 
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="max-w-7xl mx-auto w-full px-6 md:px-12 pointer-events-auto">
+      <div className="absolute inset-0 flex items-center">
+        <div className="max-w-7xl mx-auto w-full px-8 md:px-16">
           <div
-            className={`flex flex-col max-w-xl text-white ${
-              slide.align === "center"
-                ? "mx-auto text-center items-center"
-                : "text-left items-start"
+            className={`flex flex-col max-w-2xl text-white ${
+              slide.align === "center" ? "mx-auto text-center items-center" : "text-left items-start"
             }`}
           >
+            {/* Subtitle Stagger */}
             <motion.span
               key={`sub-${current}`}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-[11px] md:text-[13px] tracking-[0.3em] uppercase font-bold text-white/90 mb-4 bg-black/20 backdrop-blur-sm px-3 py-1 inline-block w-fit rounded-sm"
+              transition={{ delay: 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="text-[10px] md:text-[12px] tracking-[0.4em] uppercase font-bold text-white mb-6 border-l-2 border-white pl-4"
             >
               {slide.subtitle}
             </motion.span>
 
+            {/* Title Stagger */}
             <motion.h1
               key={`title-${current}`}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-[42px] md:text-[72px] lg:text-[80px] font-serif leading-[0.95] mb-6 drop-shadow-sm whitespace-pre-line"
+              transition={{ delay: 0.6, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              className="text-[48px] md:text-[80px] lg:text-[100px] font-medium leading-[0.9] mb-8 tracking-tighter whitespace-pre-line"
             >
               {slide.title}
             </motion.h1>
 
+            {/* Description Stagger */}
             <motion.p
               key={`desc-${current}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="text-base md:text-lg font-light text-white/90 mb-10 tracking-wide drop-shadow-sm max-w-sm"
+              transition={{ delay: 0.7, duration: 0.8 }}
+              className="text-sm md:text-base font-light text-white/80 mb-12 tracking-wide max-w-md leading-relaxed"
             >
               {slide.description}
             </motion.p>
 
+            {/* Button Stagger */}
             <motion.div
               key={`btn-${current}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
             >
               <Link
                 href={slide.link}
-                className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-transform hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl"
+                className="group relative inline-flex items-center bg-white text-black px-10 py-5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all hover:bg-black hover:text-white"
               >
-                {slide.button}
-                <ChevronRight size={14} />
+                <span className="relative z-10">{slide.button}</span>
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Link>
             </motion.div>
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-3 z-10">
+      {/* Modern Progress Bar Indicators */}
+      <div className="absolute bottom-12 left-8 md:left-16 flex items-center gap-6 z-10">
         {slides.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrent(idx)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              idx === current
-                ? "w-8 bg-white"
-                : "w-2 bg-white/40 hover:bg-white/60"
-            }`}
-          />
+            className="group relative py-4"
+          >
+            <div className="flex items-center gap-3">
+              <span className={`text-[10px] font-bold transition-colors ${idx === current ? "text-white" : "text-white/40"}`}>
+                0{idx + 1}
+              </span>
+              <div className="h-[1px] w-12 bg-white/20 overflow-hidden">
+                <motion.div 
+                  initial={{ x: "-100%" }}
+                  animate={{ x: idx === current ? "0%" : "-100%" }}
+                  transition={{ duration: idx === current ? 7 : 0.3, ease: "linear" }}
+                  className="h-full bg-white"
+                />
+              </div>
+            </div>
+          </button>
         ))}
       </div>
     </section>

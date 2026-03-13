@@ -89,7 +89,7 @@ export default function LoginPage() {
 
           {/* HEADER */}
           <div className="space-y-3 text-center lg:text-left">
-            <h1 className="text-4xl sm:text-5xl font-medium tracking-tighter leading-none">
+            <h1 className="text-4xl mt-8 sm:text-5xl font-medium tracking-tighter leading-none">
               Sign In
             </h1>
           </div>

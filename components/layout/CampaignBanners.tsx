@@ -6,103 +6,84 @@ import { motion } from "framer-motion";
 
 const campaigns = [
   {
-    category: "The Essential Tee",
-    title: "Heavyweight Jersey",
+    category: "Menswear",
+    title: "THE PERFECT\nT-SHIRT",
     description:
-      "Drop-shoulder silhouettes in 300GSM organic cotton. Built for the playground, designed for the aesthetic.",
-    // Using a high-quality studio shot of a premium kids t-shirt
-    image:
-      "https://images.unsplash.com/photo-1622273509381-0699479e0a0d?q=80&w=1200&auto=format&fit=crop",
+      "Heavyweight 300GSM organic cotton. A structured drape for a contemporary silhouette.",
+    image: "/BannerImage2.jpg",
     link: "/shop?category=t-shirts",
-    btn: "Shop T-Shirts",
+    btn: "Shop Collection",
   },
   {
-    category: "Seasonal Shirting",
-    title: "The Oxford Series",
+    category: "Editorial",
+    title: "THE OXFORD\nSERIES",
     description:
-      "Classic button-downs with a modern oversized fit. Versatile layers for the young tastemaker.",
-    // Using a sharp editorial shot of a youth button-up shirt
-    image:
-      "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?q=80&w=1200&auto=format&fit=crop",
+      "Crisp, refined, and versatile. Reimagining the classic button-down for the modern era.",
+    image: "/BannerImage1.jpg",
     link: "/shop?category=shirts",
-    btn: "Explore Shirting",
+    btn: "Explore Shirts",
   },
 ];
 
 export default function CampaignBanners() {
   return (
-    <section className="py-20 md:py-32 bg-[#FBFBFB] border-b border-neutral-200">
-      <div className="max-w-[1440px] mx-auto px-6">
-        {/* Section Header */}
-        <div className="mb-16 md:mb-24 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-4">
-            <h2 className="text-5xl md:text-6xl tracking-tighter leading-[0.85]">
-              Mens' Wardrobe <br />
-              <span className="text-neutral-300 not-italic font-sans font-bold uppercase text-4xl md:text-6xl">
-                Essentials.
-              </span>
-            </h2>
-          </div>
-          <p className="max-w-xs text-neutral-500 text-sm font-light leading-relaxed">
-            Premium fabrics meets functional design. A new standard for the next
-            generation.
-          </p>
+    <section className="bg-white border-b border-neutral-100">
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12">
+        
+        {/* Section Header: Zara Style Editorial Header */}
+        <div className="mb-10 flex flex-col items-start border-l border-black pl-8">
+          <h3 className="text-5xl md:text-7xl font-medium tracking-tighter leading-[0.9] text-black">
+            MENSWEAR <br />
+          </h3>
         </div>
 
         {/* Campaign Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {campaigns.map((camp, idx) => (
             <div
               key={idx}
-              className="group relative h-[600px] md:h-[750px] w-full overflow-hidden bg-neutral-200"
+              className="group relative h-[70vh] md:h-[85vh] w-full overflow-hidden bg-neutral-100"
             >
-              {/* Image Logic:
-                  1. priority={true} ensures these "above-the-fold" images load instantly.
-                  2. sizes handles responsive image delivery.
-                  3. grayscale-[20%] gives that high-fashion "muted" look until hover.
-              */}
+              {/* Image with slow Ken Burns effect */}
               <Image
                 src={camp.image}
                 alt={camp.title}
                 fill
                 priority={idx === 0}
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover transition-transform duration-[2.5s] cubic-bezier(0.19, 1, 0.22, 1) group-hover:scale-110 grayscale-[15%] group-hover:grayscale-0"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition-transform duration-[4s] ease-out group-hover:scale-105 grayscale-[20%] group-hover:grayscale-0"
               />
 
-              {/* Sophisticated Dark Overlay - Improved for better text contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-opacity duration-700 group-hover:opacity-100" />
+              {/* Minimal Gradient for Legibility */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
 
-              {/* Text Content */}
-              <div className="absolute inset-0 p-10 md:p-16 flex flex-col justify-end items-start text-white">
+              {/* Text Content: Bottom Left Alignment */}
+              <div className="absolute inset-0 p-8 md:p-16 flex flex-col justify-end items-start text-white">
                 <motion.div
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 1, ease: [0.19, 1, 0.22, 1] }}
-                  className="w-full"
+                  transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="h-[1px] w-8 bg-white/40 group-hover:w-12 transition-all duration-500" />
-                    <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-white/80">
-                      {camp.category}
-                    </span>
-                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-white/70 mb-4 block">
+                    {camp.category}
+                  </span>
 
-                  <h3 className="text-4xl md:text-5xl font-serif italic tracking-tighter mb-4 leading-tight">
+                  <h3 className="text-4xl md:text-6xl font-medium tracking-tighter mb-6 leading-[0.95] whitespace-pre-line">
                     {camp.title}
                   </h3>
 
-                  <p className="text-sm md:text-base font-light text-white/60 mb-10 max-w-sm leading-relaxed group-hover:text-white/90 transition-colors">
+                  <p className="text-sm font-light text-white/70 mb-10 max-w-xs leading-relaxed group-hover:text-white transition-colors">
                     {camp.description}
                   </p>
 
+                  {/* High-Fashion Flat Button */}
                   <Link
                     href={camp.link}
-                    className="relative inline-flex items-center justify-center px-10 py-4 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 hover:bg-black hover:text-white group/btn overflow-hidden"
+                    className="group/btn relative inline-flex items-center justify-center px-12 py-4 border border-white text-white text-[11px] font-bold uppercase tracking-[0.3em] overflow-hidden transition-colors duration-500 hover:text-black"
                   >
                     <span className="relative z-10">{camp.btn}</span>
-                    <div className="absolute inset-0 bg-black translate-y-full group-hover/btn:translate-y-0 transition-transform duration-100 ease-[0.19, 1, 0.22, 1]" />
+                    <div className="absolute inset-0 bg-white translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500 ease-[0.22, 1, 0.36, 1]" />
                   </Link>
                 </motion.div>
               </div>

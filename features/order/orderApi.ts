@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { CheckoutPayload, Order, OrdersResponse, ApiResponse, ReturnRequest, ReturnResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "./orderTypes";
+import { CheckoutRequest, CheckoutResponse, Order, OrdersResponse, ApiResponse, ReturnRequest, ReturnResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "./orderTypes";
 
 export const orderApi = createApi({
     reducerPath: "orderApi",
@@ -7,8 +7,8 @@ export const orderApi = createApi({
         baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api`,
         credentials: "include",
         prepareHeaders: (headers) => {
-            const token = typeof window !== 'undefined' ? localStorage.getItem("accessToken") : null;
-            const tokenType = typeof window !== 'undefined' ? localStorage.getItem("tokenType") || "Bearer" : "Bearer";
+            const token = globalThis.window === undefined ? null : localStorage.getItem("accessToken");
+            const tokenType = globalThis.window === undefined ? "Bearer" : localStorage.getItem("tokenType") || "Bearer";
 
             if (token) {
                 headers.set("Authorization", `${tokenType} ${token}`);
@@ -22,8 +22,17 @@ export const orderApi = createApi({
 
     endpoints: (builder) => ({
 
-        /** Checkout - Create new order */
-        checkout: builder.mutation<Order, CheckoutPayload>({
+        /** Checkout summary - returns pricing/details for current cart */
+        checkout: builder.mutation<CheckoutResponse, CheckoutRequest>({
+            query: (body) => ({
+                url: "/orders/checkout",
+                method: "POST",
+                body,
+            }),
+        }),
+
+        /** Place Order using checkout endpoint */
+        placeOrderCheckout: builder.mutation<Order, CheckoutRequest>({
             query: (body) => ({
                 url: "/orders/checkout",
                 method: "POST",
@@ -32,6 +41,14 @@ export const orderApi = createApi({
             invalidatesTags: ["Orders"],
         }),
 
+        /** Place Order - used when user completes purchase */
+        placeOrder: builder.mutation<Order, { addressId: number; paymentMethod: string }>({
+            query: ({ addressId, paymentMethod }) => ({
+                url: `/orders/place?addressId=${addressId}&paymentMethod=${paymentMethod}`,
+                method: "POST",
+            }),
+            invalidatesTags: ["Orders"],
+        }),
         /** Get Order Details */
         getOrderDetails: builder.query<Order, number>({
             query: (orderId) => ({
@@ -60,17 +77,12 @@ export const orderApi = createApi({
         }),
 
         /** Initiate Payment for prepaid order */
-        initiatePayment: builder.mutation<InitiatePaymentResponse, { orderId: number; body: InitiatePaymentRequest } | InitiatePaymentRequest>({
-            query: (arg) => {
-                // support both (orderId, body) shape and single body containing orderId
-                const orderId = (arg as any).orderId;
-                const body = (arg as any).body ? (arg as any).body : arg;
-                return {
-                    url: `/orders/${orderId}/payment/initiate`,
-                    method: "POST",
-                    body,
-                };
-            },
+        initiatePayment: builder.mutation<InitiatePaymentResponse, InitiatePaymentRequest>({
+            query: (body) => ({
+                url: `/orders/${body.orderId}/payment/initiate`,
+                method: "POST",
+                body,
+            }),
             invalidatesTags: ["Orders"],
         }),
 
@@ -95,6 +107,8 @@ export const orderApi = createApi({
 
 export const {
     useCheckoutMutation,
+    usePlaceOrderCheckoutMutation,
+    usePlaceOrderMutation,
     useGetOrderDetailsQuery,
     useCancelOrderMutation,
     useReorderOrderMutation,

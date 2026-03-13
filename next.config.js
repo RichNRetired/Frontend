@@ -14,6 +14,10 @@ const nextConfig = {
                 protocol: "https",
                 hostname: "project-fnwy.onrender.com",
             },
+            {
+                protocol: "https",
+                hostname: "res.cloudinary.com",
+            },
         ],
     },
 };

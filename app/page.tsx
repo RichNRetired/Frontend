@@ -55,16 +55,16 @@ export default function Home() {
     const originalSlug = section.name.toLowerCase();
     const slug =
       originalSlug === "girl" ||
-      originalSlug === "girls" ||
-      originalSlug === "women" ||
-      originalSlug === "womens"
+        originalSlug === "girls" ||
+        originalSlug === "women" ||
+        originalSlug === "womens"
         ? "women"
         : originalSlug;
     const displayName =
       originalSlug === "girl" ||
-      originalSlug === "girls" ||
-      originalSlug === "women" ||
-      originalSlug === "womens"
+        originalSlug === "girls" ||
+        originalSlug === "women" ||
+        originalSlug === "womens"
         ? "Women"
         : section.name;
     return {
@@ -86,13 +86,13 @@ export default function Home() {
       <CampaignBanners />
 
       {/* Trending Now Section */}
-      <section className="py-16 md:py-20 bg-neutral-100 border-y border-neutral-200">
+      <section className="py-16 md:py-20 bg-white border-y border-neutral-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-10 md:mb-12">
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-neutral-900">
+            <h2 className="text-4xl md:text-5xl font-light tracking-tight text-neutral-900">
               Trending Now
             </h2>
-            <p className="mt-3 text-2xl md:text-3xl font-light text-neutral-800 tracking-wide">
+            <p className="mt-3 text-xl md:text-2xl font-light text-neutral-800 tracking-wide">
               Based On Your Recent Activity
             </p>
           </div>
@@ -118,6 +118,17 @@ export default function Home() {
                     <div key={product.id} className="w-64 shrink-0">
                       <ProductCard
                         {...product}
+                        images={[
+                          ...(Array.isArray(product.images) ? product.images : []),
+                          product.main_image,
+                          product.thumbnail_image,
+                          product.medium_image,
+                        ].filter(Boolean)}
+                        image={
+                          product.main_image ||
+                          product.thumbnail_image ||
+                          product.medium_image
+                        }
                         originalPrice={product.mrp}
                         isOnSale={!!product.discount_percent}
                       />
@@ -155,7 +166,7 @@ export default function Home() {
       </section>
 
       {/* New Arrivals */}
-      <section className="py-24 sm:py-28 bg-white border-y border-neutral-100">
+      <section className="py-8 sm:py-15 bg-white border-y border-neutral-100">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-4">
             <div className="max-w-xl">
@@ -178,39 +189,44 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
             {newArrivalsLoading
               ? Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="animate-pulse bg-neutral-50 h-96 w-full"
-                  />
-                ))
+                <div
+                  key={i}
+                  className="animate-pulse bg-neutral-50 h-96 w-full"
+                />
+              ))
               : (newArrivalsResp?.content || [])
-                  .slice(0, 8)
-                  .map((product: any) => (
-                    <ProductCard
-                      key={product.id}
-                      {...product}
-                      images={product.images}
-                      image={
-                        product.main_image ||
-                        product.thumbnail_image ||
-                        product.medium_image
-                      }
-                      originalPrice={product.mrp}
-                      isOnSale={!!product.discount_percent}
-                      isNew
-                    />
-                  ))}
+                .slice(0, 8)
+                .map((product: any) => (
+                  <ProductCard
+                    key={product.id}
+                    {...product}
+                    images={[
+                      ...(Array.isArray(product.images) ? product.images : []),
+                      product.main_image,
+                      product.thumbnail_image,
+                      product.medium_image,
+                    ].filter(Boolean)}
+                    image={
+                      product.main_image ||
+                      product.thumbnail_image ||
+                      product.medium_image
+                    }
+                    originalPrice={product.mrp}
+                    isOnSale={!!product.discount_percent}
+                    isNew
+                  />
+                ))}
           </div>
         </div>
       </section>
 
       {/* Featured Products */}
-      <section className="py-24 sm:py-32">
+      <section className="py-10 sm:py-32">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
             <div className="max-w-xl">
-              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4 italic serif">
-                The Editorial Selection
+              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4  serif">
+                Our Featured Collection
               </h2>
               <p className="text-neutral-500 font-light leading-relaxed">
                 Modern essentials designed for versatility and longevity.
@@ -228,16 +244,73 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
             {featuredLoading
               ? Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="animate-pulse bg-neutral-50 h-96 w-full"
-                  />
-                ))
+                <div
+                  key={i}
+                  className="animate-pulse bg-neutral-50 h-90 w-full"
+                />
+              ))
               : (featuredResp?.content || []).map((product: any) => (
+                <ProductCard
+                  key={product.id}
+                  {...product}
+                  images={[
+                    ...(Array.isArray(product.images) ? product.images : []),
+                    product.main_image,
+                    product.thumbnail_image,
+                    product.medium_image,
+                  ].filter(Boolean)}
+                  image={
+                    product.main_image ||
+                    product.thumbnail_image ||
+                    product.medium_image
+                  }
+                  originalPrice={product.mrp}
+                  isOnSale={!!product.discount_percent}
+                />
+              ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="py-10 sm:py-10 bg-neutral-50 border-y border-neutral-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+            <div className="max-w-xl">
+              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4">
+                Best Sellers
+              </h2>
+              <p className="text-neutral-500 font-light leading-relaxed">
+                Most loved products chosen by our shoppers.
+              </p>
+            </div>
+
+            <Link
+              href="/shop"
+              className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
+            >
+              Shop Best Sellers
+              <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
+            {bestSellersLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="animate-pulse bg-white h-56 w-full" />
+              ))
+              : (bestSellersResp?.content || [])
+                .slice(0, 8)
+                .map((product: any) => (
                   <ProductCard
                     key={product.id}
                     {...product}
-                    images={product.images}
+                    images={[
+                      ...(Array.isArray(product.images) ? product.images : []),
+                      product.main_image,
+                      product.thumbnail_image,
+                      product.medium_image,
+                    ].filter(Boolean)}
                     image={
                       product.main_image ||
                       product.thumbnail_image ||
@@ -251,62 +324,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Best Sellers */}
-      <section className="py-24 sm:py-28 bg-neutral-50 border-y border-neutral-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-4">
-            <div className="max-w-xl">
-              <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-4">
-                Best Sellers
-              </h2>
-              <p className="text-neutral-500 font-light leading-relaxed">
-                Most loved products chosen by our shoppers.
-              </p>
-            </div>
-            <Link
-              href="/shop"
-              className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
-            >
-              Shop Best Sellers
-              <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-16 sm:gap-x-8">
-            {bestSellersLoading
-              ? Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="animate-pulse bg-white h-96 w-full" />
-                ))
-              : (bestSellersResp?.content || [])
-                  .slice(0, 8)
-                  .map((product: any) => (
-                    <ProductCard
-                      key={product.id}
-                      {...product}
-                      images={product.images}
-                      image={
-                        product.main_image ||
-                        product.thumbnail_image ||
-                        product.medium_image
-                      }
-                      originalPrice={product.mrp}
-                      isOnSale={!!product.discount_percent}
-                    />
-                  ))}
-          </div>
-        </div>
-      </section>
-
       {/* Newsletter - visually enhanced */}
       <section className="relative bg-[#0a0a0a] text-white py-32 overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="/newsletter-bg.jpg"
-            alt="Newsletter background"
-            className="w-full h-full object-cover opacity-20"
-            loading="lazy"
-          />
-        </div>
         <div className="max-w-2xl mx-auto px-6 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-light tracking-tighter mb-6">
             The Inner Circle
