@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Rich and Retired",
   description: "Your one-stop shop for fashion",
+  icons: {
+    icon: "/RichLogo.png",
+  },
 };
 
 export default function RootLayout({

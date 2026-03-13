@@ -344,19 +344,6 @@ export default function CheckoutPage() {
                       </button>
                     ))}
 
-                    {/* Add New Address Button */}
-                    <button
-                      onClick={() => setIsAddAddressModalOpen(true)}
-                      className="group relative p-5 rounded-2xl border-2 border-dashed border-neutral-200 cursor-pointer transition-all duration-300 hover:border-black bg-neutral-50 hover:bg-white flex flex-col items-center justify-center min-h-[140px] text-center"
-                    >
-                      <Plus size={24} className="text-neutral-400 group-hover:text-black mb-2 transition-colors" />
-                      <p className="font-bold text-black text-xs uppercase tracking-tight">
-                        Add New
-                      </p>
-                      <p className="text-[11px] text-neutral-400 mt-1">
-                        Address
-                      </p>
-                    </button>
                   </div>
 
                   {!filteredAddresses.length && (
