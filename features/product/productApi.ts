@@ -108,6 +108,7 @@ const enrichProductsWithDetails = async (
 
     const detailEntries = await Promise.all(
         productsNeedingDetails.map(async (product) => {
+            
             const detailResult = await fetchWithBQ(`/products/${product.id}`);
 
             if ("error" in detailResult || !detailResult.data) {
