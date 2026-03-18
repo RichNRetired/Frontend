@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchBackendApi } from '@/lib/backend-api';
 
-export async function POST(
+export async function PUT(
     req: NextRequest,
     { params }: { params: Promise<{ orderId: string }> }
 ) {
@@ -20,7 +20,7 @@ export async function POST(
         const { orderId } = await params;
 
         // Validate orderId
-        if (!orderId || isNaN(Number(orderId))) {
+        if (!orderId || Number.isNaN(Number(orderId))) {
             return NextResponse.json(
                 { message: 'Invalid order ID' },
                 { status: 400 }
@@ -28,8 +28,8 @@ export async function POST(
         }
 
         // Forward request to backend
-        const result = await fetchBackendApi(`/orders/${orderId}/cancel`, {
-            method: 'POST',
+        const result = await fetchBackendApi(`/admin/orders/${orderId}/cancel`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             token,
         });

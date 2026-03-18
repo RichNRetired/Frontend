@@ -15,6 +15,7 @@ interface ProductCardProps {
   name: string;
   price: number | null | undefined;
   originalPrice?: number | null;
+  category?: { id?: number | null } | null;
   image?: string;
   images?: Array<
     | string
@@ -37,6 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   name,
   price,
   originalPrice,
+  category,
   image,
   images,
   variantId,
@@ -197,6 +199,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           id: String(id),
           productId: Number(id),
           variantId: variantIdForCart,
+          categoryId: Number(category?.id) > 0 ? Number(category?.id) : undefined,
           name,
           price: displayPrice,
           quantity: 1,

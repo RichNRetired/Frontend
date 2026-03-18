@@ -62,6 +62,7 @@ export default function OrdersPage() {
             id: String(item.cartId || item.productId),
             productId: item.productId,
             variantId: Number(item.variantId || 0),
+            categoryId: Number(item.categoryId ?? item.category?.id) || undefined,
             name: item.productName,
             price: item.price,
             quantity: item.quantity,

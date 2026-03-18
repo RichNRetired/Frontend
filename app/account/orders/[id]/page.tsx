@@ -2,37 +2,51 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
-import { useDispatch } from "react-redux";
+import { useParams, useRouter } from "next/navigation";
 import {
   useGetOrderDetailsQuery,
   useCancelOrderMutation,
+  useGetEligibleReturnItemsQuery,
 } from "@/features/order/orderApi";
-import { addItem } from "@/features/cart/cartSlice";
+import { OrderItem, ReturnReason } from "@/features/order/orderTypes";
 import { ReturnForm } from "@/components/returns/ReturnForm";
 import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
   MapPin,
-  Calendar,
-  DollarSign,
-  Package,
   X,
-  RefreshCw,
   UndoIcon,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
 
+type ReturnableOrderItem = OrderItem & {
+  orderItemId?: number;
+  availableReasons?: ReturnReason[];
+  returnDeadline?: string;
+  eligibilityMessage?: string;
+  isEligible?: boolean;
+};
+
+const getOrderStatusClass = (status: string) => {
+  if (status === "PAID") {
+    return "bg-green-50 text-green-700";
+  }
+
+  if (status === "CANCELLED") {
+    return "bg-red-50 text-red-700";
+  }
+
+  return "bg-neutral-100 text-neutral-600";
+};
+
 export default function OrderDetailsPage() {
   const router = useRouter();
   const params = useParams();
-  const dispatch = useDispatch();
   const orderId = Number(params.id);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [selectedItemForReturn, setSelectedItemForReturn] = useState<any>(null);
+  const [selectedItemForReturn, setSelectedItemForReturn] = useState<ReturnableOrderItem | null>(null);
 
   const {
     data: order,
@@ -40,7 +54,46 @@ export default function OrderDetailsPage() {
     error: orderError,
     refetch,
   } = useGetOrderDetailsQuery(orderId);
+  const { data: eligibleReturnItems = [], isLoading: eligibleItemsLoading } =
+    useGetEligibleReturnItemsQuery(orderId, {
+      skip: !Number.isFinite(orderId) || orderId <= 0,
+    });
   const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
+
+  const canReturnOrder = order?.status === "PAID" || order?.status === "DELIVERED";
+
+  const getReturnableItem = (item: OrderItem): ReturnableOrderItem | null => {
+    if (item.orderItemId) {
+      const matchedEligibleItem = eligibleReturnItems.find(
+        (eligibleItem) => eligibleItem.orderItemId === item.orderItemId,
+      );
+
+      return {
+        ...item,
+        availableReasons: matchedEligibleItem?.availableReasons,
+        returnDeadline: matchedEligibleItem?.returnDeadline,
+        eligibilityMessage: matchedEligibleItem?.eligibilityMessage,
+        isEligible: matchedEligibleItem?.isEligible,
+      };
+    }
+
+    const matchedEligibleItem = eligibleReturnItems.find(
+      (eligibleItem) => eligibleItem.productName === item.productName,
+    );
+
+    if (!matchedEligibleItem) {
+      return null;
+    }
+
+    return {
+      ...item,
+      orderItemId: matchedEligibleItem.orderItemId,
+      availableReasons: matchedEligibleItem.availableReasons,
+      returnDeadline: matchedEligibleItem.returnDeadline,
+      eligibilityMessage: matchedEligibleItem.eligibilityMessage,
+      isEligible: matchedEligibleItem.isEligible,
+    };
+  };
 
   const handleCancelOrder = async () => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
@@ -156,13 +209,7 @@ export default function OrderDetailsPage() {
               </p>
             </div>
             <span
-              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 rounded ${
-                order.status === "PAID"
-                  ? "bg-green-50 text-green-700"
-                  : order.status === "CANCELLED"
-                    ? "bg-red-50 text-red-700"
-                    : "bg-neutral-100 text-neutral-600"
-              }`}
+              className={`text-xs font-semibold tracking-widest uppercase px-4 py-2 rounded ${getOrderStatusClass(order.status)}`}
             >
               {order.status}
             </span>
@@ -208,7 +255,7 @@ export default function OrderDetailsPage() {
               {order.subtotal !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Subtotal</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-neutral-600">
                     ₹{order.subtotal.toLocaleString()}
                   </span>
                 </div>
@@ -216,7 +263,7 @@ export default function OrderDetailsPage() {
               {order.taxAmount !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Tax</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-neutral-600">
                     ₹{order.taxAmount.toLocaleString()}
                   </span>
                 </div>
@@ -224,7 +271,7 @@ export default function OrderDetailsPage() {
               {order.shippingCharges !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Shipping</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-neutral-600">
                     {order.shippingCharges === 0
                       ? "Free"
                       : `₹${order.shippingCharges.toLocaleString()}`}
@@ -255,9 +302,19 @@ export default function OrderDetailsPage() {
           </h2>
           <div className="border border-neutral-200 rounded-lg overflow-hidden">
             <div className="space-y-0 divide-y divide-neutral-100">
-              {order.items?.map((item, idx) => (
+              {order.items?.map((item) => {
+                const returnableItem = getReturnableItem(item);
+                const canRequestReturn =
+                  canReturnOrder &&
+                  Boolean(returnableItem?.orderItemId) &&
+                  returnableItem?.isEligible !== false;
+
+                return (
                 <div
-                  key={idx}
+                  key={
+                    item.orderItemId ||
+                    `${item.productId}-${item.variantId || "default"}-${item.productName}-${item.quantity}`
+                  }
                   className="flex flex-col sm:flex-row items-start gap-4 p-6 hover:bg-neutral-50 transition-colors"
                 >
                   {item.imageUrl && (
@@ -291,23 +348,25 @@ export default function OrderDetailsPage() {
                     </div>
                   </div>
                   {/* Return Button */}
-                  {(order.status === "PAID" ||
-                    order.status === "DELIVERED") && (
-                    <button
-                      onClick={() =>
-                        setSelectedItemForReturn({
-                          ...item,
-                          orderItemId: item.productId,
-                        })
-                      }
-                      className="whitespace-nowrap px-4 py-2.5 border border-blue-200 text-blue-600 rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-blue-50 transition-all"
-                    >
-                      <UndoIcon size={14} className="inline mr-1.5" />
-                      Return Item
-                    </button>
+                  {canReturnOrder && (
+                    canRequestReturn ? (
+                      <button
+                        onClick={() => setSelectedItemForReturn(returnableItem)}
+                        className="whitespace-nowrap px-4 py-2.5 border border-blue-200 text-blue-600 rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-blue-50 transition-all"
+                      >
+                        <UndoIcon size={14} className="inline mr-1.5" />
+                        Return Item
+                      </button>
+                    ) : (
+                      <span className="text-[11px] uppercase tracking-widest text-neutral-400">
+                        {eligibleItemsLoading
+                          ? "Checking return..."
+                          : returnableItem?.eligibilityMessage || "Not eligible for return"}
+                      </span>
+                    )
                   )}
                 </div>
-              ))}
+              );})}
             </div>
           </div>
         </div>
@@ -315,16 +374,14 @@ export default function OrderDetailsPage() {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
           {order.status !== "CANCELLED" && (
-            <>
-              <button
-                disabled={cancelling}
-                onClick={handleCancelOrder}
-                className="flex items-center gap-2 px-6 py-3 border border-red-200 text-red-600 rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X size={16} />
-                {cancelling ? "Cancelling..." : "Cancel Order"}
-              </button>
-            </>
+            <button
+              disabled={cancelling}
+              onClick={handleCancelOrder}
+              className="flex items-center gap-2 px-6 py-3 border border-red-200 text-red-600 rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <X size={16} />
+              {cancelling ? "Cancelling..." : "Cancel Order"}
+            </button>
           )}
           <Link href="/account/orders">
             <button className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-900 rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-neutral-200 transition-all">
@@ -337,6 +394,7 @@ export default function OrderDetailsPage() {
       {/* Return Form Modal */}
       {selectedItemForReturn && (
         <ReturnForm
+          orderId={order.orderId}
           orderItem={selectedItemForReturn}
           onClose={() => setSelectedItemForReturn(null)}
           onSuccess={() => {

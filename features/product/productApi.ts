@@ -19,13 +19,128 @@ const sanitizeFilter = (filter: ProductFilterRequest) => {
     return params;
 };
 
+const toFiniteNumber = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsedValue = Number(value);
+        return Number.isFinite(parsedValue) ? parsedValue : null;
+    }
+
+    return null;
+};
+
+const resolvePrimaryVariant = (product: Product) => {
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+
+    return (
+        variants.find(
+            (variant) =>
+                variant?.isActive !== false &&
+                toFiniteNumber(variant?.sellingPrice) !== null,
+        ) ??
+        variants.find((variant) => toFiniteNumber(variant?.sellingPrice) !== null) ??
+        null
+    );
+};
+
+const normalizeProduct = (product: Product): Product => {
+    const primaryVariant = resolvePrimaryVariant(product);
+    const basePrice = toFiniteNumber(product.price);
+    const variantPrice = toFiniteNumber(primaryVariant?.sellingPrice);
+    const resolvedPrice =
+        basePrice !== null && basePrice > 0
+            ? basePrice
+            : (variantPrice ?? basePrice ?? 0);
+
+    const baseMrp = toFiniteNumber(product.mrp);
+    const variantMrp = toFiniteNumber(primaryVariant?.mrp);
+    const resolvedMrp =
+        baseMrp !== null && baseMrp > 0
+            ? baseMrp
+            : (variantMrp ?? baseMrp ?? resolvedPrice);
+
+    return {
+        ...product,
+        price: resolvedPrice,
+        mrp: resolvedMrp,
+    };
+};
+
+const normalizeProductsResponse = (response: ProductsResponse): ProductsResponse => ({
+    ...response,
+    content: Array.isArray(response?.content)
+        ? response.content.map(normalizeProduct)
+        : [],
+});
+
+const hasGalleryImages = (product: Product) =>
+    Array.isArray(product.images) && product.images.length > 0;
+
+const mergeProductWithDetails = (product: Product, detail: Product): Product => ({
+    ...detail,
+    ...product,
+    variants:
+        Array.isArray(product.variants) && product.variants.length > 0
+            ? product.variants
+            : detail.variants,
+    images: hasGalleryImages(product) ? product.images : detail.images,
+    main_image: product.main_image || detail.main_image,
+    thumbnail_image: product.thumbnail_image || detail.thumbnail_image,
+    medium_image: product.medium_image || detail.medium_image,
+    price: toFiniteNumber(product.price) ?? detail.price,
+    mrp: toFiniteNumber(product.mrp) ?? detail.mrp,
+});
+
+const enrichProductsWithDetails = async (
+    response: ProductsResponse,
+    fetchWithBQ: ReturnType<typeof fetchBaseQuery>,
+) => {
+    const normalizedResponse = normalizeProductsResponse(response);
+    const products = normalizedResponse.content;
+    const productsNeedingDetails = products.filter(
+        (product) => Number.isFinite(product.id) && !hasGalleryImages(product),
+    );
+
+    if (productsNeedingDetails.length === 0) {
+        return { data: normalizedResponse };
+    }
+
+    const detailEntries = await Promise.all(
+        productsNeedingDetails.map(async (product) => {
+            const detailResult = await fetchWithBQ(`/products/${product.id}`);
+
+            if ("error" in detailResult || !detailResult.data) {
+                return [product.id, null] as const;
+            }
+
+            return [product.id, detailResult.data as Product] as const;
+        }),
+    );
+
+    const detailMap = new Map(detailEntries);
+
+    return {
+        data: {
+            ...normalizedResponse,
+            content: products.map((product) => {
+                const detail = detailMap.get(product.id);
+
+                if (!detail) return product;
+
+                return normalizeProduct(mergeProductWithDetails(product, detail));
+            }),
+        },
+    };
+};
+
 export const productApi = createApi({
     reducerPath: "productApi",
     baseQuery: fetchBaseQuery({
         baseUrl: `${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api`,
         credentials: "include",
         prepareHeaders: (headers) => {
-            if (typeof window !== "undefined") {
+            if (globalThis.window !== undefined) {
                 const token = localStorage.getItem("accessToken");
                 const tokenType = localStorage.getItem("tokenType") || "Bearer";
 
@@ -67,6 +182,8 @@ export const productApi = createApi({
                     limit,
                 },
             }),
+            transformResponse: (response: ProductsResponse) =>
+                normalizeProductsResponse(response),
             providesTags: ["Products"],
         }),
 
@@ -106,6 +223,7 @@ export const productApi = createApi({
                 url: `/products/${id}`,
                 method: "GET",
             }),
+            transformResponse: (response: Product) => normalizeProduct(response),
             providesTags: (result, error, id) => [{ type: "Products", id }],
         }),
 
@@ -117,39 +235,74 @@ export const productApi = createApi({
                 url: `/products/${productId}/related`,
                 params: { page, size },
             }),
+            transformResponse: (response: ProductsResponse) =>
+                normalizeProductsResponse(response),
             providesTags: ["Products"],
         }),
 
         getNewArrivals: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
-            query: (args) => ({
-                url: "/products/new-arrivals",
-                params: {
-                    page: args?.page ?? 0,
-                    size: args?.size ?? 10,
-                },
-            }),
+            async queryFn(args, _api, _extraOptions, fetchWithBQ) {
+                const response = await fetchWithBQ({
+                    url: "/products/new-arrivals",
+                    params: {
+                        page: args?.page ?? 0,
+                        size: args?.size ?? 10,
+                    },
+                });
+
+                if ("error" in response) {
+                    return { error: response.error };
+                }
+
+                return enrichProductsWithDetails(
+                    response.data as ProductsResponse,
+                    fetchWithBQ,
+                );
+            },
             providesTags: ["Products"],
         }),
 
         getFeaturedProducts: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
-            query: (args) => ({
-                url: "/products/featured",
-                params: {
-                    page: args?.page ?? 0,
-                    size: args?.size ?? 10,
-                },
-            }),
+            async queryFn(args, _api, _extraOptions, fetchWithBQ) {
+                const response = await fetchWithBQ({
+                    url: "/products/featured",
+                    params: {
+                        page: args?.page ?? 0,
+                        size: args?.size ?? 10,
+                    },
+                });
+
+                if ("error" in response) {
+                    return { error: response.error };
+                }
+
+                return enrichProductsWithDetails(
+                    response.data as ProductsResponse,
+                    fetchWithBQ,
+                );
+            },
             providesTags: ["Products"],
         }),
 
         getBestSellers: builder.query<ProductsResponse, { page?: number; size?: number } | void>({
-            query: (args) => ({
-                url: "/products/best-sellers",
-                params: {
-                    page: args?.page ?? 0,
-                    size: args?.size ?? 10,
-                },
-            }),
+            async queryFn(args, _api, _extraOptions, fetchWithBQ) {
+                const response = await fetchWithBQ({
+                    url: "/products/best-sellers",
+                    params: {
+                        page: args?.page ?? 0,
+                        size: args?.size ?? 10,
+                    },
+                });
+
+                if ("error" in response) {
+                    return { error: response.error };
+                }
+
+                return enrichProductsWithDetails(
+                    response.data as ProductsResponse,
+                    fetchWithBQ,
+                );
+            },
             providesTags: ["Products"],
         }),
     }),

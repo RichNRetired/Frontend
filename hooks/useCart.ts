@@ -2,21 +2,20 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
     useGetCartQuery,
+    useGetCartSummaryQuery,
     useAddToCartMutation,
     useUpdateCartItemMutation,
     useRemoveFromCartMutation,
     useMergeCartMutation,
-    useGetCartSummaryQuery,
 } from '../features/cart/cartApi';
-import { removeItem, updateQuantity, setCart } from '../features/cart/cartSlice';
+import { setCart } from '../features/cart/cartSlice';
 import { useEffect } from 'react';
 
 export const useCart = () => {
     const cart = useSelector((state: RootState) => state.cart);
     const dispatch = useDispatch();
     const { data: cartData, isLoading, error, refetch } = useGetCartQuery();
-    // Optionally, get cart summary with pricing
-    // const { data: cartSummary } = useGetCartSummaryQuery();
+    const { data: cartSummary, refetch: refetchSummary } = useGetCartSummaryQuery();
     const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
     const [updateCart, { isLoading: isUpdating }] = useUpdateCartItemMutation();
     const [removeFromCart, { isLoading: isRemoving }] = useRemoveFromCartMutation();
@@ -24,12 +23,20 @@ export const useCart = () => {
 
     // Sync API cart data with Redux state
     useEffect(() => {
-        if (cartData) {
+        const sourceItems = cartSummary?.items ?? cartData;
+
+        if (sourceItems) {
             dispatch(
                 setCart(
-                    cartData.map((item: any) => ({
+                    sourceItems.map((item) => ({
                         id: String(item.cartItemId),
                         productId: item.productId,
+                        categoryId: (() => {
+                            const categoryId = Number(item.categoryId ?? item.category?.id);
+                            return Number.isFinite(categoryId) && categoryId > 0
+                                ? categoryId
+                                : undefined;
+                        })(),
                         name: item.productName,
                         price: Number(item.price ?? 0),
                         quantity: Number(item.quantity ?? 1),
@@ -43,12 +50,13 @@ export const useCart = () => {
                 ),
             );
         }
-    }, [cartData, dispatch]);
+    }, [cartData, cartSummary, dispatch]);
 
     return {
         // State
         cart,
         items: cart.items,
+        cartSummary,
         isLoading,
         error,
 
@@ -74,6 +82,8 @@ export const useCart = () => {
         },
 
         // Utilities
-        refetch,
+        refetch: async () => {
+            await Promise.all([refetch(), refetchSummary()]);
+        },
     };
 };

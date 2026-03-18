@@ -75,74 +75,74 @@ export default function ProductPageClient({
           <div className="flex flex-col items-center lg:items-start w-full">
             <div className="w-full max-w-full sm:max-w-112.5 lg:max-w-100 xl:max-w-112.5 space-y-4">
               <PDPImageGallery images={imageUrls} name={product.name} />
+              <div className="max-w-7xl mx-auto py-12 lg:py-16 px-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                  <div>
+                    <h2 className="text-2xl text-black font-light tracking-tight mb-6">
+                      Product Details
+                    </h2>
+                    <div className="space-y-4">
+                      <div className="flex justify-between py-3 border-b border-neutral-100">
+                        <span className="text-neutral-600">Brand</span>
+                        <span className="font-medium text-neutral-900">
+                          {product.brand}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-3 border-b border-neutral-100">
+                        <span className="text-neutral-600">Product ID</span>
+                        <span className="font-medium text-neutral-900">
+                          PRD-{product.id}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-3 border-b border-neutral-100">
+                        <span className="text-neutral-600">Availability</span>
+                        <span
+                          className={`font-medium ${product.stock > 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                        >
+                          {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-3">
+                        <span className="text-neutral-600">Status</span>
+                        <span className="font-medium text-neutral-900">
+                          {product.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {product.attributes && Object.keys(product.attributes).length > 0 && (
+                    <div>
+                      <h2 className="text-2xl font-light tracking-tight mb-6">
+                        Specifications
+                      </h2>
+                      <div className="space-y-4">
+                        {Object.entries(product.attributes).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex justify-between py-3 border-b border-neutral-100 last:border-0"
+                          >
+                            <span className="text-neutral-600 capitalize">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <span className="font-medium text-neutral-900">
+                              {String(value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <ProductDetailsClient product={product} />
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto py-12 lg:py-16 px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          <div>
-            <h2 className="text-2xl text-black font-light tracking-tight mb-6">
-              Product Details
-            </h2>
-            <div className="space-y-4">
-              <div className="flex justify-between py-3 border-b border-neutral-100">
-                <span className="text-neutral-600">Brand</span>
-                <span className="font-medium text-neutral-900">
-                  {product.brand}
-                </span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-neutral-100">
-                <span className="text-neutral-600">Product ID</span>
-                <span className="font-medium text-neutral-900">
-                  PRD-{product.id}
-                </span>
-              </div>
-              <div className="flex justify-between py-3 border-b border-neutral-100">
-                <span className="text-neutral-600">Availability</span>
-                <span
-                  className={`font-medium ${
-                    product.stock > 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {product.stock > 0 ? "In Stock" : "Out of Stock"}
-                </span>
-              </div>
-              <div className="flex justify-between py-3">
-                <span className="text-neutral-600">Status</span>
-                <span className="font-medium text-neutral-900">
-                  {product.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
-            </div>
-          </div>
 
-          {product.attributes && Object.keys(product.attributes).length > 0 && (
-            <div>
-              <h2 className="text-2xl font-light tracking-tight mb-6">
-                Specifications
-              </h2>
-              <div className="space-y-4">
-                {Object.entries(product.attributes).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between py-3 border-b border-neutral-100 last:border-0"
-                  >
-                    <span className="text-neutral-600 capitalize">
-                      {key.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-medium text-neutral-900">
-                      {String(value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       <div className="max-w-7xl mx-auto pb-14 px-6 lg:pb-20">
         <div className="mb-6 flex items-center justify-between">

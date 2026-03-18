@@ -1,4 +1,5 @@
 export interface OrderItem {
+    orderItemId?: number;
     productId: number;
     productName: string;
     imageUrl?: string;
@@ -63,6 +64,7 @@ export interface CheckoutPayload {
     paymentMethod?: "COD" | "PREPAID" | "CARD" | "UPI";
     items: {
         productId: number;
+        variantId?: number;
         quantity: number;
     }[];
 }
@@ -95,41 +97,260 @@ export interface CheckoutResponse {
     validationErrors: string[];
 }
 
-export interface ApiResponse<T = any> {
+export interface Coupon {
+    id: number;
+    code: string;
+    description: string;
+    type: string;
+    discountValue: number;
+    minOrderAmount: number;
+    maxDiscountAmount: number;
+    validFrom: string;
+    validTo: string;
+    usageLimit: number;
+    usagePerUser: number;
+    totalUsedCount?: number;
+    status: string;
+    applicableCategoryIds?: number[];
+    applicableProductIds?: number[];
+    excludedCategoryIds?: number[];
+    excludedProductIds?: number[];
+    isFirstOrderOnly?: boolean;
+    isNewUserOnly?: boolean;
+    applicablePaymentMethods?: string;
+    applicableUserTiers?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    createdBy?: number;
+    updatedBy?: number;
+    version?: number;
+}
+
+export interface CouponValidationRequest {
+    couponCode: string;
+    orderAmount: number;
+    userId?: number;
+    productIds: number[];
+    categoryIds: number[];
+    paymentMethod?: string;
+    isFirstOrder?: boolean;
+    isNewUser?: boolean;
+}
+
+export interface CouponValidationResponse {
+    valid: boolean;
+    message: string;
+    discountAmount: number;
+    finalAmount: number;
+    coupon?: Coupon;
+    warnings?: string[];
+}
+
+export interface AppliedCouponResponse {
+    id: number;
+    coupon: Coupon;
+    user?: {
+        id: number;
+        email?: string;
+        name?: string;
+        role?: string;
+        createdAt?: string;
+    };
+    order?: {
+        id: number;
+        totalAmount?: number;
+        discountAmount?: number;
+        paymentMethod?: string;
+        status?: string;
+        paymentStatus?: string;
+    };
+    discountAmount: number;
+    usedAt?: string;
+    orderNumber?: string;
+    wasSuccessful: boolean;
+    failureReason?: string;
+    createdAt?: string;
+}
+
+export interface ApiResponse<T = unknown> {
     success?: boolean;
     message?: string;
     data?: T;
 }
 
+export type ReturnStatus =
+    | "REQUESTED"
+    | "APPROVED"
+    | "REJECTED"
+    | "PICKED_UP"
+    | "PENDING_APPROVAL"
+    | "PENDING_PICKUP"
+    | "PICKUP_SCHEDULED"
+    | "PICKUP_COMPLETED"
+    | "QC_PENDING"
+    | "QC_IN_PROGRESS"
+    | "REFUND_PENDING"
+    | "REFUND_COMPLETED"
+    | "REPLACEMENT_PENDING"
+    | "REPLACEMENT_SHIPPED"
+    | "REPLACEMENT_DELIVERED"
+    | "QC_PASSED"
+    | "QC_FAILED"
+    | "CANCELLED"
+    | "COMPLETED";
+
+export type ReturnReason =
+    | "SIZE_ISSUE"
+    | "DEFECTIVE"
+    | "DAMAGED"
+    | "NOT_AS_DESCRIBED"
+    | "CHANGED_MIND"
+    | "OTHER";
+
+export type RefundStatus =
+    | "PENDING"
+    | "PROCESSING"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED";
+
 export interface ReturnRequest {
+    orderId: number;
     orderItemId: number;
     quantity: number;
-    reason: "SIZE_ISSUE" | "DEFECTIVE" | "DAMAGED" | "NOT_AS_DESCRIBED" | "CHANGED_MIND" | "OTHER";
-    comment?: string;
+    reason: ReturnReason;
+    reasonDescription?: string;
+    comments?: string;
 }
 
 export interface ReturnResponse {
-    returnId: number;
+    id: number;
+    returnNumber: string;
+    status: ReturnStatus;
+    reason: ReturnReason;
+    reasonDescription?: string;
+    quantity: number;
+    refundAmount: number;
+    restockingFee: number;
+    createdAt: string;
+    updatedAt: string;
+    totalRefundAmount: number;
+    userId: number;
     orderId: number;
     orderItemId: number;
     productName: string;
-    quantity: number;
-    reason: string;
-    status: "INITIATED" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED";
-    createdAt: string;
-    updatedAt?: string;
+    itemPrice: number;
+    refundStatus: RefundStatus;
+    approvedAt?: string;
+    rejectedAt?: string;
+    completedAt?: string;
 }
 
-export interface ReturnDetails extends ReturnResponse {
-    refundAmount?: number;
-    comment?: string;
-    adminComment?: string;
+export interface ReturnsResponse {
+    content: ReturnResponse[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    last: boolean;
+}
+
+export interface ReturnEligibilityRequest {
+    orderItemId: number;
+    productId: number;
+}
+
+export interface ReturnEligibilityResponse {
+    isEligible: boolean;
+    orderItemId: number;
+    productName: string;
+    returnDeadline?: string;
+    message: string;
+}
+
+export interface EligibleReturnItem {
+    orderItemId: number;
+    orderId: number;
+    productName: string;
+    productSku?: string;
+    productImage?: string;
+    price: number;
+    quantity: number;
+    purchaseDate: string;
+    isEligible: boolean;
+    eligibilityMessage: string;
+    returnDeadline?: string;
+    availableReasons: ReturnReason[];
+}
+
+export interface ReturnTimelineEntry {
+    id: number;
+    returnId: number;
+    status: string;
+    title: string;
+    description: string;
+    createdAt: string;
+    createdBy?: string;
+    createdByRole?: string;
+    metadata?: string;
+}
+
+export interface ReturnRefund {
+    id: number;
+    amount: number;
+    status: RefundStatus;
+    refundMethod: string;
+    transactionId?: string;
+    createdAt: string;
+    processedAt?: string;
+    updatedAt?: string;
+    paymentId?: number;
+    paymentTransactionId?: string;
+    returnId: number;
+    returnNumber: string;
+    processedBy?: number;
+    processorName?: string;
+    failureReason?: string;
+    gatewayResponse?: string;
+}
+
+export interface ReturnOrderItemSummary {
+    productId: number;
+    variantId?: number;
+    productName: string;
+    size?: string;
+    color?: string;
+    price: number;
+    quantity: number;
+    total: number;
+}
+
+export interface ReturnDetails {
+    returnInfo: ReturnResponse;
+    orderItem: ReturnOrderItemSummary;
+    refund?: ReturnRefund;
+    timeline: ReturnTimelineEntry[];
+}
+
+export interface ReturnTrackingStep {
+    title: string;
+    description: string;
+    date?: string;
+    completed: boolean;
+}
+
+export interface ReturnTrackingResponse {
+    returnNumber: string;
+    currentStatus: ReturnStatus;
+    estimatedCompletionDate?: string;
+    steps: ReturnTrackingStep[];
 }
 
 export interface InitiatePaymentRequest {
     orderId: number;
     amount: number;
     currency: string;
+    receipt?: string;
     customerName?: string;
     customerEmail?: string;
     customerPhone?: string;
@@ -144,4 +365,22 @@ export interface InitiatePaymentResponse {
     customerName?: string;
     customerEmail?: string;
     customerPhone?: string;
+}
+
+export interface VerifyPaymentRequest {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    razorpay_order_id?: string;
+    razorpay_payment_id?: string;
+    razorpay_signature?: string;
+}
+
+export interface VerifyPaymentResponse {
+    success?: boolean;
+    verified?: boolean;
+    message?: string;
+    orderId?: number;
+    paymentStatus?: string;
+    status?: string;
 }

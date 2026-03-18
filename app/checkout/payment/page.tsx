@@ -1,10 +1,53 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Script from "next/script";
 import { Button } from "@/components/ui/Button";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import {
+  InitiatePaymentResponse,
+  VerifyPaymentRequest,
+  VerifyPaymentResponse,
+} from "@/features/order/orderTypes";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { readBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
+
+type RazorpayHandlerResponse = {
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+};
+
+type RazorpayInstance = {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: { error?: { description?: string } }) => void) => void;
+};
+
+type RazorpayOptions = {
+  key?: string;
+  amount?: number;
+  currency?: string;
+  order_id?: string;
+  name: string;
+  description: string;
+  image?: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  notes?: Record<string, string>;
+  theme?: {
+    color?: string;
+  };
+  modal?: {
+    ondismiss?: () => void;
+  };
+  handler: (response: RazorpayHandlerResponse) => void;
+};
+
+type RazorpayConstructor = new (options: RazorpayOptions) => RazorpayInstance;
 
 export default function PaymentPage() {
   const search = useSearchParams();
@@ -12,55 +55,192 @@ export default function PaymentPage() {
   const orderIdParam = search.get("orderId");
   const orderId = orderIdParam ? Number(orderIdParam) : null;
 
-  const [initResp, setInitResp] = useState<any>(null);
+  const initResp = useMemo(() => {
+    if (!orderId) {
+      return null;
+    }
+
+    const data = globalThis.sessionStorage.getItem(`payment_init_${orderId}`);
+
+    return data ? (JSON.parse(data) as InitiatePaymentResponse) : null;
+  }, [orderId]);
+  const [scriptReady, setScriptReady] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) return;
-    const data = sessionStorage.getItem(`payment_init_${orderId}`);
-    if (data) setInitResp(JSON.parse(data));
-  }, [orderId]);
+    const buyNowState = readBuyNowState();
+
+    if (!buyNowState) {
+      return;
+    }
+
+    updateBuyNowStatus("payment");
+
+    return () => {
+      const currentState = readBuyNowState();
+
+      if (!currentState) {
+        return;
+      }
+
+      if (currentState.status !== "completed") {
+        updateBuyNowStatus("restore-pending");
+      }
+    };
+  }, []);
+
+  const resolvedOrderId = initResp?.orderId || orderId;
+  let paymentButtonLabel = "Proceed to Pay";
+
+  if (loading) {
+    paymentButtonLabel = "Processing...";
+  } else if (!scriptReady) {
+    paymentButtonLabel = "Loading Razorpay...";
+  }
+
+  const verifyPayment = async (payload: VerifyPaymentRequest) => {
+    const accessToken = globalThis.localStorage.getItem("accessToken");
+    const tokenType = globalThis.localStorage.getItem("tokenType") || "Bearer";
+
+    if (!accessToken || !resolvedOrderId) {
+      throw new Error("Your session expired. Please log in again and retry payment.");
+    }
+
+    const response = await fetch(`/api/orders/${resolvedOrderId}/payment/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${tokenType} ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = (await response.json()) as VerifyPaymentResponse;
+
+    if (!response.ok) {
+      throw new Error(result.message || "Payment verification failed.");
+    }
+
+    if (result.verified === false || result.success === false) {
+      throw new Error(result.message || "Payment could not be verified.");
+    }
+
+    return result;
+  };
+
+  const handlePaymentVerification = (response: RazorpayHandlerResponse): void => {
+    if (
+      !response.razorpay_order_id ||
+      !response.razorpay_payment_id ||
+      !response.razorpay_signature
+    ) {
+      setLoading(false);
+      setPaymentError("Razorpay returned an incomplete payment response.");
+      return;
+    }
+
+    const razorpayOrderId = response.razorpay_order_id;
+    const razorpayPaymentId = response.razorpay_payment_id;
+    const razorpaySignature = response.razorpay_signature;
+
+    void (async () => {
+      try {
+        const verificationPayload: VerifyPaymentRequest = {
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          razorpay_order_id: razorpayOrderId,
+          razorpay_payment_id: razorpayPaymentId,
+          razorpay_signature: razorpaySignature,
+        };
+        const verificationResult = await verifyPayment(verificationPayload);
+
+        updateBuyNowStatus("completed");
+        sessionStorage.setItem("lastOrderId", String(resolvedOrderId));
+        sessionStorage.setItem(
+          `payment_result_${resolvedOrderId}`,
+          JSON.stringify({
+            ...response,
+            verification: verificationResult,
+          }),
+        );
+        globalThis.location.href = `/checkout/success?orderId=${resolvedOrderId}`;
+      } catch (error) {
+        setLoading(false);
+        setPaymentError(
+          error instanceof Error
+            ? error.message
+            : "Payment completed, but verification failed. Contact support if the amount was debited.",
+        );
+      }
+    })();
+  };
 
   const handleProceed = async () => {
     if (!initResp) return;
+    setPaymentError(null);
 
-    // If Razorpay (or other) client SDK is available, you'd open the checkout here.
-    // This is a placeholder: in production, load Razorpay script and call new Razorpay(options).open()
-    if ((window as any).Razorpay && initResp.razorpayOrderId) {
+    const razorpay = (globalThis as typeof globalThis & { Razorpay?: RazorpayConstructor })
+      .Razorpay;
+
+    if (!scriptReady || !razorpay) {
+      setPaymentError("Razorpay checkout is still loading. Please try again.");
+      return;
+    }
+
+    if (!initResp.razorpayOrderId || !initResp.razorpayKeyId) {
+      setPaymentError("Payment session is incomplete. Please restart checkout.");
+      return;
+    }
+
+    setLoading(true);
+
+    if (razorpay) {
       try {
-        const options = {
+        const options: RazorpayOptions = {
           key: initResp.razorpayKeyId,
           amount: initResp.amount,
           currency: initResp.currency,
           order_id: initResp.razorpayOrderId,
-          name: "Your Store",
-          description: "Order Payment",
-          handler: function (response: any) {
-            // on successful payment you should verify payment on server
-            // For now, redirect to success page
-            sessionStorage.setItem("lastOrderId", String(initResp.orderId));
-            window.location.href = `/checkout/success?orderId=${initResp.orderId}`;
+          name: "Rich",
+          description: `Payment for order #${resolvedOrderId}`,
+          prefill: {
+            name: initResp.customerName,
+            email: initResp.customerEmail,
+            contact: initResp.customerPhone,
           },
+          notes: {
+            orderId: String(resolvedOrderId),
+            customerEmail: initResp.customerEmail || "",
+          },
+          theme: {
+            color: "#111111",
+          },
+          modal: {
+            ondismiss: () => {
+              setLoading(false);
+            },
+          },
+          handler: handlePaymentVerification,
         };
 
-        const rzp = new (window as any).Razorpay(options);
+        const rzp = new razorpay(options);
+        rzp.on("payment.failed", (response) => {
+          setLoading(false);
+          setPaymentError(
+            response.error?.description ||
+              "Payment failed. Please try again or use another method.",
+          );
+        });
         rzp.open();
         return;
       } catch (err) {
+        setLoading(false);
+        setPaymentError("Unable to start Razorpay checkout. Please try again.");
         console.error("Razorpay open failed", err);
       }
     }
-
-    // Fallback: mark as pending and redirect to success (or show instructions)
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      sessionStorage.setItem(
-        "lastOrderId",
-        String(initResp?.orderId || orderId),
-      );
-      router.push(`/checkout/success?orderId=${initResp?.orderId || orderId}`);
-    }, 1000);
   };
 
   if (!orderId) {
@@ -76,10 +256,20 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onReady={() => setScriptReady(true)}
+        onError={() => {
+          setScriptReady(false);
+          setPaymentError("Failed to load Razorpay checkout. Refresh and try again.");
+        }}
+      />
+
       <div className="max-w-2xl mx-auto px-6 py-20 text-center">
         <div className="mb-8">
-          <CheckCircle2 size={48} className="mx-auto mb-4 text-green-600" />
-          <h1 className="text-2xl font-light mb-2">Complete Payment</h1>
+          <CheckCircle2 size={48} className="mx-auto  mb-4 text-green-600" />
+          <h1 className="text-2xl font-light text-neutral-600 mb-2">Complete Payment</h1>
           <p className="text-neutral-600">
             Follow the instructions below to complete your payment.
           </p>
@@ -97,20 +287,24 @@ export default function PaymentPage() {
               Currency: <strong>{initResp.currency}</strong>
             </p>
 
+            {paymentError && (
+              <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-left text-sm text-red-700">
+                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            <div className="mb-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-left text-sm text-neutral-600">
+              <p className="font-medium text-neutral-900">Secure Razorpay Checkout</p>
+              <p className="mt-2">
+                You will be redirected to Razorpay to complete this prepaid order using UPI, card, netbanking, or wallet.
+              </p>
+            </div>
+
             <div className="space-y-3">
-              <Button onClick={handleProceed}>
-                {loading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Proceed to Pay"
-                )}
-              </Button>
-              <Button
-                onClick={() =>
-                  router.push(`/checkout/success?orderId=${orderId}`)
-                }
-              >
-                Continue (simulate)
+              <Button onClick={handleProceed} disabled={loading || !scriptReady}>
+                {loading && <Loader2 className="animate-spin" />}
+                {paymentButtonLabel}
               </Button>
             </div>
           </div>

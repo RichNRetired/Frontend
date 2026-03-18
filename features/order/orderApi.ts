@@ -1,5 +1,28 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { CheckoutRequest, CheckoutResponse, Order, OrdersResponse, ApiResponse, ReturnRequest, ReturnResponse, InitiatePaymentRequest, InitiatePaymentResponse } from "./orderTypes";
+import {
+    CheckoutPayload,
+    CheckoutRequest,
+    CheckoutResponse,
+    Order,
+    OrdersResponse,
+    ApiResponse,
+    ReturnRequest,
+    ReturnResponse,
+    InitiatePaymentRequest,
+    InitiatePaymentResponse,
+    Coupon,
+    CouponValidationRequest,
+    CouponValidationResponse,
+    AppliedCouponResponse,
+    ReturnsResponse,
+    ReturnEligibilityRequest,
+    ReturnEligibilityResponse,
+    ReturnDetails,
+    ReturnTrackingResponse,
+    ReturnTimelineEntry,
+    EligibleReturnItem,
+    ReturnStatus,
+} from "./orderTypes";
 
 export const orderApi = createApi({
     reducerPath: "orderApi",
@@ -18,7 +41,7 @@ export const orderApi = createApi({
         },
     }),
 
-    tagTypes: ["Orders", "Returns"],
+    tagTypes: ["Orders", "Returns", "Coupons"],
 
     endpoints: (builder) => ({
 
@@ -31,12 +54,16 @@ export const orderApi = createApi({
             }),
         }),
 
-        /** Place Order using checkout endpoint */
-        placeOrderCheckout: builder.mutation<Order, CheckoutRequest>({
-            query: (body) => ({
-                url: "/orders/checkout",
+        /** Place a direct order with explicit items, used by Buy Now */
+        placeOrderCheckout: builder.mutation<Order, CheckoutPayload>({
+            query: ({ addressId, paymentMethod, items }) => ({
+                url: `/orders/place?addressId=${addressId}&paymentMethod=${paymentMethod || "PREPAID"}`,
                 method: "POST",
-                body,
+                body: {
+                    addressId,
+                    paymentMethod,
+                    items,
+                },
             }),
             invalidatesTags: ["Orders"],
         }),
@@ -61,8 +88,8 @@ export const orderApi = createApi({
         /** Cancel Order */
         cancelOrder: builder.mutation<ApiResponse, number>({
             query: (orderId) => ({
-                url: `/orders/${orderId}/cancel`,
-                method: "POST",
+                url: `/admin/orders/${orderId}/cancel`,
+                method: "PUT",
             }),
             invalidatesTags: ["Orders"],
         }),
@@ -86,6 +113,54 @@ export const orderApi = createApi({
             invalidatesTags: ["Orders"],
         }),
 
+        /** Validate coupon against the current checkout context */
+        validateCoupon: builder.mutation<CouponValidationResponse, CouponValidationRequest>({
+            query: (body) => ({
+                url: "/user/coupons/validate",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["Coupons"],
+        }),
+
+        /** Get coupons currently available for the user/order amount */
+        getAvailableCoupons: builder.query<Coupon[], number>({
+            query: (orderAmount) => ({
+                url: "/user/coupons/available",
+                method: "GET",
+                params: { orderAmount },
+            }),
+            providesTags: ["Coupons"],
+        }),
+
+        /** Lookup public coupon metadata by code */
+        getCouponByCode: builder.query<Coupon, string>({
+            query: (code) => ({
+                url: `/public/coupons/${encodeURIComponent(code)}`,
+                method: "GET",
+            }),
+            providesTags: ["Coupons"],
+        }),
+
+        /** Apply a coupon to an existing order */
+        applyCouponToOrder: builder.mutation<AppliedCouponResponse, { orderId: number; body: CouponValidationRequest }>({
+            query: ({ orderId, body }) => ({
+                url: `/user/orders/${orderId}/coupons/apply`,
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["Orders", "Coupons"],
+        }),
+
+        /** Remove a coupon from an existing order */
+        removeCouponFromOrder: builder.mutation<ApiResponse, number>({
+            query: (orderId) => ({
+                url: `/user/orders/${orderId}/coupons`,
+                method: "DELETE",
+            }),
+            invalidatesTags: ["Orders", "Coupons"],
+        }),
+
         /** My Orders - Get all user's orders */
         getMyOrders: builder.query<OrdersResponse, { page?: number; size?: number }>({
             query: ({ page = 0, size = 10 }) =>
@@ -96,11 +171,79 @@ export const orderApi = createApi({
         /** Request Product Return */
         requestReturn: builder.mutation<ReturnResponse, ReturnRequest>({
             query: (body) => ({
-                url: "/returns",
+                url: "/returns/returns",
                 method: "POST",
                 body,
             }),
             invalidatesTags: ["Returns", "Orders"],
+        }),
+
+        /** Get customer returns */
+        getMyReturns: builder.query<ReturnsResponse, { status?: ReturnStatus; page?: number; size?: number }>({
+            query: ({ status, page = 0, size = 10 }) => ({
+                url: "/returns/returns",
+                method: "GET",
+                params: {
+                    page,
+                    size,
+                    ...(status ? { status } : {}),
+                },
+            }),
+            providesTags: ["Returns"],
+        }),
+
+        /** Validate whether an order item can be returned */
+        checkReturnEligibility: builder.mutation<ReturnEligibilityResponse, ReturnEligibilityRequest>({
+            query: (body) => ({
+                url: "/returns/returns/check-eligibility",
+                method: "POST",
+                body,
+            }),
+        }),
+
+        /** Fetch a single return with refund and timeline details */
+        getReturnDetails: builder.query<ReturnDetails, number>({
+            query: (returnId) => ({
+                url: `/returns/returns/${returnId}`,
+                method: "GET",
+            }),
+            providesTags: (_result, _error, returnId) => [{ type: "Returns", id: returnId }],
+        }),
+
+        /** Track the current progress of a return */
+        getReturnTracking: builder.query<ReturnTrackingResponse, number>({
+            query: (returnId) => ({
+                url: `/returns/returns/${returnId}/track`,
+                method: "GET",
+            }),
+            providesTags: (_result, _error, returnId) => [{ type: "Returns", id: returnId }],
+        }),
+
+        /** Read timeline entries for a return */
+        getReturnTimeline: builder.query<ReturnTimelineEntry[], number>({
+            query: (returnId) => ({
+                url: `/returns/returns/${returnId}/timeline`,
+                method: "GET",
+            }),
+            providesTags: (_result, _error, returnId) => [{ type: "Returns", id: returnId }],
+        }),
+
+        /** Cancel a pending return */
+        cancelReturn: builder.mutation<ReturnResponse, number>({
+            query: (returnId) => ({
+                url: `/returns/returns/${returnId}/cancel`,
+                method: "PUT",
+            }),
+            invalidatesTags: (_result, _error, returnId) => ["Returns", { type: "Returns", id: returnId }, "Orders"],
+        }),
+
+        /** List order items eligible for return */
+        getEligibleReturnItems: builder.query<EligibleReturnItem[], number>({
+            query: (orderId) => ({
+                url: `/returns/orders/${orderId}/eligible-items`,
+                method: "GET",
+            }),
+            providesTags: ["Returns", "Orders"],
         }),
     }),
 });
@@ -113,6 +256,20 @@ export const {
     useCancelOrderMutation,
     useReorderOrderMutation,
     useInitiatePaymentMutation,
+    useValidateCouponMutation,
+    useGetAvailableCouponsQuery,
+    useLazyGetAvailableCouponsQuery,
+    useGetCouponByCodeQuery,
+    useLazyGetCouponByCodeQuery,
+    useApplyCouponToOrderMutation,
+    useRemoveCouponFromOrderMutation,
     useGetMyOrdersQuery,
     useRequestReturnMutation,
+    useGetMyReturnsQuery,
+    useCheckReturnEligibilityMutation,
+    useGetReturnDetailsQuery,
+    useGetReturnTrackingQuery,
+    useGetReturnTimelineQuery,
+    useCancelReturnMutation,
+    useGetEligibleReturnItemsQuery,
 } = orderApi;

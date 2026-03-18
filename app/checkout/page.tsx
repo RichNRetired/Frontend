@@ -7,9 +7,22 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import {
   useCheckoutMutation,
+  usePlaceOrderCheckoutMutation,
   usePlaceOrderMutation,
   useInitiatePaymentMutation,
+  useValidateCouponMutation,
+  useGetAvailableCouponsQuery,
+  useApplyCouponToOrderMutation,
+  useCancelOrderMutation,
 } from "@/features/order/orderApi";
+import type {
+  AppliedCouponResponse,
+  CheckoutRequest,
+  CheckoutResponse,
+  CouponValidationRequest,
+  CouponValidationResponse,
+  Order,
+} from "@/features/order/orderTypes";
 import { getCurrentUser } from "@/lib/auth";
 import { useGetAddressesQuery } from "@/features/user/userApi";
 import { useGetLocationsQuery } from "@/features/location/locationApi";
@@ -26,9 +39,17 @@ import {
   ShoppingBag,
   Plus,
   LogIn,
+  TicketPercent,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { sendEvent } from "@/services/analytics.service";
+import {
+  getActiveBuyNowItem,
+  readBuyNowState,
+  updateBuyNowStatus,
+  type BuyNowItem,
+} from "@/lib/buy-now";
 
 interface Address {
   id: number | string;
@@ -42,6 +63,467 @@ interface Address {
   default?: boolean;
 }
 
+function resolveNumericUserId(...candidates: unknown[]): number | undefined {
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveBooleanCandidate(...candidates: unknown[]): boolean | undefined {
+  return candidates.find((value) => typeof value === "boolean");
+}
+
+async function fetchCategoryIdsForProducts(productIds: number[]) {
+  const entries = await Promise.all(
+    productIds.map(async (productId) => {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          return [productId, undefined] as const;
+        }
+
+        const productDetails = await response.json();
+        const categoryId = Number(
+          productDetails?.category?.id ?? productDetails?.categoryId,
+        );
+
+        return [
+          productId,
+          Number.isFinite(categoryId) && categoryId > 0 ? categoryId : undefined,
+        ] as const;
+      } catch (error) {
+        console.error("Failed to resolve category for coupon payload", error);
+        return [productId, undefined] as const;
+      }
+    }),
+  );
+
+  return Object.fromEntries(entries) as Record<number, number | undefined>;
+}
+
+function createCouponPayload({
+  couponCode,
+  orderAmount,
+  cartItems,
+  paymentMethod,
+  userId,
+  isFirstOrder,
+  isNewUser,
+}: {
+  couponCode: string;
+  orderAmount: number;
+  cartItems: Array<{ productId: number; categoryId?: number }>;
+  paymentMethod: string;
+  userId?: number;
+  isFirstOrder?: boolean;
+  isNewUser?: boolean;
+}): CouponValidationRequest {
+  const productIds = Array.from(
+    new Set(
+      cartItems
+        .map((item) => Number(item.productId))
+        .filter((productId) => Number.isFinite(productId) && productId > 0),
+    ),
+  );
+  const categoryIds = Array.from(
+    new Set(
+      cartItems
+        .map((item) => Number(item.categoryId))
+        .filter((categoryId) => Number.isFinite(categoryId) && categoryId > 0),
+    ),
+  );
+  const payload: CouponValidationRequest = {
+    couponCode,
+    orderAmount,
+    productIds,
+    categoryIds,
+    paymentMethod,
+  };
+
+  if (userId !== undefined) {
+    payload.userId = userId;
+  }
+
+  if (typeof isFirstOrder === "boolean") {
+    payload.isFirstOrder = isFirstOrder;
+  }
+
+  if (typeof isNewUser === "boolean") {
+    payload.isNewUser = isNewUser;
+  }
+
+  return payload;
+}
+
+type MutationTrigger<TArg, TResult> = (arg: TArg) => {
+  unwrap: () => Promise<TResult>;
+};
+
+async function validateCouponPreview({
+  couponCode,
+  validateCoupon,
+  buildCouponPayload,
+  couponContextSignature,
+  setCouponCode,
+  setCouponError,
+  setCouponMessage,
+  setAppliedCouponPreview,
+  setAppliedCouponContextSignature,
+}: {
+  couponCode: string;
+  validateCoupon: MutationTrigger<CouponValidationRequest, CouponValidationResponse>;
+  buildCouponPayload: (nextCode?: string) => Promise<CouponValidationRequest>;
+  couponContextSignature: string;
+  setCouponCode: React.Dispatch<React.SetStateAction<string>>;
+  setCouponError: React.Dispatch<React.SetStateAction<string | null>>;
+  setCouponMessage: React.Dispatch<React.SetStateAction<string | null>>;
+  setAppliedCouponPreview: React.Dispatch<
+    React.SetStateAction<CouponValidationResponse | null>
+  >;
+  setAppliedCouponContextSignature: React.Dispatch<
+    React.SetStateAction<string | null>
+  >;
+}) {
+  const normalizedCode = couponCode.trim().toUpperCase();
+
+  if (!normalizedCode) {
+    setCouponError("Enter a coupon code.");
+    setCouponMessage(null);
+    setAppliedCouponPreview(null);
+    return;
+  }
+
+  try {
+    setCouponError(null);
+    setCouponMessage(null);
+
+    const validation = await validateCoupon(
+      await buildCouponPayload(normalizedCode),
+    ).unwrap();
+
+    if (!validation.valid) {
+      setAppliedCouponPreview(null);
+      setAppliedCouponContextSignature(null);
+      setCouponError(validation.message || "Coupon is not valid for this order.");
+      return;
+    }
+
+    setCouponCode(validation.coupon?.code || normalizedCode);
+    setAppliedCouponPreview(validation);
+    setAppliedCouponContextSignature(couponContextSignature);
+    setCouponMessage(validation.message || "Coupon applied successfully.");
+  } catch (err: any) {
+    setAppliedCouponPreview(null);
+    setAppliedCouponContextSignature(null);
+    setCouponError(
+      err?.data?.message || err?.message || "Unable to validate coupon.",
+    );
+  }
+}
+
+async function finalizeOrderCoupon({
+  order,
+  appliedCouponPreview,
+  couponCode,
+  buildCouponPayload,
+  applyCouponToOrder,
+  cancelOrder,
+}: {
+  order: Order;
+  appliedCouponPreview: CouponValidationResponse | null;
+  couponCode: string;
+  buildCouponPayload: (nextCode?: string) => Promise<CouponValidationRequest>;
+  applyCouponToOrder: MutationTrigger<
+    { orderId: number; body: CouponValidationRequest },
+    AppliedCouponResponse
+  >;
+  cancelOrder: MutationTrigger<number, unknown>;
+}) {
+  if (!appliedCouponPreview?.valid) {
+    return order.totalAmount;
+  }
+
+  try {
+    const couponResult = await applyCouponToOrder({
+      orderId: order.orderId,
+      body: await buildCouponPayload(
+        appliedCouponPreview.coupon?.code || couponCode,
+      ),
+    }).unwrap();
+
+    if (!couponResult.wasSuccessful) {
+      throw new Error(
+        couponResult.failureReason || "Coupon could not be applied to this order.",
+      );
+    }
+
+    return (
+      couponResult.order?.totalAmount ??
+      appliedCouponPreview.finalAmount ??
+      order.totalAmount
+    );
+  } catch (couponErr: any) {
+    try {
+      await cancelOrder(order.orderId).unwrap();
+    } catch (cancelErr) {
+      console.error("Failed to cancel order after coupon error", cancelErr);
+    }
+
+    throw new Error(
+      couponErr?.data?.message ||
+        couponErr?.message ||
+        "Coupon couldn't be applied. The order was cancelled, please try again.",
+    );
+  }
+}
+
+function CouponPanel(props: Readonly<{
+  couponCode: string;
+  setCouponCode: React.Dispatch<React.SetStateAction<string>>;
+  validatingCoupon: boolean;
+  applyingCoupon: boolean;
+  onApplyCoupon: (nextCode?: string) => Promise<void>;
+  appliedCouponPreview: CouponValidationResponse | null;
+  clearCouponPreview: (message?: string, clearCode?: boolean) => void;
+  couponError: string | null;
+  couponMessage: string | null;
+  availableCoupons: Array<{
+    id: number;
+    code: string;
+    description: string;
+    maxDiscountAmount: number;
+    discountValue: number;
+  }>;
+  availableCouponsLoading: boolean;
+}>) {
+  const {
+    couponCode,
+    setCouponCode,
+    validatingCoupon,
+    applyingCoupon,
+    onApplyCoupon,
+    appliedCouponPreview,
+    clearCouponPreview,
+    couponError,
+    couponMessage,
+    availableCoupons,
+    availableCouponsLoading,
+  } = props;
+
+  return (
+    <div className="mb-8 rounded-3xl border border-neutral-100 bg-neutral-50/60 p-5 md:p-6">
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+            Coupon
+          </p>
+          <p className="mt-1 text-sm text-black font-medium">
+            Apply a code before you confirm the order.
+          </p>
+        </div>
+        <TicketPercent size={18} className="text-black" />
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={couponCode}
+          onChange={(e) => {
+            setCouponCode(e.target.value.toUpperCase());
+          }}
+          placeholder="ENTER COUPON"
+          className="flex-1 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm uppercase tracking-[0.12em] text-black placeholder:text-neutral-300"
+        />
+        <Button
+          type="button"
+          onClick={() => void onApplyCoupon()}
+          disabled={validatingCoupon || applyingCoupon || !couponCode.trim()}
+          className="rounded-2xl bg-black px-5 text-[10px] uppercase tracking-[0.2em] text-white hover:bg-neutral-800 disabled:opacity-40"
+        >
+          {validatingCoupon ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
+        </Button>
+      </div>
+
+      <AppliedCouponNotice
+        appliedCouponPreview={appliedCouponPreview}
+        couponCode={couponCode}
+        clearCouponPreview={clearCouponPreview}
+      />
+
+      {couponError ? (
+        <p className="mt-3 text-[11px] text-red-600">{couponError}</p>
+      ) : null}
+
+      {!couponError && couponMessage ? (
+        <p className="mt-3 text-[11px] text-neutral-500">{couponMessage}</p>
+      ) : null}
+
+      <AvailableCouponList
+        availableCoupons={availableCoupons}
+        availableCouponsLoading={availableCouponsLoading}
+        onApplyCoupon={onApplyCoupon}
+      />
+    </div>
+  );
+}
+
+function AppliedCouponNotice(props: Readonly<{
+  appliedCouponPreview: CouponValidationResponse | null;
+  couponCode: string;
+  clearCouponPreview: (message?: string, clearCode?: boolean) => void;
+}>) {
+  const { appliedCouponPreview, couponCode, clearCouponPreview } = props;
+
+  if (!appliedCouponPreview?.valid) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+          {appliedCouponPreview.coupon?.code || couponCode}
+        </p>
+        <p className="mt-1 text-sm text-emerald-900">
+          Save ₹{appliedCouponPreview.discountAmount.toLocaleString()} on this order.
+        </p>
+        {appliedCouponPreview.warnings?.length ? (
+          <p className="mt-1 text-[11px] text-emerald-700">
+            {appliedCouponPreview.warnings.join(" ")}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => clearCouponPreview(undefined, true)}
+        className="rounded-full p-1 text-emerald-700 hover:bg-emerald-100"
+        aria-label="Remove coupon"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+function AvailableCouponList(props: Readonly<{
+  availableCoupons: Array<{
+    id: number;
+    code: string;
+    description: string;
+    maxDiscountAmount: number;
+    discountValue: number;
+  }>;
+  availableCouponsLoading: boolean;
+  onApplyCoupon: (nextCode?: string) => Promise<void>;
+}>) {
+  const { availableCoupons, availableCouponsLoading, onApplyCoupon } = props;
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+          Available Coupons
+        </p>
+        {availableCouponsLoading ? (
+          <Loader2 size={12} className="animate-spin text-neutral-400" />
+        ) : null}
+      </div>
+
+      {availableCoupons.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {availableCoupons.slice(0, 4).map((coupon) => (
+            <button
+              key={coupon.id}
+              type="button"
+              onClick={() => void onApplyCoupon(coupon.code)}
+              className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-black"
+            >
+              <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-black">
+                {coupon.code}
+              </span>
+              <span className="mt-1 block text-[11px] text-neutral-500">
+                {coupon.description || `Save up to ₹${coupon.maxDiscountAmount || coupon.discountValue}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-[11px] text-neutral-400">
+          No coupon suggestions available for this order amount yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SummaryBreakdown(props: Readonly<{
+  subtotal: number;
+  shippingCharges: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+}>) {
+  const { subtotal, shippingCharges, taxAmount, discountAmount, totalAmount } = props;
+
+  return (
+    <div className="space-y-4 pt-6 border-t border-neutral-50 mb-8">
+      <div className="flex justify-between text-[12px]">
+        <span className="text-neutral-400 font-light uppercase tracking-tighter">
+          Subtotal
+        </span>
+        <span className="text-black font-medium">₹{subtotal.toLocaleString()}</span>
+      </div>
+      <div className="flex justify-between text-[12px]">
+        <span className="text-neutral-400 font-light uppercase tracking-tighter">
+          Shipping
+        </span>
+        <span
+          className={
+            shippingCharges === 0
+              ? "text-green-600 font-medium"
+              : "text-black font-medium"
+          }
+        >
+          {shippingCharges === 0 ? "Complimentary" : `₹${shippingCharges}`}
+        </span>
+      </div>
+      <div className="flex justify-between text-[12px]">
+        <span className="text-neutral-400 font-light uppercase tracking-tighter">
+          Tax (10%)
+        </span>
+        <span className="text-black font-medium">₹{taxAmount.toLocaleString()}</span>
+      </div>
+      {discountAmount > 0 ? (
+        <div className="flex justify-between text-[12px]">
+          <span className="text-neutral-400 font-light uppercase tracking-tighter">
+            Coupon Discount
+          </span>
+          <span className="text-emerald-600 font-medium">
+            -₹{discountAmount.toLocaleString()}
+          </span>
+        </div>
+      ) : null}
+      <div className="pt-6 flex justify-between items-end">
+        <span className="text-[10px] text-black font-bold uppercase tracking-[0.2em]">
+          Total
+        </span>
+        <span className="text-3xl font-light tracking-tighter text-black">
+          ₹{totalAmount.toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const cartItems = useSelector((state: RootState) => state.cart.items);
@@ -49,6 +531,13 @@ export default function CheckoutPage() {
     (state: RootState) => state.auth.isAuthenticated,
   );
   const user = useSelector((state: RootState) => state.auth.user);
+  const storedUser = useMemo(() => {
+    try {
+      return getCurrentUser();
+    } catch {
+      return null;
+    }
+  }, []);
 
   const [selectedAddressId, setSelectedAddressId] = useState<
     number | string | null
@@ -61,6 +550,17 @@ export default function CheckoutPage() {
     "COD" | "PREPAID" | "CARD" | "UPI"
   >("COD");
   const [isAddAddressModalOpen, setIsAddAddressModalOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCouponPreview, setAppliedCouponPreview] =
+    useState<CouponValidationResponse | null>(null);
+  const [appliedCouponContextSignature, setAppliedCouponContextSignature] =
+    useState<string | null>(null);
+  const [categoryIdsByProductId, setCategoryIdsByProductId] = useState<
+    Record<number, number | undefined>
+  >({});
+  const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
 
   const { data: addresses = [], isLoading: addressesLoading, refetch: refetchAddresses } =
     useGetAddressesQuery();
@@ -68,29 +568,297 @@ export default function CheckoutPage() {
     useGetLocationsQuery();
   const [checkoutSummary, { isLoading: summaryLoading }] =
     useCheckoutMutation();
+  const [placeOrderCheckout, { isLoading: placingBuyNowOrder }] =
+    usePlaceOrderCheckoutMutation();
   const [placeOrder, { isLoading: placingOrder }] = usePlaceOrderMutation();
   const [initiatePayment, { isLoading: initiatingPayment }] =
     useInitiatePaymentMutation();
+  const [validateCoupon, { isLoading: validatingCoupon }] =
+    useValidateCouponMutation();
+  const [applyCouponToOrder, { isLoading: applyingCoupon }] =
+    useApplyCouponToOrderMutation();
+  const [cancelOrder] = useCancelOrderMutation();
 
   const [checkoutData, setCheckoutData] = useState<
-    import("@/features/order/orderTypes").CheckoutResponse | null
+    CheckoutResponse | null
   >(null);
+  const isBuyNowMode = buyNowItem !== null;
+  const checkoutItems = useMemo(
+    () =>
+      buyNowItem
+        ? [
+            {
+              id: `buy-now-${buyNowItem.productId}-${buyNowItem.variantId}`,
+              productId: buyNowItem.productId,
+              variantId: buyNowItem.variantId,
+              categoryId: buyNowItem.categoryId,
+              name: buyNowItem.name,
+              price: buyNowItem.price,
+              quantity: buyNowItem.quantity,
+              image: buyNowItem.image,
+            },
+          ]
+        : cartItems,
+    [buyNowItem, cartItems],
+  );
+  const cartSignature = useMemo(
+    () =>
+      checkoutItems
+        .map(
+          (item) =>
+            `${item.id}:${item.productId}:${item.variantId}:${item.quantity}:${item.price}`,
+        )
+        .join("|"),
+    [checkoutItems],
+  );
+  const normalizedPaymentMethod = paymentMethod === "COD" ? "COD" : "PREPAID";
+  const resolvedUserId = useMemo(
+    () => resolveNumericUserId(user?.id, user?.userId, storedUser?.id, storedUser?.userId),
+    [storedUser, user],
+  );
+  const inferredIsFirstOrder = useMemo(() => {
+    return resolveBooleanCandidate(user?.isFirstOrder, storedUser?.isFirstOrder);
+  }, [storedUser, user]);
+  const inferredIsNewUser = useMemo(() => {
+    return resolveBooleanCandidate(user?.isNewUser, storedUser?.isNewUser);
+  }, [storedUser, user]);
+  const subtotal = checkoutData?.subtotal ?? checkoutItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+  const taxAmount = checkoutData?.taxAmount ?? Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
+  const shippingCharges = checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
+  const orderAmountBeforeCoupon = subtotal + taxAmount + shippingCharges;
+  const discountAmount = appliedCouponPreview?.valid
+    ? appliedCouponPreview.discountAmount
+    : 0;
+  const totalAmount = appliedCouponPreview?.valid
+    ? appliedCouponPreview.finalAmount
+    : orderAmountBeforeCoupon;
+  const couponContextSignature = useMemo(
+    () =>
+      [
+        selectedAddressId ?? "none",
+        normalizedPaymentMethod,
+        cartSignature,
+        subtotal,
+        taxAmount,
+        shippingCharges,
+      ].join("::"),
+    [
+      cartSignature,
+      normalizedPaymentMethod,
+      selectedAddressId,
+      shippingCharges,
+      subtotal,
+      taxAmount,
+    ],
+  );
+  const { data: availableCoupons = [], isFetching: availableCouponsLoading } =
+    useGetAvailableCouponsQuery(orderAmountBeforeCoupon, {
+      skip: !isAuthenticated || orderAmountBeforeCoupon <= 0,
+    });
+
+  useEffect(() => {
+    setBuyNowItem(getActiveBuyNowItem());
+  }, []);
+
+  useEffect(() => {
+    if (!isBuyNowMode) {
+      return;
+    }
+
+    updateBuyNowStatus("checkout");
+
+    return () => {
+      const currentState = readBuyNowState();
+
+      if (!currentState) {
+        return;
+      }
+
+      if (currentState.status !== "payment" && currentState.status !== "completed") {
+        updateBuyNowStatus("restore-pending");
+      }
+    };
+  }, [isBuyNowMode]);
+
+  const buildCouponPayload = async (
+    nextCode?: string,
+  ): Promise<CouponValidationRequest> => {
+    const cartItemsForCoupon = checkoutItems as Array<{
+      productId: number;
+      categoryId?: number;
+    }>;
+    const missingProductIds = Array.from(
+      new Set(
+        cartItemsForCoupon
+          .filter((item) => {
+            const productId = Number(item.productId);
+            const directCategoryId = Number(item.categoryId);
+            const cachedCategoryId = Number(categoryIdsByProductId[productId]);
+
+            return (
+              Number.isFinite(productId) &&
+              productId > 0 &&
+              !(Number.isFinite(directCategoryId) && directCategoryId > 0) &&
+              !(Number.isFinite(cachedCategoryId) && cachedCategoryId > 0)
+            );
+          })
+          .map((item) => Number(item.productId)),
+      ),
+    );
+
+    let resolvedCategoryIds = categoryIdsByProductId;
+
+    if (missingProductIds.length > 0) {
+      const fetchedCategoryIds = await fetchCategoryIdsForProducts(missingProductIds);
+
+      resolvedCategoryIds = {
+        ...categoryIdsByProductId,
+        ...fetchedCategoryIds,
+      };
+
+      setCategoryIdsByProductId((current) => ({
+        ...current,
+        ...fetchedCategoryIds,
+      }));
+    }
+
+    return createCouponPayload({
+      couponCode: (nextCode ?? couponCode).trim(),
+      orderAmount: orderAmountBeforeCoupon,
+      cartItems: cartItemsForCoupon.map((item) => ({
+        productId: item.productId,
+        categoryId:
+          item.categoryId ?? resolvedCategoryIds[Number(item.productId)],
+      })),
+      paymentMethod: normalizedPaymentMethod,
+      userId: resolvedUserId,
+      isFirstOrder: inferredIsFirstOrder,
+      isNewUser: inferredIsNewUser,
+    });
+  };
+
+  useEffect(() => {
+    const cartItemsForCoupon = checkoutItems as Array<{
+      productId: number;
+      categoryId?: number;
+    }>;
+    const missingProductIds = Array.from(
+      new Set(
+        cartItemsForCoupon
+          .filter((item) => {
+            const productId = Number(item.productId);
+            const directCategoryId = Number(item.categoryId);
+            const cachedCategoryId = Number(categoryIdsByProductId[productId]);
+
+            return (
+              Number.isFinite(productId) &&
+              productId > 0 &&
+              !(Number.isFinite(directCategoryId) && directCategoryId > 0) &&
+              !(Number.isFinite(cachedCategoryId) && cachedCategoryId > 0)
+            );
+          })
+          .map((item) => Number(item.productId)),
+      ),
+    );
+
+    if (missingProductIds.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetchCategoryIdsForProducts(missingProductIds).then((fetchedCategoryIds) => {
+      if (isCancelled) return;
+
+      setCategoryIdsByProductId((current) => ({
+        ...current,
+        ...fetchedCategoryIds,
+      }));
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [categoryIdsByProductId, checkoutItems]);
+
+  const handleApplyCoupon = async (nextCode?: string) => {
+    await validateCouponPreview({
+      couponCode: nextCode ?? couponCode,
+      validateCoupon,
+      buildCouponPayload,
+      couponContextSignature,
+      setCouponCode,
+      setCouponError,
+      setCouponMessage,
+      setAppliedCouponPreview,
+      setAppliedCouponContextSignature,
+    });
+  };
+
+  const clearCouponPreview = (message?: string, clearCode = false) => {
+    if (clearCode) {
+      setCouponCode("");
+    }
+    setAppliedCouponPreview(null);
+    setAppliedCouponContextSignature(null);
+    setCouponError(null);
+    setCouponMessage(message || null);
+  };
 
   // fetch summary whenever address/payment/cart changes
   useEffect(() => {
     if (!isAuthenticated) return;
-    const req: import("@/features/order/orderTypes").CheckoutRequest = {
-      addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
+
+    if (isBuyNowMode) {
+      setCheckoutData(null);
+      return;
+    }
+
+    const numericAddressId = selectedAddressId ? Number(selectedAddressId) : undefined;
+
+    if (!numericAddressId || !Number.isFinite(numericAddressId) || numericAddressId <= 0) {
+      return;
+    }
+
+    const req: CheckoutRequest = {
+      addressId: numericAddressId,
       paymentMethod,
-      cartId: user?.id ? Number(user.id) : undefined,
+      cartId: resolvedUserId,
     };
+
     checkoutSummary(req)
       .unwrap()
       .then(setCheckoutData)
       .catch((err) => {
         console.warn("checkout summary error", err);
       });
-  }, [isAuthenticated, selectedAddressId, paymentMethod, cartItems.length]);
+  }, [
+    cartSignature,
+    checkoutSummary,
+    isAuthenticated,
+    isBuyNowMode,
+    paymentMethod,
+    resolvedUserId,
+    selectedAddressId,
+  ]);
+
+  useEffect(() => {
+    if (!appliedCouponPreview || appliedCouponContextSignature === couponContextSignature) {
+      return;
+    }
+
+    setAppliedCouponPreview(null);
+    setAppliedCouponContextSignature(null);
+    setCouponError(null);
+    setCouponMessage("Coupon cleared because checkout details changed. Apply it again.");
+  }, [
+    appliedCouponContextSignature,
+    appliedCouponPreview,
+    couponContextSignature,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated) router.push("/login");
@@ -162,7 +930,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (cartItems.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <div className="max-w-md w-full text-center">
@@ -184,15 +952,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // compute totals locally but override with backend summary when available
-  const subtotal = checkoutData?.subtotal ?? cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-  const taxAmount = checkoutData?.taxAmount ?? Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
-  const shippingCharges = checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
-  const totalAmount = checkoutData?.totalAmount ?? subtotal + taxAmount + shippingCharges;
-
   const handleCheckout = async () => {
     if (!selectedAddressId) {
       setOrderError("Please select a delivery address");
@@ -202,20 +961,46 @@ export default function CheckoutPage() {
     try {
       setOrderError(null);
 
-      const result = await placeOrder({
-        addressId: Number(selectedAddressId),
-        paymentMethod: (paymentMethod === "COD" ? "COD" : "PREPAID") as string,
-      }).unwrap();
+      const result = isBuyNowMode && buyNowItem
+        ? await placeOrderCheckout({
+            addressId: Number(selectedAddressId),
+            paymentMethod: normalizedPaymentMethod,
+            items: [
+              {
+                productId: buyNowItem.productId,
+                variantId: buyNowItem.variantId,
+                quantity: buyNowItem.quantity,
+              },
+            ],
+          }).unwrap()
+        : await placeOrder({
+            addressId: Number(selectedAddressId),
+            paymentMethod: normalizedPaymentMethod as string,
+          }).unwrap();
+
+      const finalTotalAmount = await finalizeOrderCoupon({
+        order: result,
+        appliedCouponPreview,
+        couponCode,
+        buildCouponPayload,
+        applyCouponToOrder,
+        cancelOrder,
+      });
 
       if (result.requiresPayment) {
-        const user = globalThis.window === undefined ? null : getCurrentUser();
+        if (isBuyNowMode) {
+          updateBuyNowStatus("payment");
+        }
+
+        const currentUser = globalThis.window === undefined ? null : getCurrentUser();
         const payResp = await initiatePayment({
           orderId: result.orderId,
-          amount: result.totalAmount,
+          amount: finalTotalAmount,
           currency: "INR",
-          customerName: user?.name || (user?.fullName ?? "") || "",
-          customerEmail: user?.email || "",
-          customerPhone: user?.phone || "",
+          receipt: `order-${result.orderId}-${Date.now()}`,
+          customerName: currentUser?.name || (currentUser?.fullName ?? "") || "",
+          customerEmail: currentUser?.email || "",
+          customerPhone: currentUser?.phone || "",
         }).unwrap();
         sessionStorage.setItem(
           `payment_init_${result.orderId}`,
@@ -227,9 +1012,14 @@ export default function CheckoutPage() {
 
       sendEvent("checkout_completed", {
         orderId: result.orderId,
-        totalAmount: result.totalAmount,
-        itemCount: cartItems.length,
+        totalAmount: finalTotalAmount,
+        itemCount: checkoutItems.length,
+        couponCode: appliedCouponPreview?.coupon?.code || undefined,
       }); // event name kept same for analytics consistency
+
+      if (isBuyNowMode) {
+        updateBuyNowStatus("completed");
+      }
 
       sessionStorage.setItem("lastOrderId", String(result.orderId));
       router.push(`/checkout/success?orderId=${result.orderId}`);
@@ -436,11 +1226,16 @@ export default function CheckoutPage() {
               <div className="bg-white rounded-[2rem] p-6 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-neutral-100">
                 {/* Product List - Now visible on Mobile too */}
                 <div className="mb-10">
+                  {isBuyNowMode && (
+                    <p className="mb-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">
+                      Buy Now checkout
+                    </p>
+                  )}
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-6 flex justify-between">
-                    Your Order <span>({cartItems.length})</span>
+                    Your Order <span>({checkoutItems.length})</span>
                   </h3>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
-                    {cartItems.map((item) => (
+                    {checkoutItems.map((item) => (
                       <div
                         key={item.id}
                         className="flex gap-4 items-center group"
@@ -471,48 +1266,31 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-6 border-t border-neutral-50 mb-8">
-                  <div className="flex justify-between text-[12px]">
-                    <span className="text-neutral-400 font-light uppercase tracking-tighter">
-                      Subtotal
-                    </span>
-                    <span className="text-black font-medium">
-                      ₹{subtotal.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[12px]">
-                    <span className="text-neutral-400 font-light uppercase tracking-tighter">
-                      Shipping
-                    </span>
-                    <span
-                      className={
-                        shippingCharges === 0
-                          ? "text-green-600 font-medium"
-                          : "text-black font-medium"
-                      }
-                    >
-                      {shippingCharges === 0
-                        ? "Complimentary"
-                        : `₹${shippingCharges}`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[12px]">
-                    <span className="text-neutral-400 font-light uppercase tracking-tighter">
-                      Tax (10%)
-                    </span>
-                    <span className="text-black font-medium">
-                      ₹{taxAmount.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="pt-6 flex justify-between items-end">
-                    <span className="text-[10px] text-black font-bold uppercase tracking-[0.2em]">
-                      Total
-                    </span>
-                    <span className="text-3xl font-light tracking-tighter text-black">
-                      ₹{totalAmount.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+                <CouponPanel
+                  couponCode={couponCode}
+                  setCouponCode={(nextValue) => {
+                    setCouponCode(nextValue);
+                    setCouponError(null);
+                    setCouponMessage(null);
+                  }}
+                  validatingCoupon={validatingCoupon}
+                  applyingCoupon={applyingCoupon}
+                  onApplyCoupon={handleApplyCoupon}
+                  appliedCouponPreview={appliedCouponPreview}
+                  clearCouponPreview={clearCouponPreview}
+                  couponError={couponError}
+                  couponMessage={couponMessage}
+                  availableCoupons={availableCoupons}
+                  availableCouponsLoading={availableCouponsLoading}
+                />
+
+                <SummaryBreakdown
+                  subtotal={subtotal}
+                  shippingCharges={shippingCharges}
+                  taxAmount={taxAmount}
+                  discountAmount={discountAmount}
+                  totalAmount={totalAmount}
+                />
 
                 {orderError && (
                   <div className="mb-6 p-4 bg-red-50 rounded-xl flex items-center gap-3 text-red-600 text-[10px] font-bold uppercase tracking-tight">
@@ -529,7 +1307,7 @@ export default function CheckoutPage() {
                 <button
                   onClick={handleCheckout}
                   disabled={
-                    summaryLoading || placingOrder || initiatingPayment || !selectedAddressId ||
+                    (isBuyNowMode ? false : summaryLoading) || placingOrder || placingBuyNowOrder || initiatingPayment || validatingCoupon || applyingCoupon || !selectedAddressId ||
                     (!!checkoutData && !checkoutData.isValidForCheckout) ||
                     (!!checkoutData && !checkoutData.isDeliveryAvailable) ||
                     (!!checkoutData && paymentMethod === "COD" && !checkoutData.isCodAvailable)
@@ -537,7 +1315,7 @@ export default function CheckoutPage() {
                   className="w-full group relative overflow-hidden bg-black text-white py-5 md:py-6 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-neutral-800 disabled:opacity-20 transition-all shadow-2xl shadow-black/20"
                 >
                   <div className="flex items-center justify-center gap-3">
-                    {placingOrder || initiatingPayment ? (
+                    {placingOrder || placingBuyNowOrder || initiatingPayment || applyingCoupon ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
                       <>

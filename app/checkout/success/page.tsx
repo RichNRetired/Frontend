@@ -1,16 +1,15 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "next/navigation";
+import { useDispatch } from "react-redux";
 import Link from "next/link";
 import { clearCart } from "@/features/cart/cartSlice";
-import type { RootState } from "@/store";
 import { useGetMyOrdersQuery } from "@/features/order/orderApi";
 import { CheckCircle2, ArrowRight, Package } from "lucide-react";
+import { clearBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
 
 export default function SuccessPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const orderId = searchParams.get("orderId");
@@ -21,6 +20,8 @@ export default function SuccessPage() {
   // Clear cart on mount
   useEffect(() => {
     dispatch(clearCart());
+    updateBuyNowStatus("completed");
+    clearBuyNowState();
   }, [dispatch]);
 
   // If no orderId in URL, redirect to orders page
@@ -84,9 +85,9 @@ export default function SuccessPage() {
                 Items ({latestOrder.items?.length || 0})
               </p>
               <div className="space-y-4">
-                {latestOrder.items?.map((item: any, idx: number) => (
+                {latestOrder.items?.map((item: any) => (
                   <div
-                    key={idx}
+                    key={item.orderItemId ?? `${item.productId}-${item.quantity}`}
                     className="flex justify-between items-start pb-4 border-b border-neutral-100"
                   >
                     <div>
@@ -219,7 +220,6 @@ export default function SuccessPage() {
           </Link>
         </div>
 
-        {/* Help Section */}
         <div className="mt-12 pt-8 border-t text-center">
           <p className="text-sm text-neutral-600 mb-2">
             Need help with your order?

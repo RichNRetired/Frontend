@@ -1,12 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRequestReturnMutation } from "@/features/order/orderApi";
-import { OrderItem } from "@/features/order/orderTypes";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  useCheckReturnEligibilityMutation,
+  useRequestReturnMutation,
+} from "@/features/order/orderApi";
+import { OrderItem, ReturnReason, ReturnResponse } from "@/features/order/orderTypes";
 import { X, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 interface ReturnFormProps {
-  orderItem: OrderItem & { orderItemId?: number };
+  orderId: number;
+  orderItem: OrderItem & {
+    orderItemId?: number;
+    availableReasons?: ReturnReason[];
+    returnDeadline?: string;
+    eligibilityMessage?: string;
+    isEligible?: boolean;
+  };
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -21,21 +31,66 @@ const RETURN_REASONS = [
 ];
 
 export const ReturnForm: React.FC<ReturnFormProps> = ({
+  orderId,
   orderItem,
   onClose,
   onSuccess,
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [reason, setReason] = useState("SIZE_ISSUE");
-  const [comment, setComment] = useState("");
+  const [reason, setReason] = useState<ReturnReason>("SIZE_ISSUE");
+  const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<ReturnResponse | null>(null);
 
   const [requestReturn, { isLoading }] = useRequestReturnMutation();
+  const [checkReturnEligibility, { data: eligibility, isLoading: checkingEligibility }] =
+    useCheckReturnEligibilityMutation();
+
+  const availableReasons = useMemo(() => {
+    if (orderItem.availableReasons?.length) {
+      return RETURN_REASONS.filter(({ value }) =>
+        orderItem.availableReasons?.includes(value as ReturnReason),
+      );
+    }
+
+    return RETURN_REASONS;
+  }, [orderItem.availableReasons]);
+
+  const eligibilityMessage = eligibility?.message || orderItem.eligibilityMessage;
+  const isEligible =
+    orderItem.isEligible !== false &&
+    eligibility?.isEligible !== false &&
+    Boolean(orderItem.orderItemId);
+
+  useEffect(() => {
+    const fallbackReason = (availableReasons[0]?.value || "SIZE_ISSUE") as ReturnReason;
+    setReason(fallbackReason);
+  }, [availableReasons]);
+
+  useEffect(() => {
+    if (!orderItem.orderItemId || !orderItem.productId) {
+      return;
+    }
+
+    checkReturnEligibility({
+      orderItemId: orderItem.orderItemId,
+      productId: orderItem.productId,
+    });
+  }, [checkReturnEligibility, orderItem.orderItemId, orderItem.productId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!orderItem.orderItemId) {
+      setError("This item is missing a return identifier. Please refresh and try again.");
+      return;
+    }
+
+    if (!isEligible) {
+      setError(eligibilityMessage || "This item is not eligible for return.");
+      return;
+    }
 
     if (quantity > orderItem.quantity) {
       setError(`Cannot return more than ${orderItem.quantity} items`);
@@ -48,14 +103,16 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     }
 
     try {
-      await requestReturn({
-        orderItemId: orderItem.orderItemId || orderItem.productId,
+      const response = await requestReturn({
+        orderId,
+        orderItemId: orderItem.orderItemId,
         quantity,
-        reason: reason as any,
-        comment: comment || undefined,
+        reason,
+        reasonDescription: details || undefined,
+        comments: details || undefined,
       }).unwrap();
 
-      setSuccess(true);
+      setSuccessData(response);
       setTimeout(() => {
         onSuccess?.();
         onClose();
@@ -67,9 +124,9 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     }
   };
 
-  if (success) {
+  if (successData) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40 p-10">
         <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
             <CheckCircle2 size={32} className="text-green-600" />
@@ -78,8 +135,8 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             Return Requested
           </h2>
           <p className="text-neutral-600 mb-6">
-            Your return request has been submitted successfully. We'll process
-            it soon and send you a prepaid shipping label.
+            Return {successData.returnNumber} has been created. We'll keep you
+            updated as pickup, quality check, and refund steps progress.
           </p>
           <button
             onClick={onClose}
@@ -124,14 +181,44 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             <p className="text-sm text-neutral-600">
               Available Qty: {orderItem.quantity}
             </p>
+            {orderItem.returnDeadline && (
+              <p className="text-sm text-neutral-600">
+                Return by: {new Date(orderItem.returnDeadline).toLocaleDateString()}
+              </p>
+            )}
           </div>
+
+          {checkingEligibility && (
+            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 text-sm text-neutral-600 flex items-center gap-3">
+              <Loader2 size={16} className="animate-spin" />
+              Checking return eligibility...
+            </div>
+          )}
+
+          {!checkingEligibility && eligibilityMessage && (
+            <div
+              className={`rounded-lg p-4 text-sm ${
+                isEligible
+                  ? "bg-blue-50 border border-blue-200 text-blue-700"
+                  : "bg-red-50 border border-red-200 text-red-700"
+              }`}
+            >
+              {eligibilityMessage}
+            </div>
+          )}
 
           {/* Quantity */}
           <div>
-            <label className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3">
+            <label
+              htmlFor="return-quantity"
+              className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3"
+            >
               Return Quantity *
             </label>
-            <div className="flex items-center border border-neutral-200 rounded-lg">
+            <div
+              id="return-quantity"
+              className="flex items-center border border-neutral-200 rounded-lg"
+            >
               <button
                 type="button"
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -139,7 +226,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
               >
                 −
               </button>
-              <span className="flex-1 text-center font-bold py-2">
+              <span className="flex-1 text-center text-neutral-600  font-bold py-2">
                 {quantity}
               </span>
               <button
@@ -156,15 +243,19 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
           {/* Reason */}
           <div>
-            <label className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3">
+            <label
+              htmlFor="return-reason"
+              className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3"
+            >
               Return Reason *
             </label>
             <select
+              id="return-reason"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-4 py-3 border border-neutral-200 rounded-lg focus:outline-none focus:border-black transition-colors text-sm"
+              onChange={(e) => setReason(e.target.value as ReturnReason)}
+              className="w-full px-4 text-neutral-600  py-3 border border-neutral-200 rounded-lg focus:outline-none focus:border-black transition-colors text-sm"
             >
-              {RETURN_REASONS.map((opt) => (
+              {availableReasons.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -174,14 +265,18 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
           {/* Comment */}
           <div>
-            <label className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3">
+            <label
+              htmlFor="return-details"
+              className="block text-xs uppercase tracking-widest font-bold text-neutral-700 mb-3"
+            >
               Additional Details (Optional)
             </label>
             <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              id="return-details"
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
               placeholder="Please provide any additional details about the return..."
-              className="w-full px-4 py-3 border border-neutral-200 rounded-lg focus:outline-none focus:border-black transition-colors text-sm resize-none"
+              className="w-full text-neutral-600 s px-4 py-3 border border-neutral-200 rounded-lg focus:outline-none focus:border-black transition-colors text-sm resize-none"
               rows={4}
             />
           </div>
@@ -219,7 +314,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || checkingEligibility || !isEligible}
               className="flex-1 px-4 py-3 bg-black text-white font-bold uppercase tracking-widest text-sm hover:bg-neutral-800 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading && <Loader2 size={16} className="animate-spin" />}

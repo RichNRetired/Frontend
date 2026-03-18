@@ -3,6 +3,8 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export interface ApiCartItem {
   cartItemId: number;
   productId: number;
+  categoryId?: number;
+  category?: { id?: number | null } | null;
   variantId: number;
   color: string;
   size: string;
@@ -15,7 +17,22 @@ export interface ApiCartItem {
   discountPercentage: number;
 }
 
-export interface ApiResponse<T = any> {
+export interface CartSummaryResponse {
+  items: ApiCartItem[];
+  subtotal: number;
+  taxAmount: number;
+  shippingCharges: number;
+  discountAmount: number;
+  finalAmount: number;
+  appliedCoupon?: string;
+  couponApplied: boolean;
+  message?: string;
+  totalItems: number;
+  totalMrp: number;
+  totalSavings: number;
+}
+
+export interface ApiResponse<T = unknown> {
   message?: string;
   data?: T;
   success?: boolean;
@@ -28,13 +45,19 @@ export const cartApi = createApi({
     baseUrl: (process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, ''),
     credentials: 'include',
     prepareHeaders: (headers) => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-        const tokenType = typeof window !== 'undefined' ? localStorage.getItem('tokenType') || 'Bearer' : 'Bearer';
-        if (token) headers.set('Authorization', `${tokenType} ${token}`);
-      } catch (e) {
-        // ignore on server
+      const browserWindow = globalThis.window;
+
+      if (browserWindow === undefined) {
+        return headers;
       }
+
+      const token = browserWindow.localStorage.getItem('accessToken');
+      const tokenType = browserWindow.localStorage.getItem('tokenType') || 'Bearer';
+
+      if (token) {
+        headers.set('Authorization', `${tokenType} ${token}`);
+      }
+
       return headers;
     },
   }),
@@ -49,7 +72,7 @@ export const cartApi = createApi({
     }),
 
     // GET /api/cart/summary - Get cart with pricing
-    getCartSummary: builder.query<any, { couponCode?: string } | void>({
+    getCartSummary: builder.query<CartSummaryResponse, { couponCode?: string } | void>({
       query: (params) => {
         if (!params) {
           return {

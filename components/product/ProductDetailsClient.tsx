@@ -3,6 +3,7 @@
 import { Product } from "@/features/product/productTypes";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
 import { addItem } from "@/features/cart/cartSlice";
 import { useAddToCartMutation } from "@/features/cart/cartApi";
 import {
@@ -18,6 +19,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { sendEvent } from "@/services/analytics.service";
 import { getPrimaryProductImage } from "@/features/product/productUtils";
 import { useLazyCheckLocationServiceabilityQuery } from "@/features/location/locationApi";
+import { startBuyNowCheckout } from "@/lib/buy-now";
 
 interface Props {
   product: Product;
@@ -46,10 +48,11 @@ const sizeGuideMeasurements = {
   ],
 } as const;
 
-export default function ProductDetailsClient({ product }: Props) {
+export default function ProductDetailsClient({ product }: Readonly<Props>) {
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [sizeGuideUnit, setSizeGuideUnit] = useState<SizeGuideUnit>("CM");
   const [selectedSize, setSelectedSize] = useState("");
@@ -58,6 +61,7 @@ export default function ProductDetailsClient({ product }: Props) {
   const [pincodeError, setPincodeError] = useState<string | null>(null);
 
   const dispatch = useDispatch();
+  const router = useRouter();
   const [addToCart] = useAddToCartMutation();
   const [checkLocationServiceability, serviceabilityState] =
     useLazyCheckLocationServiceabilityQuery();
@@ -174,6 +178,29 @@ export default function ProductDetailsClient({ product }: Props) {
   const isInWishlist = wishlist.some((item) => item.productId === product.id);
   const isWishlistActionLoading = isWishlistAdding || isWishlistRemoving;
   const isOutOfStock = (effectiveStock ?? 0) <= 0;
+  const canShowMrp = Boolean(effectiveMrp && effectiveMrp > effectivePrice);
+  let addToBagLabel = "Add to Bag";
+
+  if (isOutOfStock) {
+    addToBagLabel = "Sold Out";
+  } else if (adding) {
+    addToBagLabel = "Adding...";
+  }
+
+  let wishlistLabel = "Add to Wishlist";
+  let buyNowLabel = "Buy Now";
+
+  if (isWishlistActionLoading) {
+    wishlistLabel = "Updating Wishlist...";
+  } else if (isInWishlist) {
+    wishlistLabel = "Saved in Wishlist";
+  }
+
+  if (isOutOfStock) {
+    buyNowLabel = "Sold Out";
+  } else if (buyingNow) {
+    buyNowLabel = "Redirecting...";
+  }
 
   const handleCheckServiceability = async () => {
     const normalizedPincode = pincode.trim();
@@ -204,6 +231,7 @@ export default function ProductDetailsClient({ product }: Props) {
           id: String(selectedVariant.id),
           productId: product.id,
           variantId: selectedVariant.id,
+          categoryId: product.category?.id,
           name: product.name,
           price: effectivePrice,
           quantity,
@@ -216,6 +244,42 @@ export default function ProductDetailsClient({ product }: Props) {
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleBuyNow = async () => {
+    setBuyingNow(true);
+
+    try {
+      if (!selectedVariant) {
+        throw new Error("Please select a variant");
+      }
+
+      startBuyNowCheckout({
+        productId: Number(product.id),
+        variantId: selectedVariant.id,
+        quantity,
+        categoryId: product.category?.id,
+        name: product.name,
+        price: effectivePrice,
+        image: getPrimaryProductImage(product),
+        size: selectedVariant.size,
+        color: selectedVariant.color,
+      });
+
+      sendEvent("product_buy_now", {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+      });
+
+      router.push("/checkout?mode=buy-now");
+    } catch (err: any) {
+      alert(err?.data?.message || err?.message || "Failed to start checkout");
+      setBuyingNow(false);
+      return;
+    }
+
+    setBuyingNow(false);
   };
 
   const handleWishlistToggle = async () => {
@@ -261,7 +325,7 @@ export default function ProductDetailsClient({ product }: Props) {
           <span className="text-2xl font-light">
             ₹{effectivePrice?.toLocaleString()}
           </span>
-          {effectiveMrp && effectiveMrp > effectivePrice && (
+          {canShowMrp && (
             <span className="text-neutral-400 line-through text-lg font-light">
               ₹{effectiveMrp.toLocaleString()}
             </span>
@@ -282,7 +346,7 @@ export default function ProductDetailsClient({ product }: Props) {
             inputMode="numeric"
             maxLength={6}
             value={pincode}
-            onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setPincode(e.target.value.replaceAll(/\D/g, ""))}
             placeholder="Enter pincode"
             className="flex-1 border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-black"
           />
@@ -416,11 +480,19 @@ export default function ProductDetailsClient({ product }: Props) {
       {/* Main Actions */}
       <div className="flex flex-col gap-3 mb-10">
         <button
+          onClick={handleBuyNow}
+          disabled={isOutOfStock || buyingNow}
+          className="w-full border border-black bg-white text-black py-5 text-[12px] uppercase tracking-[0.2em] font-bold hover:bg-neutral-50 transition-all disabled:border-neutral-200 disabled:text-neutral-400"
+        >
+          {buyNowLabel}
+        </button>
+
+        <button
           onClick={handleAddToCart}
           disabled={isOutOfStock || adding}
           className="w-full bg-[#111111] text-white py-5 text-[12px] uppercase tracking-[0.2em] font-bold hover:bg-black transition-all disabled:bg-neutral-200"
         >
-          {isOutOfStock ? "Sold Out" : adding ? "Adding..." : "Add to Bag"}
+          {addToBagLabel}
         </button>
 
         <button
@@ -436,11 +508,7 @@ export default function ProductDetailsClient({ product }: Props) {
                 : "group-hover:scale-110 transition-transform"
             }
           />
-          {isWishlistActionLoading
-            ? "Updating Wishlist..."
-            : isInWishlist
-              ? "Saved in Wishlist"
-              : "Add to Wishlist"}
+          {wishlistLabel}
         </button>
       </div>
 

@@ -19,40 +19,60 @@ import {
 } from "lucide-react";
 import {
   useGetCartQuery,
+  useGetCartSummaryQuery,
   useUpdateCartItemMutation,
   useRemoveFromCartMutation,
 } from "../../features/cart/cartApi";
-import {
-  calculateSubtotal,
-  calculateTax,
-  calculateTotal,
-} from "../../features/cart/cartUtils";
-import type { CartItem } from "../../types/cart";
 
 export default function CartPage() {
   const { items } = useSelector((state: RootState) => state.cart);
   const dispatch = useDispatch();
-  const { data: cartData, isLoading: isLoadingCart } = useGetCartQuery();
+  const { data: cartData } = useGetCartQuery();
+  const { data: cartSummary, isLoading: isLoadingCart } = useGetCartSummaryQuery();
   const [updateCartItem] = useUpdateCartItemMutation();
   const [removeFromCart] = useRemoveFromCartMutation();
-  // Optionally, get cart summary with pricing
-  // const { data: cartSummary } = useGetCartQuery();
 
   const toSafeNumber = (value: unknown, fallback = 0) => {
     const normalized = Number(value);
     return Number.isFinite(normalized) ? normalized : fallback;
   };
 
+  const toOptionalNumber = (value: unknown) => {
+    const normalized = Number(value);
+    return Number.isFinite(normalized) && normalized > 0 ? normalized : undefined;
+  };
+
   const formatCurrency = (value: unknown) =>
     toSafeNumber(value, 0).toLocaleString();
 
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "data" in error &&
+      typeof (error as { data?: unknown }).data === "object" &&
+      (error as { data?: { message?: unknown } }).data !== null
+    ) {
+      const message = (error as { data?: { message?: unknown } }).data?.message;
+
+      if (typeof message === "string" && message.trim()) {
+        return message;
+      }
+    }
+
+    return fallback;
+  };
+
   useEffect(() => {
-    if (cartData) {
+    const sourceItems = cartSummary?.items ?? cartData;
+
+    if (sourceItems) {
       dispatch(
         setCart(
-          cartData.map((item: any) => ({
+          sourceItems.map((item) => ({
             id: String(item.cartItemId), // Use actual cartItemId for backend operations
             productId: item.productId,
+            categoryId: toOptionalNumber(item.categoryId ?? item.category?.id),
             variantId: toSafeNumber(item.variantId),
             name: item.productName,
             price: toSafeNumber(item.price, 0),
@@ -66,7 +86,7 @@ export default function CartPage() {
         ),
       );
     }
-  }, [cartData, dispatch]);
+  }, [cartData, cartSummary, dispatch]);
 
   const handleUpdateQuantity = async (id: string, quantity: number) => {
     if (quantity <= 0) return;
@@ -80,10 +100,9 @@ export default function CartPage() {
         variantId: cartItem.variantId,
       }).unwrap();
       dispatch(updateQuantity({ id, quantity }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to update quantity:", err);
-      // Optionally show error notification here
-      const errorMsg = err?.data?.message || "Failed to update quantity";
+      const errorMsg = getErrorMessage(err, "Failed to update quantity");
       alert(errorMsg);
     }
   };
@@ -92,17 +111,21 @@ export default function CartPage() {
     try {
       await removeFromCart(Number(id)).unwrap();
       dispatch(removeItem(id));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to remove item:", err);
-      // Optionally show error notification here
-      const errorMsg = err?.data?.message || "Failed to remove item";
+      const errorMsg = getErrorMessage(err, "Failed to remove item");
       alert(errorMsg);
     }
   };
 
-  const subtotal = calculateSubtotal(items);
-  const tax = calculateTax(subtotal);
-  const total = calculateTotal(subtotal, tax);
+  const subtotal = toSafeNumber(cartSummary?.subtotal);
+  const taxAmount = toSafeNumber(cartSummary?.taxAmount);
+  const shippingCharges = toSafeNumber(cartSummary?.shippingCharges);
+  const discountAmount = toSafeNumber(cartSummary?.discountAmount);
+  const total = toSafeNumber(cartSummary?.finalAmount);
+  const totalItems = toSafeNumber(cartSummary?.totalItems, items.length);
+  const savings = toSafeNumber(cartSummary?.totalSavings);
+  const appliedCoupon = cartSummary?.couponApplied ? cartSummary.appliedCoupon : null;
 
   if (isLoadingCart) {
     return (
@@ -140,7 +163,7 @@ export default function CartPage() {
             Shopping Bag
           </h1>
           <p className="text-neutral-400 text-sm mt-2">
-            {items.length} Items reserved for you
+            {totalItems} Items reserved for you
           </p>
         </header>
 
@@ -235,22 +258,47 @@ export default function CartPage() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-light text-neutral-600">
-                  <div className="flex flex-col">
-                    <span>Estimated Tax</span>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-tighter">
-                      (Calculated at 10%)
-                    </span>
-                  </div>
+                  <span>Tax</span>
                   <span className="font-medium text-neutral-900">
-                    ₹{formatCurrency(tax)}
+                    ₹{formatCurrency(taxAmount)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-light text-neutral-600">
                   <span>Shipping</span>
-                  <span className="text-[10px] uppercase tracking-widest text-green-600 font-bold">
-                    Complimentary
+                  <span
+                    className={`text-[10px] uppercase tracking-widest font-bold ${
+                      shippingCharges === 0 ? "text-green-600" : "text-neutral-900"
+                    }`}
+                  >
+                    {shippingCharges === 0
+                      ? "Complimentary"
+                      : `₹${formatCurrency(shippingCharges)}`}
                   </span>
                 </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm font-light text-green-700">
+                    <span>Discount</span>
+                    <span className="font-medium">
+                      -₹{formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                )}
+
+                {appliedCoupon && (
+                  <div className="rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3 text-[11px] uppercase tracking-widest text-emerald-700">
+                    Coupon applied: {appliedCoupon}
+                  </div>
+                )}
+
+                {savings > 0 && (
+                  <div className="flex justify-between text-sm font-light text-neutral-600">
+                    <span>Total Savings</span>
+                    <span className="font-medium text-green-700">
+                      ₹{formatCurrency(savings)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="pt-6 mt-6 border-t text-black border-neutral-200 flex justify-between items-baseline">
                   <span className="text-sm font-bold uppercase tracking-widest">
