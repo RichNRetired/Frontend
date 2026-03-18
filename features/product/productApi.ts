@@ -1,3 +1,9 @@
+import type {
+    FetchArgs,
+    FetchBaseQueryError,
+    FetchBaseQueryMeta,
+    QueryReturnValue,
+} from "@reduxjs/toolkit/query";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import {
     GetProductsByLocationParams,
@@ -92,10 +98,16 @@ const mergeProductWithDetails = (product: Product, detail: Product): Product => 
     mrp: toFiniteNumber(product.mrp) ?? detail.mrp,
 });
 
+type MaybePromise<T> = T | PromiseLike<T>;
+
+type ProductBaseQuery = (
+    arg: string | FetchArgs,
+) => MaybePromise<QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>>;
+
 const enrichProductsWithDetails = async (
     response: ProductsResponse,
-    fetchWithBQ: ReturnType<typeof fetchBaseQuery>,
-) => {
+    fetchWithBQ: ProductBaseQuery,
+): Promise<QueryReturnValue<ProductsResponse, FetchBaseQueryError, FetchBaseQueryMeta>> => {
     const normalizedResponse = normalizeProductsResponse(response);
     const products = normalizedResponse.content;
     const productsNeedingDetails = products.filter(
@@ -108,10 +120,9 @@ const enrichProductsWithDetails = async (
 
     const detailEntries = await Promise.all(
         productsNeedingDetails.map(async (product) => {
-            
-            const detailResult = await fetchWithBQ(`/products/${product.id}`);
+            const detailResult = await fetchWithBQ({ url: `/products/${product.id}` });
 
-            if ("error" in detailResult || !detailResult.data) {
+            if (detailResult.error || !detailResult.data) {
                 return [product.id, null] as const;
             }
 
@@ -251,7 +262,7 @@ export const productApi = createApi({
                     },
                 });
 
-                if ("error" in response) {
+                if (response.error) {
                     return { error: response.error };
                 }
 
@@ -273,7 +284,7 @@ export const productApi = createApi({
                     },
                 });
 
-                if ("error" in response) {
+                if (response.error) {
                     return { error: response.error };
                 }
 
@@ -295,7 +306,7 @@ export const productApi = createApi({
                     },
                 });
 
-                if ("error" in response) {
+                if (response.error) {
                     return { error: response.error };
                 }
 

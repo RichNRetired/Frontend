@@ -18,7 +18,7 @@ interface ProductPageClientProps {
 export default function ProductPageClient({
   productId,
   slug: _slug,
-}: ProductPageClientProps) {
+}: Readonly<ProductPageClientProps>) {
   const normalizedProductId = useMemo(() => {
     const value = Number(productId);
     return Number.isFinite(value) ? value : null;
@@ -46,6 +46,51 @@ export default function ProductPageClient({
   const relatedProducts = (relatedResp?.content || []).filter(
     (item) => item.id !== normalizedProductId,
   );
+  const hasRelatedProducts = relatedProducts.length > 0;
+  let relatedContent: React.ReactNode;
+
+  if (relatedLoading) {
+    relatedContent = (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-8">
+        {Array.from({ length: 4 }).map((_, idx) => (
+          <div
+            key={`related-skeleton-${idx + 1}`}
+            className="animate-pulse bg-neutral-100 h-80 w-full"
+          />
+        ))}
+      </div>
+    );
+  } else if (hasRelatedProducts) {
+    relatedContent = (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-8">
+        {relatedProducts.slice(0, 4).map((related) => (
+          <ProductCard
+            key={related.id}
+            id={related.id}
+            slug={related.slug}
+            name={related.name}
+            price={related.price}
+            originalPrice={related.mrp}
+            images={related.images}
+            image={
+              related.main_image ||
+              related.thumbnail_image ||
+              related.medium_image
+            }
+            variants={related.variants}
+            isOnSale={!!related.discount_percent}
+            isNew={Boolean(related.status?.toLowerCase() === "new")}
+          />
+        ))}
+      </div>
+    );
+  } else {
+    relatedContent = (
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-6 py-10 text-center text-neutral-600">
+        No related products available right now.
+      </div>
+    );
+  }
 
   if (isLoading || isFetching) {
     return (
@@ -67,6 +112,9 @@ export default function ProductPageClient({
   }
 
   const imageUrls = getProductImageUrls(product);
+  const availabilityClassName = product.stock > 0 ? "text-green-600" : "text-red-600";
+  const availabilityLabel = product.stock > 0 ? "In Stock" : "Out of Stock";
+  const productStatusLabel = product.is_active ? "Active" : "Inactive";
 
   return (
     <div className="min-h-screen bg-white">
@@ -96,17 +144,14 @@ export default function ProductPageClient({
                       </div>
                       <div className="flex justify-between py-3 border-b border-neutral-100">
                         <span className="text-neutral-600">Availability</span>
-                        <span
-                          className={`font-medium ${product.stock > 0 ? "text-green-600" : "text-red-600"
-                            }`}
-                        >
-                          {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                        <span className={`font-medium ${availabilityClassName}`}>
+                          {availabilityLabel}
                         </span>
                       </div>
                       <div className="flex justify-between py-3">
                         <span className="text-neutral-600">Status</span>
                         <span className="font-medium text-neutral-900">
-                          {product.is_active ? "Active" : "Inactive"}
+                          {productStatusLabel}
                         </span>
                       </div>
                     </div>
@@ -124,7 +169,7 @@ export default function ProductPageClient({
                             className="flex justify-between py-3 border-b border-neutral-100 last:border-0"
                           >
                             <span className="text-neutral-600 capitalize">
-                              {key.replace(/_/g, " ")}
+                              {key.replaceAll("_", " ")}
                             </span>
                             <span className="font-medium text-neutral-900">
                               {String(value)}
@@ -151,42 +196,7 @@ export default function ProductPageClient({
           </h2>
         </div>
 
-        {relatedLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-8">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="animate-pulse bg-neutral-100 h-80 w-full"
-              />
-            ))}
-          </div>
-        ) : relatedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-8">
-            {relatedProducts.slice(0, 4).map((related) => (
-              <ProductCard
-                key={related.id}
-                id={related.id}
-                slug={related.slug}
-                name={related.name}
-                price={related.price}
-                originalPrice={related.mrp}
-                images={related.images}
-                image={
-                  related.main_image ||
-                  related.thumbnail_image ||
-                  related.medium_image
-                }
-                variants={related.variants}
-                isOnSale={!!related.discount_percent}
-                isNew={Boolean(related.status?.toLowerCase() === "new")}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-6 py-10 text-center text-neutral-600">
-            No related products available right now.
-          </div>
-        )}
+        {relatedContent}
       </div>
 
       <div className="bg-neutral-50 border-y border-neutral-200 py-12 lg:py-16">
