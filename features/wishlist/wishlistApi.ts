@@ -13,13 +13,15 @@ export const wishlistApi = createApi({
         baseUrl: (process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, ''),
         credentials: 'include',
         prepareHeaders: (headers) => {
-            try {
-                const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-                const tokenType = typeof window !== 'undefined' ? localStorage.getItem('tokenType') || 'Bearer' : 'Bearer';
-                if (token) headers.set('Authorization', `${tokenType} ${token}`);
-            } catch (e) {
-                // ignore on server
+            if (globalThis.window !== undefined) {
+                const token = localStorage.getItem('accessToken');
+                const tokenType = localStorage.getItem('tokenType') || 'Bearer';
+
+                if (token) {
+                    headers.set('Authorization', `${tokenType} ${token}`);
+                }
             }
+
             return headers;
         },
     }),

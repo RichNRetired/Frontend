@@ -1,15 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useState } from "react";
 import Link from "next/link";
-import { RootState } from "../../store";
 import {
-  setCart,
-  removeItem,
-  updateQuantity,
-} from "../../features/cart/cartSlice";
-import {
+  AlertCircle,
   Trash2,
   Plus,
   Minus,
@@ -17,29 +11,21 @@ import {
   ArrowRight,
   Heart,
 } from "lucide-react";
-import {
-  useGetCartQuery,
-  useGetCartSummaryQuery,
-  useUpdateCartItemMutation,
-  useRemoveFromCartMutation,
-} from "../../features/cart/cartApi";
+import { useCart } from "@/hooks/useCart";
 
 export default function CartPage() {
-  const { items } = useSelector((state: RootState) => state.cart);
-  const dispatch = useDispatch();
-  const { data: cartData } = useGetCartQuery();
-  const { data: cartSummary, isLoading: isLoadingCart } = useGetCartSummaryQuery();
-  const [updateCartItem] = useUpdateCartItemMutation();
-  const [removeFromCart] = useRemoveFromCartMutation();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const {
+    items,
+    cartSummary,
+    isLoading: isLoadingCart,
+    updateQuantity,
+    removeFromCart,
+  } = useCart();
 
   const toSafeNumber = (value: unknown, fallback = 0) => {
     const normalized = Number(value);
     return Number.isFinite(normalized) ? normalized : fallback;
-  };
-
-  const toOptionalNumber = (value: unknown) => {
-    const normalized = Number(value);
-    return Number.isFinite(normalized) && normalized > 0 ? normalized : undefined;
   };
 
   const formatCurrency = (value: unknown) =>
@@ -63,58 +49,29 @@ export default function CartPage() {
     return fallback;
   };
 
-  useEffect(() => {
-    const sourceItems = cartSummary?.items ?? cartData;
-
-    if (sourceItems) {
-      dispatch(
-        setCart(
-          sourceItems.map((item) => ({
-            id: String(item.cartItemId), // Use actual cartItemId for backend operations
-            productId: item.productId,
-            categoryId: toOptionalNumber(item.categoryId ?? item.category?.id),
-            variantId: toSafeNumber(item.variantId),
-            name: item.productName,
-            price: toSafeNumber(item.price, 0),
-            quantity: Math.max(1, toSafeNumber(item.quantity, 1)),
-            image: item.imageUrl,
-            color: item.color,
-            size: item.size,
-            mrp: item.mrp,
-            discountPercentage: item.discountPercentage,
-          })),
-        ),
-      );
-    }
-  }, [cartData, cartSummary, dispatch]);
-
   const handleUpdateQuantity = async (id: string, quantity: number) => {
     if (quantity <= 0) return;
     const cartItem = items.find((item) => item.id === id);
     if (!cartItem) return;
 
     try {
-      await updateCartItem({
-        cartItemId: Number(id),
-        qty: quantity,
-        variantId: cartItem.variantId,
-      }).unwrap();
-      dispatch(updateQuantity({ id, quantity }));
+      setErrorMessage(null);
+      await updateQuantity(id, quantity, cartItem.variantId);
     } catch (err: unknown) {
       console.error("Failed to update quantity:", err);
       const errorMsg = getErrorMessage(err, "Failed to update quantity");
-      alert(errorMsg);
+      setErrorMessage(errorMsg);
     }
   };
 
   const handleRemove = async (id: string) => {
     try {
-      await removeFromCart(Number(id)).unwrap();
-      dispatch(removeItem(id));
+      setErrorMessage(null);
+      await removeFromCart(id);
     } catch (err: unknown) {
       console.error("Failed to remove item:", err);
       const errorMsg = getErrorMessage(err, "Failed to remove item");
-      alert(errorMsg);
+      setErrorMessage(errorMsg);
     }
   };
 
@@ -165,6 +122,12 @@ export default function CartPage() {
           <p className="text-neutral-400 text-sm mt-2">
             {totalItems} Items reserved for you
           </p>
+          {errorMessage && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:items-start">
@@ -200,7 +163,7 @@ export default function CartPage() {
 
                       <button
                         onClick={() => handleRemove(item.id)}
-                        className="p-2 text-neutral-300 hover:text-red-500 transition-colors"
+                        className="p-2 text-neutral-900 hover:text-red-500 transition-colors"
                         title="Remove Item"
                       >
                         <Trash2 size={18} strokeWidth={1.5} />

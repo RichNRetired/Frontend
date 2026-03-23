@@ -1,10 +1,14 @@
+import type { RootState } from "@/store";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import {
-    CheckoutPayload,
     CheckoutRequest,
     CheckoutResponse,
+    BuyNowCheckoutRequest,
+    BuyNowCheckoutResponse,
+    CancelOrderRequest,
     Order,
     OrdersResponse,
+    PlacedOrderResponse,
     ApiResponse,
     ReturnRequest,
     ReturnResponse,
@@ -22,7 +26,168 @@ import {
     ReturnTimelineEntry,
     EligibleReturnItem,
     ReturnStatus,
+    VerifyPaymentRequest,
+    VerifyPaymentResponse,
+    OrderTrackingResponse,
+    ShiprocketPickupLocation,
 } from "./orderTypes";
+
+type RawOrderItem = Partial<Order["items"][number]> & {
+    productImage?: string;
+    total?: number;
+    subtotal?: number;
+};
+
+type RawOrder = Partial<Order> & {
+    orderStatus?: string;
+    deliveryAddressLine1?: string;
+    deliveryAddressLine2?: string;
+    deliveryCity?: string;
+    deliveryState?: string;
+    deliveryPostalCode?: string;
+    deliveryCountry?: string;
+    items?: RawOrderItem[];
+};
+
+const PREPAID_PAYMENT_METHODS = new Set(["PREPAID", "CARD", "UPI", "NETBANKING"]);
+const FINALIZED_PAYMENT_STATUSES = new Set(["PAID", "CAPTURED", "COMPLETED", "SUCCESS", "VERIFIED"]);
+
+function deriveRequiresPayment(order: RawOrder): boolean {
+    if (typeof order.requiresPayment === "boolean") {
+        return order.requiresPayment;
+    }
+
+    const paymentMethod = String(order.paymentMethod ?? "").trim().toUpperCase();
+    const paymentStatus = String(order.paymentStatus ?? "").trim().toUpperCase();
+
+    if (!PREPAID_PAYMENT_METHODS.has(paymentMethod)) {
+        return false;
+    }
+
+    return !FINALIZED_PAYMENT_STATUSES.has(paymentStatus);
+}
+
+function normalizeOrderItem(item: RawOrderItem) {
+    return {
+        orderItemId: item.orderItemId,
+        productId: Number(item.productId ?? 0),
+        productName: item.productName ?? "",
+        imageUrl: item.imageUrl ?? item.productImage,
+        price: Number(item.price ?? 0),
+        quantity: Number(item.quantity ?? 0),
+        totalPrice: Number(item.totalPrice ?? item.total ?? item.subtotal ?? 0),
+        total: Number(item.total ?? item.totalPrice ?? item.subtotal ?? 0),
+        variantId: item.variantId,
+        size: item.size,
+        color: item.color,
+        sku: item.sku,
+        mrp: item.mrp,
+        discountPercentage: item.discountPercentage,
+        subtotal: item.subtotal,
+        inStock: item.inStock,
+        availableStock: item.availableStock,
+    };
+}
+
+function normalizeDeliveryAddress(order: RawOrder) {
+    if (order.deliveryAddress?.addressLine1) {
+        return order.deliveryAddress;
+    }
+
+    if (!order.deliveryAddressLine1) {
+        return undefined;
+    }
+
+    return {
+        addressLine1: order.deliveryAddressLine1,
+        addressLine2: order.deliveryAddressLine2,
+        city: order.deliveryCity ?? "",
+        state: order.deliveryState ?? "",
+        postalCode: order.deliveryPostalCode ?? "",
+        country: order.deliveryCountry ?? "",
+    };
+}
+
+function normalizeOrder(order: RawOrder): Order {
+    return {
+        orderId: Number(order.orderId ?? 0),
+        status: order.status ?? order.orderStatus ?? "PENDING",
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        userId: order.userId,
+        userName: order.userName,
+        userEmail: order.userEmail,
+        userPhone: order.userPhone,
+        subtotal: order.subtotal,
+        taxAmount: order.taxAmount,
+        shippingCharges: order.shippingCharges,
+        discountAmount: order.discountAmount,
+        totalAmount: Number(order.totalAmount ?? 0),
+        requiresPayment: deriveRequiresPayment(order),
+        paymentMessage: order.paymentMessage,
+        expectedDelivery: order.expectedDelivery,
+        deliveryDays: order.deliveryDays,
+        paymentExpiry: order.paymentExpiry,
+        message: order.message,
+        deliveryAddress: normalizeDeliveryAddress(order),
+        items: Array.isArray(order.items) ? order.items.map(normalizeOrderItem) : [],
+        createdAt: order.createdAt ?? new Date().toISOString(),
+    };
+}
+
+function normalizePlacedOrder(order: RawOrder): PlacedOrderResponse {
+    return {
+        orderId: Number(order.orderId ?? 0),
+        status: order.status ?? order.orderStatus,
+        orderStatus: order.orderStatus,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        subtotal: order.subtotal,
+        taxAmount: order.taxAmount,
+        shippingCharges: order.shippingCharges,
+        discountAmount: order.discountAmount,
+        totalAmount: Number(order.totalAmount ?? 0),
+        requiresPayment: deriveRequiresPayment(order),
+        paymentMessage: order.paymentMessage,
+        expectedDelivery: order.expectedDelivery,
+        deliveryDays: order.deliveryDays,
+        paymentExpiry: order.paymentExpiry,
+        deliveryAddress: normalizeDeliveryAddress(order),
+        message: order.message,
+        items: Array.isArray(order.items) ? order.items.map(normalizeOrderItem) : [],
+        createdAt: order.createdAt,
+    };
+}
+
+function normalizeCheckoutResponse(response: CheckoutResponse): CheckoutResponse {
+    return {
+        ...response,
+        items: Array.isArray(response.items)
+            ? response.items.map((item) => normalizeOrderItem(item as RawOrderItem))
+            : [],
+        validationErrors: Array.isArray(response.validationErrors)
+            ? response.validationErrors
+            : [],
+    };
+}
+
+function normalizeBuyNowCheckoutResponse(response: BuyNowCheckoutResponse): BuyNowCheckoutResponse {
+    return {
+        ...response,
+        validationErrors: Array.isArray(response.validationErrors)
+            ? response.validationErrors
+            : [],
+    };
+}
+
+function applyCancelledOrderState(order: Partial<Order> | undefined) {
+    if (!order) {
+        return;
+    }
+
+    order.status = "CANCELLED";
+    order.message ??= "Order cancelled successfully";
+}
 
 export const orderApi = createApi({
     reducerPath: "orderApi",
@@ -52,28 +217,38 @@ export const orderApi = createApi({
                 method: "POST",
                 body,
             }),
+            transformResponse: (response: CheckoutResponse) => normalizeCheckoutResponse(response),
         }),
 
-        /** Place a direct order with explicit items, used by Buy Now */
-        placeOrderCheckout: builder.mutation<Order, CheckoutPayload>({
-            query: ({ addressId, paymentMethod, items }) => ({
-                url: `/orders/place?addressId=${addressId}&paymentMethod=${paymentMethod || "PREPAID"}`,
+        /** Buy now checkout summary */
+        buyNowCheckout: builder.mutation<BuyNowCheckoutResponse, BuyNowCheckoutRequest>({
+            query: (body) => ({
+                url: "/orders/buy-now/checkout",
                 method: "POST",
-                body: {
-                    addressId,
-                    paymentMethod,
-                    items,
-                },
+                body,
             }),
+            transformResponse: (response: BuyNowCheckoutResponse) =>
+                normalizeBuyNowCheckoutResponse(response),
+        }),
+
+        /** Place a direct order with explicit item payload, used by Buy Now */
+        placeOrderCheckout: builder.mutation<PlacedOrderResponse, BuyNowCheckoutRequest>({
+            query: (body) => ({
+                url: "/orders/buy-now/place-order",
+                method: "POST",
+                body,
+            }),
+            transformResponse: (response: RawOrder) => normalizePlacedOrder(response),
             invalidatesTags: ["Orders"],
         }),
 
         /** Place Order - used when user completes purchase */
-        placeOrder: builder.mutation<Order, { addressId: number; paymentMethod: string }>({
+        placeOrder: builder.mutation<PlacedOrderResponse, { addressId: number; paymentMethod: string }>({
             query: ({ addressId, paymentMethod }) => ({
                 url: `/orders/place?addressId=${addressId}&paymentMethod=${paymentMethod}`,
                 method: "POST",
             }),
+            transformResponse: (response: RawOrder) => normalizePlacedOrder(response),
             invalidatesTags: ["Orders"],
         }),
         /** Get Order Details */
@@ -82,15 +257,47 @@ export const orderApi = createApi({
                 url: `/orders/${orderId}`,
                 method: "GET",
             }),
+            transformResponse: (response: RawOrder) => normalizeOrder(response),
             providesTags: (result, error, orderId) => [{ type: "Orders", id: orderId }],
         }),
 
         /** Cancel Order */
-        cancelOrder: builder.mutation<ApiResponse, number>({
-            query: (orderId) => ({
-                url: `/admin/orders/${orderId}/cancel`,
-                method: "PUT",
+        cancelOrder: builder.mutation<ApiResponse, CancelOrderRequest>({
+            query: ({ orderId }) => ({
+                url: `/orders/${orderId}/cancel`,
+                method: "POST",
+                body: { orderId },
             }),
+            async onQueryStarted({ orderId }, { dispatch, getState, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+
+                    dispatch(
+                        orderApi.util.updateQueryData("getOrderDetails", orderId, (draft) => {
+                            applyCancelledOrderState(draft);
+                        }),
+                    );
+
+                    const cachedOrderQueries = orderApi.util.selectCachedArgsForQuery(
+                        getState() as RootState,
+                        "getMyOrders",
+                    );
+
+                    for (const args of cachedOrderQueries) {
+                        dispatch(
+                            orderApi.util.updateQueryData("getMyOrders", args, (draft) => {
+                                const matchingOrder = draft.content.find(
+                                    (order) => order.orderId === orderId,
+                                );
+
+                                applyCancelledOrderState(matchingOrder);
+                            }),
+                        );
+                    }
+                } catch {
+                    // Keep stale data untouched when cancel fails.
+                }
+            },
             invalidatesTags: ["Orders"],
         }),
 
@@ -111,6 +318,16 @@ export const orderApi = createApi({
                 body,
             }),
             invalidatesTags: ["Orders"],
+        }),
+
+        /** Verify prepaid order payment */
+        verifyPayment: builder.mutation<VerifyPaymentResponse, VerifyPaymentRequest>({
+            query: (body) => ({
+                url: "/orders/verify",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: (_result, _error, body) => [{ type: "Orders", id: body.orderId }, "Orders"],
         }),
 
         /** Validate coupon against the current checkout context */
@@ -165,7 +382,42 @@ export const orderApi = createApi({
         getMyOrders: builder.query<OrdersResponse, { page?: number; size?: number }>({
             query: ({ page = 0, size = 10 }) =>
                 `/orders/my-orders?page=${page}&size=${size}`,
+            transformResponse: (response: OrdersResponse) => ({
+                ...response,
+                content: Array.isArray(response.content)
+                    ? response.content.map((order) => normalizeOrder(order as RawOrder))
+                    : [],
+            }),
             providesTags: ["Orders"],
+        }),
+
+        /** Track an order using external tracking id */
+        trackOrder: builder.query<OrderTrackingResponse, string>({
+            query: (trackingId) => ({
+                url: `/orders/track/${encodeURIComponent(trackingId)}`,
+                method: "GET",
+            }),
+        }),
+
+        /** Get Shiprocket pickup locations */
+        getShiprocketPickupLocations: builder.query<ShiprocketPickupLocation[] | Record<string, unknown>, void>({
+            query: () => ({
+                url: "/orders/shiprocket/pickup-locations",
+                method: "GET",
+            }),
+        }),
+
+        /** Forward the Razorpay webhook payload when needed */
+        processOrderWebhook: builder.mutation<string | Record<string, unknown>, { signature: string; payload: string }>({
+            query: ({ signature, payload }) => ({
+                url: "/orders/webhook",
+                method: "POST",
+                headers: {
+                    "X-Razorpay-Signature": signature,
+                    "Content-Type": "application/json",
+                },
+                body: payload,
+            }),
         }),
 
         /** Request Product Return */
@@ -250,12 +502,14 @@ export const orderApi = createApi({
 
 export const {
     useCheckoutMutation,
+    useBuyNowCheckoutMutation,
     usePlaceOrderCheckoutMutation,
     usePlaceOrderMutation,
     useGetOrderDetailsQuery,
     useCancelOrderMutation,
     useReorderOrderMutation,
     useInitiatePaymentMutation,
+    useVerifyPaymentMutation,
     useValidateCouponMutation,
     useGetAvailableCouponsQuery,
     useLazyGetAvailableCouponsQuery,
@@ -264,6 +518,10 @@ export const {
     useApplyCouponToOrderMutation,
     useRemoveCouponFromOrderMutation,
     useGetMyOrdersQuery,
+    useTrackOrderQuery,
+    useLazyTrackOrderQuery,
+    useGetShiprocketPickupLocationsQuery,
+    useProcessOrderWebhookMutation,
     useRequestReturnMutation,
     useGetMyReturnsQuery,
     useCheckReturnEligibilityMutation,

@@ -6,12 +6,21 @@ import Link from "next/link";
 import Script from "next/script";
 import { Button } from "@/components/ui/Button";
 import {
+  useGetOrderDetailsQuery,
+  useInitiatePaymentMutation,
+  useVerifyPaymentMutation,
+} from "@/features/order/orderApi";
+import {
   InitiatePaymentResponse,
   VerifyPaymentRequest,
-  VerifyPaymentResponse,
 } from "@/features/order/orderTypes";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { readBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  buildInitiatePaymentRequest,
+  buildVerifyPaymentRequest,
+} from "@/lib/razorpay";
 
 type RazorpayHandlerResponse = {
   razorpay_payment_id?: string;
@@ -64,9 +73,23 @@ export default function PaymentPage() {
 
     return data ? (JSON.parse(data) as InitiatePaymentResponse) : null;
   }, [orderId]);
+  const [paymentSession, setPaymentSession] = useState<InitiatePaymentResponse | null>(
+    initResp,
+  );
   const [scriptReady, setScriptReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [attemptedRecovery, setAttemptedRecovery] = useState(false);
+  const [initiatePayment, { isLoading: recoveringPaymentSession }] =
+    useInitiatePaymentMutation();
+  const [verifyPaymentMutation] = useVerifyPaymentMutation();
+  const { data: order } = useGetOrderDetailsQuery(orderId ?? 0, {
+    skip: !orderId,
+  });
+
+  useEffect(() => {
+    setPaymentSession(initResp);
+  }, [initResp]);
 
   useEffect(() => {
     const buyNowState = readBuyNowState();
@@ -90,37 +113,67 @@ export default function PaymentPage() {
     };
   }, []);
 
-  const resolvedOrderId = initResp?.orderId || orderId;
+  useEffect(() => {
+    if (!orderId || paymentSession || attemptedRecovery || !order) {
+      return;
+    }
+
+    const currentUser = globalThis.window === undefined ? null : getCurrentUser();
+
+    if (!order.totalAmount) {
+      setAttemptedRecovery(true);
+      setPaymentError("Payment session is unavailable for this order.");
+      return;
+    }
+
+    setAttemptedRecovery(true);
+
+    void initiatePayment(buildInitiatePaymentRequest({
+      orderId,
+      amount: order.totalAmount,
+      receipt: `order-${orderId}-${Date.now()}`,
+      orderUserName: order.userName,
+      orderUserEmail: order.userEmail,
+      orderUserPhone: order.userPhone,
+      currentUser,
+    }))
+      .unwrap()
+      .then((response) => {
+        setPaymentSession(response);
+        globalThis.sessionStorage.setItem(
+          `payment_init_${orderId}`,
+          JSON.stringify(response),
+        );
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to restore your payment session. Please restart checkout.";
+        setPaymentError(message);
+      });
+  }, [attemptedRecovery, initiatePayment, order, orderId, paymentSession]);
+
+  const resolvedOrderId = paymentSession?.orderId || orderId;
   let paymentButtonLabel = "Proceed to Pay";
 
   if (loading) {
     paymentButtonLabel = "Processing...";
+  } else if (recoveringPaymentSession) {
+    paymentButtonLabel = "Restoring payment...";
   } else if (!scriptReady) {
     paymentButtonLabel = "Loading Razorpay...";
   }
 
   const verifyPayment = async (payload: VerifyPaymentRequest) => {
-    const accessToken = globalThis.localStorage.getItem("accessToken");
-    const tokenType = globalThis.localStorage.getItem("tokenType") || "Bearer";
-
-    if (!accessToken || !resolvedOrderId) {
-      throw new Error("Your session expired. Please log in again and retry payment.");
+    if (!resolvedOrderId) {
+      throw new Error("Missing order information for payment verification.");
     }
 
-    const response = await fetch(`/api/orders/${resolvedOrderId}/payment/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `${tokenType} ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = (await response.json()) as VerifyPaymentResponse;
-
-    if (!response.ok) {
-      throw new Error(result.message || "Payment verification failed.");
-    }
+    const result = await verifyPaymentMutation({
+      ...payload,
+      orderId: resolvedOrderId,
+    }).unwrap();
 
     if (result.verified === false || result.success === false) {
       throw new Error(result.message || "Payment could not be verified.");
@@ -144,28 +197,35 @@ export default function PaymentPage() {
     const razorpayPaymentId = response.razorpay_payment_id;
     const razorpaySignature = response.razorpay_signature;
 
+    if (!resolvedOrderId) {
+      setLoading(false);
+      setPaymentError("Missing order information for payment verification.");
+      return;
+    }
+
+    const verifiedOrderId = resolvedOrderId;
+
     void (async () => {
       try {
-        const verificationPayload: VerifyPaymentRequest = {
-          razorpayOrderId,
-          razorpayPaymentId,
-          razorpaySignature,
-          razorpay_order_id: razorpayOrderId,
-          razorpay_payment_id: razorpayPaymentId,
-          razorpay_signature: razorpaySignature,
-        };
+        const verificationPayload: VerifyPaymentRequest =
+          buildVerifyPaymentRequest({
+            orderId: verifiedOrderId,
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
+          });
         const verificationResult = await verifyPayment(verificationPayload);
 
         updateBuyNowStatus("completed");
-        sessionStorage.setItem("lastOrderId", String(resolvedOrderId));
+        sessionStorage.setItem("lastOrderId", String(verifiedOrderId));
         sessionStorage.setItem(
-          `payment_result_${resolvedOrderId}`,
+          `payment_result_${verifiedOrderId}`,
           JSON.stringify({
             ...response,
             verification: verificationResult,
           }),
         );
-        globalThis.location.href = `/checkout/success?orderId=${resolvedOrderId}`;
+        globalThis.location.href = `/checkout/success?orderId=${verifiedOrderId}`;
       } catch (error) {
         setLoading(false);
         setPaymentError(
@@ -178,7 +238,7 @@ export default function PaymentPage() {
   };
 
   const handleProceed = async () => {
-    if (!initResp) return;
+    if (!paymentSession) return;
     setPaymentError(null);
 
     const razorpay = (globalThis as typeof globalThis & { Razorpay?: RazorpayConstructor })
@@ -189,7 +249,7 @@ export default function PaymentPage() {
       return;
     }
 
-    if (!initResp.razorpayOrderId || !initResp.razorpayKeyId) {
+    if (!paymentSession.razorpayOrderId || !paymentSession.razorpayKeyId) {
       setPaymentError("Payment session is incomplete. Please restart checkout.");
       return;
     }
@@ -199,20 +259,20 @@ export default function PaymentPage() {
     if (razorpay) {
       try {
         const options: RazorpayOptions = {
-          key: initResp.razorpayKeyId,
-          amount: initResp.amount,
-          currency: initResp.currency,
-          order_id: initResp.razorpayOrderId,
+          key: paymentSession.razorpayKeyId,
+          amount: paymentSession.amount,
+          currency: paymentSession.currency,
+          order_id: paymentSession.razorpayOrderId,
           name: "Rich",
           description: `Payment for order #${resolvedOrderId}`,
           prefill: {
-            name: initResp.customerName,
-            email: initResp.customerEmail,
-            contact: initResp.customerPhone,
+            name: paymentSession.customerName,
+            email: paymentSession.customerEmail,
+            contact: paymentSession.customerPhone,
           },
           notes: {
             orderId: String(resolvedOrderId),
-            customerEmail: initResp.customerEmail || "",
+            customerEmail: paymentSession.customerEmail || "",
           },
           theme: {
             color: "#111111",
@@ -275,16 +335,16 @@ export default function PaymentPage() {
           </p>
         </div>
 
-        {initResp ? (
+        {paymentSession ? (
           <div className="bg-white border border-neutral-200 rounded-lg p-8 mb-8">
             <p className="text-sm text-neutral-700 mb-2">
-              Order: <strong>#{initResp.orderId}</strong>
+              Order: <strong>#{paymentSession.orderId}</strong>
             </p>
             <p className="text-sm text-neutral-700 mb-2">
-              Amount: <strong>₹{initResp.amount}</strong>
+              Amount: <strong>₹{paymentSession.amount}</strong>
             </p>
             <p className="text-sm text-neutral-700 mb-4">
-              Currency: <strong>{initResp.currency}</strong>
+              Currency: <strong>{paymentSession.currency}</strong>
             </p>
 
             {paymentError && (
@@ -302,7 +362,10 @@ export default function PaymentPage() {
             </div>
 
             <div className="space-y-3">
-              <Button onClick={handleProceed} disabled={loading || !scriptReady}>
+              <Button
+                onClick={handleProceed}
+                disabled={loading || recoveringPaymentSession || !scriptReady}
+              >
                 {loading && <Loader2 className="animate-spin" />}
                 {paymentButtonLabel}
               </Button>
@@ -310,9 +373,13 @@ export default function PaymentPage() {
           </div>
         ) : (
           <div className="p-8 border border-neutral-200 rounded-lg">
-            <p className="text-neutral-600">No payment details found.</p>
+            <p className="text-neutral-600">
+              {recoveringPaymentSession
+                ? "Restoring your payment details..."
+                : "No payment details found."}
+            </p>
             <p className="text-sm text-neutral-500 mt-3">
-              If this is unexpected, contact support.
+              {paymentError || "If this is unexpected, contact support."}
             </p>
             <div className="mt-6">
               <Button

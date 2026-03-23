@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import {
   useCheckoutMutation,
+  useBuyNowCheckoutMutation,
   usePlaceOrderCheckoutMutation,
   usePlaceOrderMutation,
   useInitiatePaymentMutation,
@@ -17,13 +18,15 @@ import {
 } from "@/features/order/orderApi";
 import type {
   AppliedCouponResponse,
+  CancelOrderRequest,
   CheckoutRequest,
   CheckoutResponse,
   CouponValidationRequest,
   CouponValidationResponse,
-  Order,
+  PlacedOrderResponse,
 } from "@/features/order/orderTypes";
 import { getCurrentUser } from "@/lib/auth";
+import { buildInitiatePaymentRequest } from "@/lib/razorpay";
 import { useGetAddressesQuery } from "@/features/user/userApi";
 import { useGetLocationsQuery } from "@/features/location/locationApi";
 import { AddAddressModal } from "@/components/checkout/AddAddressModal";
@@ -76,6 +79,14 @@ function resolveNumericUserId(...candidates: unknown[]): number | undefined {
 
 function resolveBooleanCandidate(...candidates: unknown[]): boolean | undefined {
   return candidates.find((value) => typeof value === "boolean");
+}
+
+function readUserField<T>(userValue: unknown, fieldName: string): T | undefined {
+  if (!userValue || typeof userValue !== "object" || !(fieldName in userValue)) {
+    return undefined;
+  }
+
+  return (userValue as Record<string, T | undefined>)[fieldName];
 }
 
 async function fetchCategoryIdsForProducts(productIds: number[]) {
@@ -238,7 +249,7 @@ async function finalizeOrderCoupon({
   applyCouponToOrder,
   cancelOrder,
 }: {
-  order: Order;
+  order: PlacedOrderResponse;
   appliedCouponPreview: CouponValidationResponse | null;
   couponCode: string;
   buildCouponPayload: (nextCode?: string) => Promise<CouponValidationRequest>;
@@ -246,7 +257,7 @@ async function finalizeOrderCoupon({
     { orderId: number; body: CouponValidationRequest },
     AppliedCouponResponse
   >;
-  cancelOrder: MutationTrigger<number, unknown>;
+  cancelOrder: MutationTrigger<CancelOrderRequest, unknown>;
 }) {
   if (!appliedCouponPreview?.valid) {
     return order.totalAmount;
@@ -273,7 +284,7 @@ async function finalizeOrderCoupon({
     );
   } catch (couponErr: any) {
     try {
-      await cancelOrder(order.orderId).unwrap();
+      await cancelOrder({ orderId: order.orderId }).unwrap();
     } catch (cancelErr) {
       console.error("Failed to cancel order after coupon error", cancelErr);
     }
@@ -568,6 +579,8 @@ export default function CheckoutPage() {
     useGetLocationsQuery();
   const [checkoutSummary, { isLoading: summaryLoading }] =
     useCheckoutMutation();
+  const [buyNowCheckoutSummary, { isLoading: buyNowSummaryLoading }] =
+    useBuyNowCheckoutMutation();
   const [placeOrderCheckout, { isLoading: placingBuyNowOrder }] =
     usePlaceOrderCheckoutMutation();
   const [placeOrder, { isLoading: placingOrder }] = usePlaceOrderMutation();
@@ -612,15 +625,28 @@ export default function CheckoutPage() {
     [checkoutItems],
   );
   const normalizedPaymentMethod = paymentMethod === "COD" ? "COD" : "PREPAID";
+  const isCheckoutSummaryLoading = summaryLoading || buyNowSummaryLoading;
   const resolvedUserId = useMemo(
-    () => resolveNumericUserId(user?.id, user?.userId, storedUser?.id, storedUser?.userId),
+    () =>
+      resolveNumericUserId(
+        readUserField<number>(user, "id"),
+        readUserField<number>(user, "userId"),
+        readUserField<number>(storedUser, "id"),
+        readUserField<number>(storedUser, "userId"),
+      ),
     [storedUser, user],
   );
   const inferredIsFirstOrder = useMemo(() => {
-    return resolveBooleanCandidate(user?.isFirstOrder, storedUser?.isFirstOrder);
+    return resolveBooleanCandidate(
+      readUserField<boolean>(user, "isFirstOrder"),
+      readUserField<boolean>(storedUser, "isFirstOrder"),
+    );
   }, [storedUser, user]);
   const inferredIsNewUser = useMemo(() => {
-    return resolveBooleanCandidate(user?.isNewUser, storedUser?.isNewUser);
+    return resolveBooleanCandidate(
+      readUserField<boolean>(user, "isNewUser"),
+      readUserField<boolean>(storedUser, "isNewUser"),
+    );
   }, [storedUser, user]);
   const subtotal = checkoutData?.subtotal ?? checkoutItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -812,21 +838,81 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (isBuyNowMode) {
+    const numericAddressId = selectedAddressId ? Number(selectedAddressId) : undefined;
+
+    if (!numericAddressId || !Number.isFinite(numericAddressId) || numericAddressId <= 0) {
       setCheckoutData(null);
       return;
     }
 
-    const numericAddressId = selectedAddressId ? Number(selectedAddressId) : undefined;
+    if (isBuyNowMode) {
+      if (!buyNowItem) {
+        setCheckoutData(null);
+        return;
+      }
 
-    if (!numericAddressId || !Number.isFinite(numericAddressId) || numericAddressId <= 0) {
+      buyNowCheckoutSummary({
+        productId: buyNowItem.productId,
+        variantId: buyNowItem.variantId,
+        quantity: buyNowItem.quantity,
+        addressId: numericAddressId,
+        paymentMethod: normalizedPaymentMethod,
+      })
+        .unwrap()
+        .then((response) => {
+          setCheckoutData({
+            subtotal: response.subtotal,
+            taxAmount: response.taxAmount,
+            shippingCharges: response.shippingCharges,
+            discountAmount: response.discountAmount,
+            totalAmount: response.totalAmount,
+            items: [
+              {
+                productId: response.productId,
+                productName: response.productName,
+                imageUrl: response.productImage,
+                variantId: response.variantId,
+                size: response.size,
+                color: response.color,
+                quantity: response.quantity,
+                price: response.price,
+                mrp: response.mrp,
+                discountPercentage: response.discountPercentage,
+                subtotal: response.subtotal,
+              },
+            ],
+            totalItems: response.quantity,
+            deliveryAddress: response.deliveryAddress ?? {
+              addressLine1: "",
+              city: "",
+              state: "",
+              postalCode: "",
+              country: "",
+            },
+            deliveryDays: response.deliveryDays ?? 0,
+            expectedDelivery: response.expectedDelivery ?? "",
+            isDeliveryAvailable: true,
+            paymentMethod: response.paymentMethod,
+            requiresPayment: response.requiresPayment,
+            paymentMessage: response.requiresPayment
+              ? "Prepaid payment required to place this order."
+              : "",
+            isCodAvailable: response.isCodAvailable ?? true,
+            cartId: 0,
+            isValidForCheckout: response.isValid,
+            validationErrors: response.validationErrors,
+          });
+        })
+        .catch((err) => {
+          console.warn("buy now checkout summary error", err);
+        });
+
       return;
     }
 
     const req: CheckoutRequest = {
       addressId: numericAddressId,
-      paymentMethod,
-      cartId: resolvedUserId,
+      paymentMethod: normalizedPaymentMethod,
     };
 
     checkoutSummary(req)
@@ -837,11 +923,12 @@ export default function CheckoutPage() {
       });
   }, [
     cartSignature,
+    buyNowCheckoutSummary,
+    buyNowItem,
     checkoutSummary,
     isAuthenticated,
     isBuyNowMode,
-    paymentMethod,
-    resolvedUserId,
+    normalizedPaymentMethod,
     selectedAddressId,
   ]);
 
@@ -963,15 +1050,11 @@ export default function CheckoutPage() {
 
       const result = isBuyNowMode && buyNowItem
         ? await placeOrderCheckout({
+            productId: buyNowItem.productId,
+            variantId: buyNowItem.variantId,
+            quantity: buyNowItem.quantity,
             addressId: Number(selectedAddressId),
             paymentMethod: normalizedPaymentMethod,
-            items: [
-              {
-                productId: buyNowItem.productId,
-                variantId: buyNowItem.variantId,
-                quantity: buyNowItem.quantity,
-              },
-            ],
           }).unwrap()
         : await placeOrder({
             addressId: Number(selectedAddressId),
@@ -993,15 +1076,12 @@ export default function CheckoutPage() {
         }
 
         const currentUser = globalThis.window === undefined ? null : getCurrentUser();
-        const payResp = await initiatePayment({
+        const payResp = await initiatePayment(buildInitiatePaymentRequest({
           orderId: result.orderId,
           amount: finalTotalAmount,
-          currency: "INR",
           receipt: `order-${result.orderId}-${Date.now()}`,
-          customerName: currentUser?.name || (currentUser?.fullName ?? "") || "",
-          customerEmail: currentUser?.email || "",
-          customerPhone: currentUser?.phone || "",
-        }).unwrap();
+          currentUser,
+        })).unwrap();
         sessionStorage.setItem(
           `payment_init_${result.orderId}`,
           JSON.stringify(payResp),
@@ -1059,13 +1139,23 @@ export default function CheckoutPage() {
           <div className="lg:col-span-7 space-y-12 md:space-y-16">
             {/* Step 1: Address */}
             <section>
-              <div className="flex items-center gap-4 mb-6 md:mb-8">
-                <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold tracking-tighter">
-                  01
-                </span>
-                <h2 className="text-[11px] md:text-sm font-bold uppercase tracking-[0.2em] text-black">
-                  Shipping Address
-                </h2>
+              <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold tracking-tighter">
+                    01
+                  </span>
+                  <h2 className="text-[11px] md:text-sm font-bold uppercase tracking-[0.2em] text-black">
+                    Shipping Address
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddAddressModalOpen(true)}
+                  className="inline-flex items-center gap-2 self-start rounded-full border border-neutral-200 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-black transition-colors hover:border-black hover:bg-neutral-50 md:self-auto"
+                >
+                  <Plus size={14} /> Add Address
+                </button>
               </div>
 
               <div className="mb-6 md:mb-8">
@@ -1096,9 +1186,10 @@ export default function CheckoutPage() {
                     </option>
                   ))}
                 </select>
+
                 {selectedLocation && (
                   <p className="mt-2 text-[11px] text-neutral-500">
-                    Delivery in {selectedLocation.deliveryDays} days • COD {selectedLocation.codAvailable ? "available" : "not available"}
+                    Delivery in {selectedLocation?.deliveryDays} days • COD {selectedLocation?.codAvailable ? "available" : "not available"}
                   </p>
                 )}
               </div>
@@ -1307,7 +1398,7 @@ export default function CheckoutPage() {
                 <button
                   onClick={handleCheckout}
                   disabled={
-                    (isBuyNowMode ? false : summaryLoading) || placingOrder || placingBuyNowOrder || initiatingPayment || validatingCoupon || applyingCoupon || !selectedAddressId ||
+                    isCheckoutSummaryLoading || placingOrder || placingBuyNowOrder || initiatingPayment || validatingCoupon || applyingCoupon || !selectedAddressId ||
                     (!!checkoutData && !checkoutData.isValidForCheckout) ||
                     (!!checkoutData && !checkoutData.isDeliveryAvailable) ||
                     (!!checkoutData && paymentMethod === "COD" && !checkoutData.isCodAvailable)

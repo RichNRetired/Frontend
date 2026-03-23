@@ -8,7 +8,7 @@ import {
     useReorderOrderMutation,
     useRequestReturnMutation,
 } from "@/features/order/orderApi";
-import { Order, ReturnRequest } from "@/features/order/orderTypes";
+import { CancelOrderRequest, Order, ReturnRequest } from "@/features/order/orderTypes";
 
 export const useOrders = (page: number = 0, size: number = 10) => {
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,8 @@ export const useOrders = (page: number = 0, size: number = 10) => {
         try {
             setError(null);
             setSuccess(null);
-            await cancelOrder(orderId).unwrap();
+            const request: CancelOrderRequest = { orderId };
+            await cancelOrder(request).unwrap();
             setSuccess("Order cancelled successfully");
             await refetchOrders();
             return true;

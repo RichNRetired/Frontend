@@ -38,6 +38,20 @@ export interface ApiResponse<T = unknown> {
   success?: boolean;
 }
 
+export interface MergeCartFailedItem {
+  productId: number;
+  variantId: number;
+  reason: string;
+}
+
+export interface MergeCartResponse {
+  success: boolean;
+  message: string;
+  mergedCount: number;
+  failedCount: number;
+  failedItems: MergeCartFailedItem[];
+}
+
 export const cartApi = createApi({
   reducerPath: 'cartApi',
   tagTypes: ['Cart'],
@@ -123,7 +137,7 @@ export const cartApi = createApi({
 
     // POST /api/cart/merge - Merge guest cart with authenticated user cart
     // Body: Array of { productId: int64, variantId: int64, quantity: int32 }
-    mergeCart: builder.mutation<ApiResponse, Array<{ productId: number; variantId: number; quantity: number }>>({
+    mergeCart: builder.mutation<MergeCartResponse, Array<{ productId: number; variantId: number; quantity: number }>>({
       query: (items) => ({
         url: 'api/cart/merge',
         method: 'POST',

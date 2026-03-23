@@ -16,18 +16,31 @@ import {
   X,
   Eye,
   CheckCircle2,
-  ChevronRight,
   ShoppingBag,
   Package,
   Clock,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+const getOrderStatusDotClass = (status: string) => {
+  if (status === "PAID") {
+    return "bg-green-500";
+  }
+
+  if (status === "CANCELLED") {
+    return "bg-red-500";
+  }
+
+  return "bg-orange-400";
+};
 
 export default function OrdersPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pendingCancelOrderId, setPendingCancelOrderId] = useState<number | null>(null);
 
   const { data, isLoading, isError, refetch } = useGetMyOrdersQuery({
     page: 0,
@@ -38,13 +51,21 @@ export default function OrdersPage() {
   const [reorderOrder, { isLoading: reordering }] = useReorderOrderMutation();
 
   const handleCancelOrder = async (orderId: number) => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    setPendingCancelOrderId(orderId);
+  };
+
+  const confirmCancelOrder = async () => {
+    if (pendingCancelOrderId === null) {
+      return;
+    }
+
     try {
       setError(null);
-      await cancelOrder(orderId).unwrap();
+      await cancelOrder({ orderId: pendingCancelOrderId }).unwrap();
       setSuccess("Order cancelled successfully");
-      sendEvent("order_cancelled", { orderId });
+      sendEvent("order_cancelled", { orderId: pendingCancelOrderId });
       refetch();
+      setPendingCancelOrderId(null);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err?.data?.message || "Failed to cancel order");
@@ -203,12 +224,12 @@ export default function OrdersPage() {
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                 {order.items.map((item) => (
                   <div key={item.productId} className="flex-shrink-0 w-20">
-                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-100 mb-2">
+                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-50 mb-2 p-2">
                       {item.imageUrl ? (
                         <img
                           src={item.imageUrl}
                           alt={item.productName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : null}
                     </div>
@@ -229,13 +250,7 @@ export default function OrdersPage() {
             <div className="px-5 pb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    order.status === "PAID"
-                      ? "bg-green-500"
-                      : order.status === "CANCELLED"
-                        ? "bg-red-500"
-                        : "bg-orange-400"
-                  }`}
+                  className={`w-2 h-2 rounded-full ${getOrderStatusDotClass(order.status)}`}
                 />
                 <span className="text-xs font-bold uppercase tracking-wider text-neutral-700">
                   {order.status}
@@ -291,6 +306,17 @@ export default function OrdersPage() {
           </div>
         ))}
       </main>
+
+      <ConfirmDialog
+        isOpen={pendingCancelOrderId !== null}
+        title="Cancel order"
+        description="This will cancel the selected order."
+        confirmLabel="Cancel Order"
+        tone="danger"
+        isConfirming={cancelling}
+        onClose={() => setPendingCancelOrderId(null)}
+        onConfirm={confirmCancelOrder}
+      />
 
       {/* Floating Support Button for Mobile */}
       {/* <div className="fixed bottom-6 right-6 md:hidden">

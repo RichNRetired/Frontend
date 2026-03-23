@@ -1,21 +1,37 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import Link from "next/link";
 import { clearCart } from "@/features/cart/cartSlice";
-import { useGetMyOrdersQuery } from "@/features/order/orderApi";
+import { useGetOrderDetailsQuery } from "@/features/order/orderApi";
 import { CheckCircle2, ArrowRight, Package } from "lucide-react";
 import { clearBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
-  const orderId = searchParams.get("orderId");
+  const orderIdFromUrl = searchParams.get("orderId");
+  const [fallbackOrderId, setFallbackOrderId] = useState<string | null>(null);
 
-  const { data: ordersData } = useGetMyOrdersQuery({ page: 0, size: 1 });
-  const latestOrder = ordersData?.content?.[0];
+  useEffect(() => {
+    if (orderIdFromUrl) {
+      return;
+    }
+
+    setFallbackOrderId(globalThis.sessionStorage.getItem("lastOrderId"));
+  }, [orderIdFromUrl]);
+
+  const orderId = orderIdFromUrl || fallbackOrderId;
+  const numericOrderId = useMemo(() => {
+    const parsed = Number(orderId);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [orderId]);
+
+  const { data: order } = useGetOrderDetailsQuery(numericOrderId ?? 0, {
+    skip: !numericOrderId,
+  });
 
   // Clear cart on mount
   useEffect(() => {
@@ -62,19 +78,19 @@ export default function SuccessPage() {
         </div>
 
         {/* Order Details Card */}
-        {latestOrder && (
+        {order && (
           <div className="bg-white border border-neutral-200 rounded-lg p-8 mb-8">
             <div className="grid grid-cols-2 gap-8 mb-8 pb-8 border-b">
               <div>
                 <p className="text-sm text-neutral-900 mb-1">Order Number</p>
                 <p className="text-2xl text-black font-medium">
-                  #{latestOrder.orderId}
+                  #{order.orderId}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-neutral-900 mb-1">Order Date</p>
                 <p className="text-lg text-black font-medium">
-                  {new Date(latestOrder.createdAt).toLocaleDateString()}
+                  {new Date(order.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -82,10 +98,10 @@ export default function SuccessPage() {
             {/* Order Items */}
             <div className="mb-8">
               <p className="text-sm font-bold uppercase tracking-widest text-neutral-900 mb-4">
-                Items ({latestOrder.items?.length || 0})
+                Items ({order.items?.length || 0})
               </p>
               <div className="space-y-4">
-                {latestOrder.items?.map((item: any) => (
+                {order.items?.map((item) => (
                   <div
                     key={item.orderItemId ?? `${item.productId}-${item.quantity}`}
                     className="flex justify-between items-start pb-4 border-b border-neutral-100"
@@ -116,34 +132,34 @@ export default function SuccessPage() {
                 <span className="font-medium text-black">
                   ₹
                   {(
-                    latestOrder.subtotal || latestOrder.totalAmount * 0.85
+                    order.subtotal || order.totalAmount * 0.85
                   ).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-neutral-900">Tax</span>
                 <span className="font-medium text-black">
-                  ₹{(latestOrder.taxAmount || 0).toLocaleString()}
+                  ₹{(order.taxAmount || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-neutral-900">Shipping</span>
                 <span
                   className={
-                    latestOrder.shippingCharges === 0
+                    order.shippingCharges === 0
                       ? "text-green-600 font-medium"
                       : "font-medium"
                   }
                 >
-                  {latestOrder.shippingCharges === 0
+                  {order.shippingCharges === 0
                     ? "Free"
-                    : `₹${latestOrder.shippingCharges}`}
+                    : `₹${order.shippingCharges}`}
                 </span>
               </div>
               <div className="pt-3 border-t flex justify-between">
                 <span className="font-bold text-black">Total</span>
                 <span className="text-xl text-black font-medium">
-                  ₹{latestOrder.totalAmount.toLocaleString()}
+                  ₹{order.totalAmount.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -151,7 +167,7 @@ export default function SuccessPage() {
         )}
 
         {/* Delivery Address (if available) */}
-        {latestOrder?.deliveryAddress && (
+        {order?.deliveryAddress && (
           <div className="bg-white border border-neutral-200 rounded-lg p-8 mb-8">
             <div className="flex items-start gap-3 mb-4">
               <Package size={20} className="text-neutral-600 mt-1" />
@@ -160,22 +176,20 @@ export default function SuccessPage() {
                   Delivery Address
                 </p>
                 <div className="mt-3 space-y-1 text-sm">
-                  <p className="font-medium">
-                    {latestOrder.deliveryAddress.addressLine1}
+                  <p className="font-medium text-black">
+                    {order.deliveryAddress.addressLine1}
                   </p>
-                  {latestOrder.deliveryAddress.addressLine2 && (
+                  {order.deliveryAddress.addressLine2 && (
                     <p className="text-neutral-600">
-                      {latestOrder.deliveryAddress.addressLine2}
+                      {order.deliveryAddress.addressLine2}
                     </p>
                   )}
                   <p className="text-neutral-600">
-                    {latestOrder.deliveryAddress.city}
-                    {latestOrder.deliveryAddress.state &&
-                      `, ${latestOrder.deliveryAddress.state}`}{" "}
-                    {latestOrder.deliveryAddress.postalCode}
+                    {order.deliveryAddress.city}
+                    {order.deliveryAddress.state && `, ${order.deliveryAddress.state}`} {order.deliveryAddress.postalCode}
                   </p>
                   <p className="text-neutral-600">
-                    {latestOrder.deliveryAddress.country}
+                    {order.deliveryAddress.country}
                   </p>
                 </div>
               </div>

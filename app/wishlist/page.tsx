@@ -3,43 +3,81 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Trash2, ShoppingBag, Heart, ArrowRight } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
+  useClearWishlistMutation,
   useGetWishlistQuery,
   useRemoveFromWishlistMutation,
 } from "../../features/wishlist/wishlistApi";
-import { useAddToCartMutation } from "../../features/cart/cartApi";
+import { useCart } from "@/hooks/useCart";
 
 export default function WishlistPage() {
   const [page, setPage] = useState(0);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const { data: wishlistData, isLoading: isLoadingWishlist } =
     useGetWishlistQuery({
       page,
       size: 10,
     });
   const [removeFromWishlist] = useRemoveFromWishlistMutation();
-  const [addToCart] = useAddToCartMutation();
+  const [clearWishlist, { isLoading: isClearingWishlist }] =
+    useClearWishlistMutation();
+  const { addToCart } = useCart();
 
   const handleRemove = async (wishlistItemId: number) => {
     try {
+      setFeedbackMessage(null);
       await removeFromWishlist(wishlistItemId).unwrap();
     } catch (err: any) {
       console.error("Failed to remove item:", err);
       const errorMsg = err?.data?.message || "Failed to remove item";
-      alert(errorMsg);
+      setFeedbackTone("error");
+      setFeedbackMessage(errorMsg);
     }
   };
 
-  const handleAddToCart = async (productId: number, variantId?: number) => {
+  const handleClearWishlist = async () => {
+    if (!wishlistData?.content?.length) {
+      return;
+    }
+
     try {
+      setFeedbackMessage(null);
+      await clearWishlist().unwrap();
+      setPage(0);
+      setFeedbackTone("success");
+      setFeedbackMessage("Wishlist cleared successfully.");
+      setIsClearDialogOpen(false);
+    } catch (err: any) {
+      console.error("Failed to clear wishlist:", err);
+      const errorMsg = err?.data?.message || "Failed to clear wishlist";
+      setFeedbackTone("error");
+      setFeedbackMessage(errorMsg);
+    }
+  };
+
+  const handleAddToCart = async (item: (typeof items)[number]) => {
+    try {
+      setFeedbackMessage(null);
       await addToCart({
-        productId,
-        variantId: variantId ?? 0,
+        productId: item.productId,
+        variantId: item.variantId ?? 0,
         qty: 1,
-      }).unwrap();
+        name: item.productName,
+        price: item.variantPrice || item.productPrice || 0,
+        image: item.productImage,
+        size: item.size,
+        color: item.color,
+        mrp: item.productMrp,
+        discountPercentage: item.discountPercentage,
+      });
     } catch (err: any) {
       console.error("Failed to add to cart:", err);
       const errorMsg = err?.data?.message || "Failed to add to cart";
-      alert(errorMsg);
+      setFeedbackTone("error");
+      setFeedbackMessage(errorMsg);
     }
   };
 
@@ -77,12 +115,29 @@ export default function WishlistPage() {
     <div className="bg-white mt-10 min-h-screen">
       <div className="max-w-350 mx-auto px-6 py-12 md:py-20">
         <header className="mb-12 border-b border-neutral-100 pb-8">
-          <h1 className="text-3xl md:text-4xl font-light tracking-tight text-black">
-            My Wishlist
-          </h1>
-          <p className="text-neutral-400 text-sm mt-2">
-            {wishlistData?.totalElements || 0} Items in your wishlist
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-light tracking-tight text-black">
+                My Wishlist
+              </h1>
+              <p className="text-neutral-400 text-sm mt-2">
+                {wishlistData?.totalElements || 0} Items in your wishlist
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsClearDialogOpen(true)}
+              disabled={isClearingWishlist || items.length === 0}
+              className="inline-flex items-center justify-center gap-2 self-start border border-red-200 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-red-700 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 md:self-auto"
+            >
+              <Trash2 size={14} />
+              {isClearingWishlist ? "Clearing..." : "Clear Wishlist"}
+            </button>
+          </div>
+
+          {feedbackMessage && (
+            <p className={`mt-4 text-sm ${feedbackTone === "error" ? "text-red-600" : "text-neutral-600"}`}>{feedbackMessage}</p>
+          )}
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -92,10 +147,10 @@ export default function WishlistPage() {
               className="group relative border border-neutral-100 hover:border-neutral-300 transition-all duration-300 overflow-hidden"
             >
               {/* Product Image */}
-              <div className="w-full h-80 overflow-hidden bg-neutral-100 relative">
+              <div className="w-full h-80 overflow-hidden bg-neutral-50 relative p-4">
                 <img
                   src={item.productImage}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.02]"
                   alt={item.productName}
                 />
                 {!item.inStock && (
@@ -114,7 +169,7 @@ export default function WishlistPage() {
                 </h3>
                 <div className="space-y-3">
                   <button
-                    onClick={() => handleAddToCart(item.productId, item.variantId)}
+                    onClick={() => handleAddToCart(item)}
                     disabled={!item.inStock}
                     className={`w-full py-3 text-[11px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
                       item.inStock
@@ -176,6 +231,17 @@ export default function WishlistPage() {
             </button>
           </Link>
         </div>
+
+        <ConfirmDialog
+          isOpen={isClearDialogOpen}
+          title="Clear wishlist"
+          description="This will remove every saved item from your wishlist."
+          confirmLabel="Clear Wishlist"
+          tone="danger"
+          isConfirming={isClearingWishlist}
+          onClose={() => setIsClearDialogOpen(false)}
+          onConfirm={handleClearWishlist}
+        />
       </div>
     </div>
   );

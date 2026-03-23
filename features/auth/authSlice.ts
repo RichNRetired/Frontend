@@ -1,9 +1,35 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { login as loginApi } from "@/services/auth.service";
-import { register as registerApi } from "@/services/auth.service";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { mergeGuestCartIntoAccount } from "@/lib/cart-auth";
+import type { AppDispatch, RootState } from "@/store";
+import {
+    AuthResponse,
+    login as loginApi,
+    register as registerApi,
+} from "@/services/auth.service";
+
+interface AuthUser {
+    name: string | null;
+    email: string | null;
+    roles: string | string[] | null;
+}
+
+interface JwtPayload {
+    name?: string;
+    fullname?: string;
+    sub?: string;
+    email?: string;
+    roles?: string | string[];
+    role?: string;
+}
+
+interface SetCredentialsPayload {
+    accessToken?: string | null;
+    refreshToken?: string | null;
+    tokenType?: string | null;
+}
 
 interface AuthState {
-    user: any;
+    user: AuthUser | null;
     loading: boolean;
     error: string | null;
     isAuthenticated: boolean;
@@ -18,23 +44,56 @@ const initialState: AuthState = {
     tokenType: null,
 };
 
-function decodeJwt(token?: string | null) {
+type AuthThunkConfig = {
+    state: RootState;
+    dispatch: AppDispatch;
+    rejectValue: string;
+};
+
+const toBase64 = (value: string) => value.replaceAll('-', '+').replaceAll('_', '/');
+
+const mapDecodedUser = (decoded: JwtPayload): AuthUser => ({
+    name: decoded.name || decoded.fullname || decoded.sub || null,
+    email: decoded.email || null,
+    roles: decoded.roles || decoded.role || null,
+});
+
+const extractErrorMessage = (error: unknown, fallback: string) => {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data !== null &&
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
+    ) {
+        return error.response.data.message;
+    }
+
+    return fallback;
+};
+
+function decodeJwt(token?: string | null): JwtPayload | null {
     if (!token) return null;
     try {
         const parts = token.split('.');
         if (parts.length !== 3) return null;
         const payload = parts[1];
-        const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-        return decoded;
-    } catch (e) {
+        return JSON.parse(atob(toBase64(payload))) as JwtPayload;
+    } catch {
         return null;
     }
 }
-export const registerUser = createAsyncThunk(
+
+export const registerUser = createAsyncThunk<AuthResponse, { name: string; email: string; password: string }, AuthThunkConfig>(
     "auth/register",
     async (
         data: { name: string; email: string; password: string },
-        { rejectWithValue }
+        { dispatch, rejectWithValue }
     ) => {
         try {
             const res = await registerApi(data);
@@ -44,19 +103,23 @@ export const registerUser = createAsyncThunk(
                 localStorage.setItem("tokenType", res.tokenType);
             }
 
+            try {
+                await mergeGuestCartIntoAccount(dispatch);
+            } catch (mergeError) {
+                console.error("Guest cart merge after registration failed", mergeError);
+            }
+
             return res;
-        } catch (err: any) {
-            return rejectWithValue(
-                err?.response?.data?.message || "Registration failed"
-            );
+        } catch (error) {
+            return rejectWithValue(extractErrorMessage(error, "Registration failed"));
         }
     }
 );
-export const loginUser = createAsyncThunk(
+export const loginUser = createAsyncThunk<AuthResponse, { email: string; password: string }, AuthThunkConfig>(
     "auth/login",
     async (
         credentials: { email: string; password: string },
-        { rejectWithValue }
+        { dispatch, rejectWithValue }
     ) => {
         try {
             const data = await loginApi(credentials);
@@ -66,11 +129,15 @@ export const loginUser = createAsyncThunk(
                 localStorage.setItem("tokenType", data.tokenType);
             }
 
+            try {
+                await mergeGuestCartIntoAccount(dispatch);
+            } catch (mergeError) {
+                console.error("Guest cart merge after login failed", mergeError);
+            }
+
             return data;
-        } catch (err: any) {
-            return rejectWithValue(
-                err?.response?.data?.message || "Invalid credentials"
-            );
+        } catch (error) {
+            return rejectWithValue(extractErrorMessage(error, "Invalid credentials"));
         }
     }
 );
@@ -79,7 +146,7 @@ const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
-        setCredentials(state, action) {
+        setCredentials(state, action: PayloadAction<SetCredentialsPayload | undefined>) {
             const payload = action.payload || {};
             const accessToken = payload.accessToken || localStorage.getItem('accessToken');
             const refreshToken = payload.refreshToken || localStorage.getItem('refreshToken');
@@ -92,13 +159,9 @@ const authSlice = createSlice({
             state.isAuthenticated = true;
             state.tokenType = tokenType ?? state.tokenType;
 
-            const decoded = decodeJwt(accessToken as string | null);
+            const decoded = decodeJwt(accessToken);
             if (decoded) {
-                state.user = {
-                    name: decoded.name || decoded.fullname || decoded.sub || null,
-                    email: decoded.email || null,
-                    roles: decoded.roles || decoded.role || null,
-                };
+                state.user = mapDecodedUser(decoded);
             }
         },
         logout(state) {
@@ -119,19 +182,15 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.error = null;
                 state.isAuthenticated = true;
-                state.user = (action.payload as any)?.user ?? null;
+                state.user = null;
                 if (!state.user) {
-                    const token = (action.payload as any)?.accessToken || localStorage.getItem('accessToken');
-                    const decoded = decodeJwt(token as string | null);
+                    const token = action.payload.accessToken || localStorage.getItem('accessToken');
+                    const decoded = decodeJwt(token);
                     if (decoded) {
-                        state.user = {
-                            name: decoded.name || decoded.fullname || decoded.sub || null,
-                            email: decoded.email || null,
-                            roles: decoded.roles || decoded.role || null,
-                        };
+                        state.user = mapDecodedUser(decoded);
                     }
                 }
-                state.tokenType = (action.payload as any)?.tokenType ?? null;
+                state.tokenType = action.payload.tokenType ?? null;
             })
             .addCase(registerUser.pending, (state) => {
                 state.loading = true;
@@ -141,19 +200,15 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.error = null;
                 state.isAuthenticated = true;
-                state.user = (action.payload as any)?.user ?? null;
+                state.user = null;
                 if (!state.user) {
-                    const token = (action.payload as any)?.accessToken || localStorage.getItem('accessToken');
-                    const decoded = decodeJwt(token as string | null);
+                    const token = action.payload.accessToken || localStorage.getItem('accessToken');
+                    const decoded = decodeJwt(token);
                     if (decoded) {
-                        state.user = {
-                            name: decoded.name || decoded.fullname || decoded.sub || null,
-                            email: decoded.email || null,
-                            roles: decoded.roles || decoded.role || null,
-                        };
+                        state.user = mapDecodedUser(decoded);
                     }
                 }
-                state.tokenType = (action.payload as any)?.tokenType ?? null;
+                state.tokenType = action.payload.tokenType ?? null;
             })
             .addCase(registerUser.rejected, (state, action) => {
                 state.loading = false;

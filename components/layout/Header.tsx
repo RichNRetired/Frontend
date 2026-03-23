@@ -258,6 +258,12 @@ export const Header: React.FC = () => {
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
 
+  const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    globalThis.scrollTo({ top: 0, behavior: "auto" });
+    globalThis.location.assign("/");
+  };
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -364,6 +370,7 @@ export const Header: React.FC = () => {
             {/* Logo - Smaller for Desktop (text-lg instead of text-2xl) */}
             <Link
               href="/"
+              onClick={handleLogoClick}
               className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
             >
               <Image

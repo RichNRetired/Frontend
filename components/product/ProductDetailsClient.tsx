@@ -2,11 +2,9 @@
 
 import { Product } from "@/features/product/productTypes";
 import { useEffect, useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
-import { addItem } from "@/features/cart/cartSlice";
-import { useAddToCartMutation } from "@/features/cart/cartApi";
 import {
+  AlertCircle,
   Heart,
   Plus,
   Minus,
@@ -15,6 +13,7 @@ import {
   RefreshCcw,
   MapPin,
 } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { sendEvent } from "@/services/analytics.service";
 import { getPrimaryProductImage } from "@/features/product/productUtils";
@@ -59,10 +58,10 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
   const [selectedColor, setSelectedColor] = useState("");
   const [pincode, setPincode] = useState("");
   const [pincodeError, setPincodeError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const dispatch = useDispatch();
   const router = useRouter();
-  const [addToCart] = useAddToCartMutation();
+  const { addToCart } = useCart();
   const [checkLocationServiceability, serviceabilityState] =
     useLazyCheckLocationServiceabilityQuery();
   const {
@@ -219,28 +218,24 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
 
   const handleAddToCart = async () => {
     setAdding(true);
+    setActionMessage(null);
     try {
       if (!selectedVariant) throw new Error("Please select a variant");
       await addToCart({
         productId: Number(product.id),
         variantId: selectedVariant.id,
         qty: quantity,
-      }).unwrap();
-      dispatch(
-        addItem({
-          id: String(selectedVariant.id),
-          productId: product.id,
-          variantId: selectedVariant.id,
-          categoryId: product.category?.id,
-          name: product.name,
-          price: effectivePrice,
-          quantity,
-          image: getPrimaryProductImage(product),
-        }),
-      );
+        categoryId: product.category?.id,
+        name: product.name,
+        price: effectivePrice,
+        image: getPrimaryProductImage(product),
+        size: selectedVariant.size,
+        color: selectedVariant.color,
+        mrp: effectiveMrp,
+      });
       sendEvent("product_add_to_cart", { productId: product.id, quantity });
     } catch (err: any) {
-      alert(err?.data?.message || "Failed to add to cart");
+      setActionMessage(err?.data?.message || "Failed to add to cart");
     } finally {
       setAdding(false);
     }
@@ -248,6 +243,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
 
   const handleBuyNow = async () => {
     setBuyingNow(true);
+    setActionMessage(null);
 
     try {
       if (!selectedVariant) {
@@ -274,7 +270,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
 
       router.push("/checkout?mode=buy-now");
     } catch (err: any) {
-      alert(err?.data?.message || err?.message || "Failed to start checkout");
+      setActionMessage(err?.data?.message || err?.message || "Failed to start checkout");
       setBuyingNow(false);
       return;
     }
@@ -283,6 +279,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
   };
 
   const handleWishlistToggle = async () => {
+    setActionMessage(null);
     try {
       if (isInWishlist) {
         await removeFromWishlistByProductId(product.id);
@@ -300,7 +297,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
         variantId: fallbackVariantId,
       });
     } catch (err: any) {
-      alert(err?.data?.message || err?.message || "Failed to update wishlist");
+      setActionMessage(err?.data?.message || err?.message || "Failed to update wishlist");
     }
   };
 
@@ -317,6 +314,12 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
         <p className="text-sm text-neutral-500 font-light max-w-md">
           {product.short_description}
         </p>
+        {actionMessage && (
+          <div className="flex max-w-md items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <span>{actionMessage}</span>
+          </div>
+        )}
       </header>
 
       {/* Pricing - Zara Style */}

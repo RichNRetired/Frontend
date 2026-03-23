@@ -33,6 +33,10 @@ export interface Order {
     status: string;
     paymentMethod?: string;
     paymentStatus?: string;
+    userId?: number;
+    userName?: string;
+    userEmail?: string;
+    userPhone?: string;
     subtotal?: number;
     taxAmount?: number;
     shippingCharges?: number;
@@ -50,6 +54,28 @@ export interface Order {
     createdAt: string;
 }
 
+export interface PlacedOrderResponse {
+    orderId: number;
+    status?: string;
+    orderStatus?: string;
+    paymentMethod?: string;
+    paymentStatus?: string;
+    subtotal?: number;
+    taxAmount?: number;
+    shippingCharges?: number;
+    discountAmount?: number;
+    totalAmount: number;
+    requiresPayment?: boolean;
+    paymentMessage?: string;
+    expectedDelivery?: string;
+    deliveryDays?: number;
+    paymentExpiry?: string;
+    deliveryAddress?: DeliveryAddress;
+    message?: string;
+    items?: OrderItem[];
+    createdAt?: string;
+}
+
 export interface OrdersResponse {
     content: Order[];
     page: number;
@@ -59,9 +85,11 @@ export interface OrdersResponse {
     last: boolean;
 }
 
+export type OrderPaymentMethod = "COD" | "PREPAID" | "CARD" | "UPI" | "NETBANKING";
+
 export interface CheckoutPayload {
     addressId: number;
-    paymentMethod?: "COD" | "PREPAID" | "CARD" | "UPI";
+    paymentMethod?: OrderPaymentMethod;
     items: {
         productId: number;
         variantId?: number;
@@ -72,7 +100,7 @@ export interface CheckoutPayload {
 // request/response models for the new /orders/checkout summary API
 export interface CheckoutRequest {
     addressId?: number;
-    paymentMethod?: "COD" | "PREPAID" | "CARD" | "UPI";
+    paymentMethod?: OrderPaymentMethod;
     cartId?: number;
 }
 
@@ -95,6 +123,40 @@ export interface CheckoutResponse {
     cartId: number;
     isValidForCheckout: boolean;
     validationErrors: string[];
+}
+
+export interface BuyNowCheckoutRequest {
+    productId: number;
+    variantId: number;
+    quantity: number;
+    addressId: number;
+    paymentMethod: OrderPaymentMethod;
+}
+
+export interface BuyNowCheckoutResponse {
+    productId: number;
+    productName: string;
+    productImage?: string;
+    variantId: number;
+    size?: string;
+    color?: string;
+    quantity: number;
+    price: number;
+    mrp?: number;
+    discountPercentage?: number;
+    subtotal: number;
+    deliveryAddress?: DeliveryAddress;
+    deliveryDays?: number;
+    expectedDelivery?: string;
+    taxAmount: number;
+    shippingCharges: number;
+    discountAmount: number;
+    totalAmount: number;
+    paymentMethod: string;
+    requiresPayment: boolean;
+    isCodAvailable?: boolean;
+    validationErrors: string[];
+    isValid: boolean;
 }
 
 export interface Coupon {
@@ -176,6 +238,10 @@ export interface ApiResponse<T = unknown> {
     success?: boolean;
     message?: string;
     data?: T;
+}
+
+export interface CancelOrderRequest {
+    orderId: number;
 }
 
 export type ReturnStatus =
@@ -371,6 +437,7 @@ export interface VerifyPaymentRequest {
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature: string;
+    orderId: number;
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     razorpay_signature?: string;
@@ -383,4 +450,21 @@ export interface VerifyPaymentResponse {
     orderId?: number;
     paymentStatus?: string;
     status?: string;
+    [key: string]: unknown;
+}
+
+export interface OrderTrackingResponse {
+    status: string;
+    location: string;
+    estimatedDeliveryDate: string;
+}
+
+export interface ShiprocketPickupLocation {
+    id?: number | string;
+    name?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    address?: string;
+    [key: string]: unknown;
 }

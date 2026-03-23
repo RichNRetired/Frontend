@@ -10,7 +10,9 @@ import { useEffect } from "react";
 import initAuth from "../services/auth-bootstrap";
 import { usePathname } from "next/navigation";
 import { cartApi } from "../features/cart/cartApi";
+import { setCart } from "../features/cart/cartSlice";
 import { clearBuyNowState, readBuyNowState } from "../lib/buy-now";
+import { mapCartApiItemsToCartItems } from "../lib/cart-storage";
 
 export function ClientLayout({
   children,
@@ -60,6 +62,15 @@ export function ClientLayout({
           return;
         }
 
+        const summary = await store
+          .dispatch(
+            cartApi.endpoints.getCartSummary.initiate(undefined, {
+              forceRefetch: true,
+            }),
+          )
+          .unwrap();
+
+        store.dispatch(setCart(mapCartApiItemsToCartItems(summary.items)));
         store.dispatch(cartApi.util.invalidateTags(["Cart"]));
         clearBuyNowState();
       } catch (error) {

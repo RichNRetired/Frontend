@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchBackendApi } from '@/lib/backend-api';
 
-export async function PUT(
+async function handleCancelOrder(
     req: NextRequest,
     { params }: { params: Promise<{ orderId: string }> }
 ) {
@@ -28,9 +28,10 @@ export async function PUT(
         }
 
         // Forward request to backend
-        const result = await fetchBackendApi(`/admin/orders/${orderId}/cancel`, {
-            method: 'PUT',
+        const result = await fetchBackendApi(`/orders/${orderId}/cancel`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: Number(orderId) }),
             token,
         });
 
@@ -43,4 +44,11 @@ export async function PUT(
             { status: 500 }
         );
     }
+}
+
+export async function POST(
+    req: NextRequest,
+    context: { params: Promise<{ orderId: string }> }
+) {
+    return handleCancelOrder(req, context);
 }

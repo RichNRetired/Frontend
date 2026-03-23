@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
         // Get pagination params from query string
         const { searchParams } = new URL(req.url);
         const page = searchParams.get('page') || '0';
-        const limit = searchParams.get('limit') || '10';
+        const size = searchParams.get('size') || searchParams.get('limit') || '10';
 
         // Forward request to backend
-        const result = await fetchBackendApi(`/orders/my-orders?page=${page}&limit=${limit}`, {
+        const result = await fetchBackendApi(`/orders/my-orders?page=${page}&size=${size}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             token,

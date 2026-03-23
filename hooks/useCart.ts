@@ -1,4 +1,15 @@
-import { useSelector, useDispatch } from 'react-redux';
+import { useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AddToCartInput } from '@/lib/cart-storage';
+import {
+    addGuestCartItem,
+    createGuestCartSummary,
+    getGuestCartItems,
+    hasStoredAccessToken,
+    mapCartApiItemsToCartItems,
+    removeGuestCartItem,
+    updateGuestCartItemQuantity,
+} from '@/lib/cart-storage';
 import { RootState } from '../store';
 import {
     useGetCartQuery,
@@ -9,81 +20,114 @@ import {
     useMergeCartMutation,
 } from '../features/cart/cartApi';
 import { setCart } from '../features/cart/cartSlice';
-import { useEffect } from 'react';
 
 export const useCart = () => {
     const cart = useSelector((state: RootState) => state.cart);
+    const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
     const dispatch = useDispatch();
-    const { data: cartData, isLoading, error, refetch } = useGetCartQuery();
-    const { data: cartSummary, refetch: refetchSummary } = useGetCartSummaryQuery();
-    const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
-    const [updateCart, { isLoading: isUpdating }] = useUpdateCartItemMutation();
-    const [removeFromCart, { isLoading: isRemoving }] = useRemoveFromCartMutation();
-    const [mergeCart, { isLoading: isMerging }] = useMergeCartMutation();
+    const shouldUseServerCart = isAuthenticated || hasStoredAccessToken();
+    const { data: cartData, isLoading: isLoadingCart, error, refetch: refetchCart } = useGetCartQuery(undefined, {
+        skip: !shouldUseServerCart,
+    });
+    const {
+        data: cartSummaryData,
+        isLoading: isLoadingSummary,
+        refetch: refetchSummary,
+    } = useGetCartSummaryQuery(undefined, {
+        skip: !shouldUseServerCart,
+    });
+    const [addToCartMutation, { isLoading: isAdding }] = useAddToCartMutation();
+    const [updateCartMutation, { isLoading: isUpdating }] = useUpdateCartItemMutation();
+    const [removeFromCartMutation, { isLoading: isRemoving }] = useRemoveFromCartMutation();
+    const [mergeCartMutation, { isLoading: isMerging }] = useMergeCartMutation();
 
-    // Sync API cart data with Redux state
     useEffect(() => {
-        const sourceItems = cartSummary?.items ?? cartData;
+        if (!shouldUseServerCart) {
+            dispatch(setCart(getGuestCartItems()));
+            return;
+        }
+
+        const sourceItems = cartSummaryData?.items ?? cartData;
 
         if (sourceItems) {
-            dispatch(
-                setCart(
-                    sourceItems.map((item) => ({
-                        id: String(item.cartItemId),
-                        productId: item.productId,
-                        categoryId: (() => {
-                            const categoryId = Number(item.categoryId ?? item.category?.id);
-                            return Number.isFinite(categoryId) && categoryId > 0
-                                ? categoryId
-                                : undefined;
-                        })(),
-                        name: item.productName,
-                        price: Number(item.price ?? 0),
-                        quantity: Number(item.quantity ?? 1),
-                        image: item.imageUrl,
-                        variantId: item.variantId,
-                        color: item.color,
-                        size: item.size,
-                        mrp: item.mrp,
-                        discountPercentage: item.discountPercentage,
-                    })),
-                ),
-            );
+            dispatch(setCart(mapCartApiItemsToCartItems(sourceItems)));
         }
-    }, [cartData, cartSummary, dispatch]);
+    }, [cartData, cartSummaryData, dispatch, shouldUseServerCart]);
+
+    const cartSummary = useMemo(() => {
+        if (shouldUseServerCart && cartSummaryData) {
+            return cartSummaryData;
+        }
+
+        return createGuestCartSummary(cart.items);
+    }, [cart.items, cartSummaryData, shouldUseServerCart]);
 
     return {
-        // State
         cart,
         items: cart.items,
         cartSummary,
-        isLoading,
-        error,
+        isLoading: shouldUseServerCart ? isLoadingCart || isLoadingSummary : false,
+        error: shouldUseServerCart ? error : undefined,
+        isGuestCart: !shouldUseServerCart,
 
-        // Loading states
         isAdding,
         isUpdating,
         isRemoving,
         isMerging,
 
-        // Mutations with auto state sync
-        addToCart: async (productId: number, variantId: number, qty: number) => {
-            return addToCart({ productId, variantId, qty }).unwrap();
+        addToCart: async (input: AddToCartInput) => {
+            if (!shouldUseServerCart) {
+                const updatedItems = addGuestCartItem(input);
+                dispatch(setCart(updatedItems));
+                return updatedItems;
+            }
+
+            const response = await addToCartMutation({
+                productId: input.productId,
+                variantId: input.variantId,
+                qty: input.qty,
+            }).unwrap();
+
+            await Promise.all([refetchCart(), refetchSummary()]);
+            return response;
         },
-        updateQuantity: async (cartItemId: number, qty: number, variantId: number) => {
+        updateQuantity: async (cartItemId: number | string, qty: number, variantId: number) => {
             if (qty <= 0) return;
-            return updateCart({ cartItemId, qty, variantId }).unwrap();
+
+            if (!shouldUseServerCart) {
+                const updatedItems = updateGuestCartItemQuantity(String(cartItemId), qty);
+                dispatch(setCart(updatedItems));
+                return updatedItems;
+            }
+
+            const response = await updateCartMutation({ cartItemId: Number(cartItemId), qty, variantId }).unwrap();
+            await Promise.all([refetchCart(), refetchSummary()]);
+            return response;
         },
-        removeFromCart: async (cartItemId: number) => {
-            return removeFromCart(cartItemId).unwrap();
+        removeFromCart: async (cartItemId: number | string) => {
+            if (!shouldUseServerCart) {
+                const updatedItems = removeGuestCartItem(String(cartItemId));
+                dispatch(setCart(updatedItems));
+                return updatedItems;
+            }
+
+            const response = await removeFromCartMutation(Number(cartItemId)).unwrap();
+            await Promise.all([refetchCart(), refetchSummary()]);
+            return response;
         },
         mergeCart: async (items: Array<{ productId: number; variantId: number; quantity: number }>) => {
-            return mergeCart(items).unwrap();
+            const response = await mergeCartMutation(items).unwrap();
+            await Promise.all([refetchCart(), refetchSummary()]);
+            return response;
         },
 
-        // Utilities
         refetch: async () => {
-            await Promise.all([refetch(), refetchSummary()]);
+            if (!shouldUseServerCart) {
+                dispatch(setCart(getGuestCartItems()));
+                return;
+            }
+
+            await Promise.all([refetchCart(), refetchSummary()]);
         },
     };
 };

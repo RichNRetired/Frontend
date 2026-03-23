@@ -19,6 +19,7 @@ import {
   UndoIcon,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type ReturnableOrderItem = OrderItem & {
   orderItemId?: number;
@@ -47,6 +48,7 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedItemForReturn, setSelectedItemForReturn] = useState<ReturnableOrderItem | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const {
     data: order,
@@ -96,13 +98,16 @@ export default function OrderDetailsPage() {
   };
 
   const handleCancelOrder = async () => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    setIsCancelDialogOpen(true);
+  };
 
+  const confirmCancelOrder = async () => {
     try {
       setError(null);
-      await cancelOrder(orderId).unwrap();
+      await cancelOrder({ orderId }).unwrap();
       setSuccess("Order cancelled successfully");
       sendEvent("order_cancelled", { orderId });
+      setIsCancelDialogOpen(false);
       setTimeout(() => router.back(), 2000);
     } catch (err: any) {
       const errorMsg = err?.data?.message || "Failed to cancel order";
@@ -227,8 +232,8 @@ export default function OrderDetailsPage() {
                   <h2 className="text-sm font-bold uppercase tracking-[0.15em] mb-3">
                     Delivery Address
                   </h2>
-                  <div className="space-y-1 text-sm text-neutral-600">
-                    <p className="font-medium text-neutral-900">
+                  <div className="space-y-1 text-sm text-neutral-900">
+                    <p className="font-medium text-black">
                       {order.deliveryAddress.addressLine1}
                     </p>
                     {order.deliveryAddress.addressLine2 && (
@@ -319,11 +324,11 @@ export default function OrderDetailsPage() {
                 >
                   {item.imageUrl && (
                     <Link href={`/product/${item.productId}`}>
-                      <div className="w-20 h-28 bg-neutral-100 rounded overflow-hidden shrink-0 hover:opacity-80 transition-opacity">
+                      <div className="w-20 h-28 bg-neutral-50 rounded overflow-hidden shrink-0 p-2 hover:opacity-80 transition-opacity">
                         <img
                           src={item.imageUrl}
                           alt={item.productName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       </div>
                     </Link>
@@ -404,6 +409,17 @@ export default function OrderDetailsPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={isCancelDialogOpen}
+        title="Cancel order"
+        description="This will cancel the current order."
+        confirmLabel="Cancel Order"
+        tone="danger"
+        isConfirming={cancelling}
+        onClose={() => setIsCancelDialogOpen(false)}
+        onConfirm={confirmCancelOrder}
+      />
     </div>
   );
 }

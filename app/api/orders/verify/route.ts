@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBackendApi } from "@/lib/backend-api";
 
-export async function POST(
-    req: NextRequest,
-    { params }: { params: Promise<{ orderId: string }> }
-) {
+export async function POST(req: NextRequest) {
     try {
         const authHeader = req.headers.get("Authorization");
         const token = authHeader?.replace("Bearer ", "");
@@ -16,24 +13,12 @@ export async function POST(
             );
         }
 
-        const { orderId } = await params;
-
-        if (!orderId || Number.isNaN(Number(orderId))) {
-            return NextResponse.json(
-                { message: "Invalid order ID" },
-                { status: 400 }
-            );
-        }
-
         const body = await req.json();
 
         const result = await fetchBackendApi(`/orders/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                ...body,
-                orderId: Number(orderId),
-            }),
+            body: JSON.stringify(body),
             token,
         });
 

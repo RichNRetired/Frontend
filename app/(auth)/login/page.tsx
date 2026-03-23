@@ -176,7 +176,7 @@ export default function LoginPage() {
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
                   <>
-                    Secure Login
+                    Login
                     <ArrowRight
                       size={16}
                       className="group-hover:translate-x-1 transition-transform"

@@ -28,8 +28,9 @@ export const placeOrder = async (payload: CheckoutPayload): Promise<Order> => {
     return res.data;
 };
 
-export const cancelOrder = async (orderId: number): Promise<void> => {
-    await axios.put(`/admin/orders/${orderId}/cancel`);
+export const cancelOrder = async (orderId: number): Promise<ApiResponse> => {
+    const res = await axios.post(`/orders/${orderId}/cancel`, { orderId });
+    return res.data;
 };
 
 export const getMyOrders = async (

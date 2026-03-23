@@ -2,10 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useDispatch } from "react-redux";
-import { addItem } from "../../features/cart/cartSlice";
-import { useAddToCartMutation } from "../../features/cart/cartApi";
 import { Plus, Heart, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
 import { sendEvent } from "@/services/analytics.service";
 import { useWishlist } from "@/hooks/useWishlist";
 
@@ -79,8 +77,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return 0;
   }, [variantId, variants]);
 
-  const dispatch = useDispatch();
-  const [addToCart, { isLoading: isAddingMutation }] = useAddToCartMutation();
+  const { addToCart, isAdding: isAddingMutation } = useCart();
   const [localAdding, setLocalAdding] = useState(false);
   const isAdding = localAdding || isAddingMutation;
   const imageList = useMemo(() => {
@@ -193,18 +190,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         productId: Number(id),
         variantId: variantIdForCart,
         qty: 1,
-      }).unwrap();
-      dispatch(
-        addItem({
-          id: String(id),
-          productId: Number(id),
-          variantId: variantIdForCart,
-          categoryId: Number(category?.id) > 0 ? Number(category?.id) : undefined,
-          name,
-          price: displayPrice,
-          quantity: 1,
-        }),
-      );
+        categoryId: Number(category?.id) > 0 ? Number(category?.id) : undefined,
+        name,
+        price: displayPrice,
+        image: imageList[0],
+        mrp: displayOriginalPrice > displayPrice ? displayOriginalPrice : undefined,
+      });
       sendEvent("quick_add", { productId: Number(id), source: "product_card" });
     } catch (err: any) {
       console.error(err);
