@@ -14,6 +14,7 @@ import {
   useValidateCouponMutation,
   useGetAvailableCouponsQuery,
   useApplyCouponToOrderMutation,
+  useRemoveCouponFromOrderMutation,
   useCancelOrderMutation,
 } from "@/features/order/orderApi";
 import type {
@@ -23,6 +24,7 @@ import type {
   CheckoutResponse,
   CouponValidationRequest,
   CouponValidationResponse,
+  OrderItem,
   PlacedOrderResponse,
 } from "@/features/order/orderTypes";
 import { getCurrentUser } from "@/lib/auth";
@@ -553,9 +555,6 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<
     number | string | null
   >(null);
-  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
-    null,
-  );
   const [orderError, setOrderError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<
     "COD" | "PREPAID" | "CARD" | "UPI"
@@ -575,8 +574,7 @@ export default function CheckoutPage() {
 
   const { data: addresses = [], isLoading: addressesLoading, refetch: refetchAddresses } =
     useGetAddressesQuery();
-  const { data: serviceableLocations = [], isLoading: locationsLoading } =
-    useGetLocationsQuery();
+  useGetLocationsQuery();
   const [checkoutSummary, { isLoading: summaryLoading }] =
     useCheckoutMutation();
   const [buyNowCheckoutSummary, { isLoading: buyNowSummaryLoading }] =
@@ -590,11 +588,13 @@ export default function CheckoutPage() {
     useValidateCouponMutation();
   const [applyCouponToOrder, { isLoading: applyingCoupon }] =
     useApplyCouponToOrderMutation();
+  const [removeCouponFromOrder] = useRemoveCouponFromOrderMutation();
   const [cancelOrder] = useCancelOrderMutation();
 
   const [checkoutData, setCheckoutData] = useState<
     CheckoutResponse | null
   >(null);
+  const [lastPlacedOrderId, setLastPlacedOrderId] = useState<number | null>(null);
   const isBuyNowMode = buyNowItem !== null;
   const checkoutItems = useMemo(
     () =>
@@ -828,6 +828,11 @@ export default function CheckoutPage() {
     if (clearCode) {
       setCouponCode("");
     }
+    // If the coupon was already applied to a placed order (e.g. prepaid flow waiting for payment),
+    // call the backend to remove it so the order total resets correctly.
+    if (lastPlacedOrderId !== null) {
+      void removeCouponFromOrder(lastPlacedOrderId);
+    }
     setAppliedCouponPreview(null);
     setAppliedCouponContextSignature(null);
     setCouponError(null);
@@ -868,6 +873,9 @@ export default function CheckoutPage() {
             totalAmount: response.totalAmount,
             items: [
               {
+                category: undefined,
+                categoryId: undefined,
+                cartId: 0,
                 productId: response.productId,
                 productName: response.productName,
                 imageUrl: response.productImage,
@@ -879,7 +887,7 @@ export default function CheckoutPage() {
                 mrp: response.mrp,
                 discountPercentage: response.discountPercentage,
                 subtotal: response.subtotal,
-              },
+              } as OrderItem,
             ],
             totalItems: response.quantity,
             deliveryAddress: response.deliveryAddress ?? {
@@ -951,24 +959,9 @@ export default function CheckoutPage() {
     if (!isAuthenticated) router.push("/login");
   }, [isAuthenticated, router]);
 
-  const selectedLocation = useMemo(
-    () =>
-      selectedLocationId
-        ? serviceableLocations.find((location) => location.id === selectedLocationId)
-        : null,
-    [selectedLocationId, serviceableLocations],
-  );
-
   const filteredAddresses = useMemo(() => {
-    const allAddresses = addresses as Address[];
-    if (!selectedLocation) return allAddresses;
-
-    return allAddresses.filter(
-      (address) =>
-        String(address.postalCode || "").trim() ===
-        String(selectedLocation.pincode || "").trim(),
-    );
-  }, [addresses, selectedLocation]);
+    return addresses as Address[];
+  }, [addresses]);
 
   useEffect(() => {
     if (!filteredAddresses.length) {
@@ -1058,8 +1051,10 @@ export default function CheckoutPage() {
           }).unwrap()
         : await placeOrder({
             addressId: Number(selectedAddressId),
-            paymentMethod: normalizedPaymentMethod as string,
+            paymentMethod: normalizedPaymentMethod,
           }).unwrap();
+
+      setLastPlacedOrderId(result.orderId);
 
       const finalTotalAmount = await finalizeOrderCoupon({
         order: result,
@@ -1156,42 +1151,6 @@ export default function CheckoutPage() {
                 >
                   <Plus size={14} /> Add Address
                 </button>
-              </div>
-
-              <div className="mb-6 md:mb-8">
-                <label
-                  htmlFor="delivery-location"
-                  className="block text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500 mb-2"
-                >
-                  Delivery Location
-                </label>
-                <select
-                  id="delivery-location"
-                  value={selectedLocationId ?? ""}
-                  onChange={(e) => {
-                    const nextId = e.target.value ? Number(e.target.value) : null;
-                    setSelectedLocationId(nextId);
-                  }}
-                  className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-black"
-                  disabled={locationsLoading}
-                >
-                  <option value="">
-                    {locationsLoading
-                      ? "Loading serviceable locations..."
-                      : "All serviceable locations"}
-                  </option>
-                  {serviceableLocations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} - {location.city}, {location.state} ({location.pincode})
-                    </option>
-                  ))}
-                </select>
-
-                {selectedLocation && (
-                  <p className="mt-2 text-[11px] text-neutral-500">
-                    Delivery in {selectedLocation?.deliveryDays} days • COD {selectedLocation?.codAvailable ? "available" : "not available"}
-                  </p>
-                )}
               </div>
 
               {addressesLoading ? (

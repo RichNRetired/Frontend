@@ -66,6 +66,12 @@ const sortSectionsByQuickCategoryOrder = (sections: SectionType[]) => {
 const getSectionShopHref = (sectionName: string) =>
   `/shop?section=${encodeURIComponent(sectionName.trim().toLowerCase())}`;
 
+// Sections shown immediately while the API is still loading
+const FALLBACK_SECTIONS: SectionType[] = [
+  { id: -1, name: "Mens", imageUrl: "", isActive: true },
+  { id: -2, name: "Boys", imageUrl: "", isActive: true },
+];
+
 // --- Shared Types & Data ---
 
 // When available, fetch sections from the backend via RTK Query.
@@ -78,13 +84,14 @@ const MobileMenu: React.FC<{
 }> = ({ isOpen, onClose }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-  // Fetch sections dynamically
   const { data: sections = [], isLoading: isLoadingSections } =
     useGetSectionsQuery();
 
   const orderedSections = useMemo(() => {
     return sortSectionsByQuickCategoryOrder(sections);
   }, [sections]);
+
+  const displaySections = isLoadingSections ? FALLBACK_SECTIONS : orderedSections;
 
   return (
     <>
@@ -125,11 +132,7 @@ const MobileMenu: React.FC<{
           </div> */}
 
           <nav className="flex-1 overflow-y-auto">
-            {isLoadingSections && (
-              <div className="p-6 text-sm text-gray-400">Loading...</div>
-            )}
-
-            {orderedSections.map((section: SectionType) => (
+            {displaySections.map((section: SectionType) => (
               <div key={section.id} className="border-b border-gray-50">
                 <button
                   onClick={() =>
@@ -208,11 +211,11 @@ function MobileSectionCategories({
   const { data: categories = [], isLoading } = useGetCategoriesQuery(
     sectionId,
     {
-      skip: !sectionId,
+      skip: sectionId <= 0,
     },
   );
 
-  if (isLoading)
+  if (sectionId <= 0 || isLoading)
     return <div className="p-6 text-sm text-gray-400">Loading...</div>;
 
   return (
@@ -281,6 +284,8 @@ export const Header: React.FC = () => {
     return sortSectionsByQuickCategoryOrder(sections);
   }, [sections]);
 
+  const displaySections = isLoadingSections ? FALLBACK_SECTIONS : orderedSections;
+
   return (
     <>
       <header
@@ -320,11 +325,7 @@ export const Header: React.FC = () => {
 
             {/* Desktop Navigation - Reduced spacing and font size */}
             <nav className="hidden text-black lg:flex items-center space-x-6">
-              {isLoadingSections && (
-                <div className="text-sm text-gray-400">Loading...</div>
-              )}
-
-              {orderedSections.map((section: SectionType) => (
+              {displaySections.map((section: SectionType) => (
                 <div
                   key={section.id}
                   className="relative group h-14 flex items-center"
@@ -356,11 +357,13 @@ export const Header: React.FC = () => {
                       />
                     </div>
                     <div className="relative overflow-hidden aspect-square bg-gray-50">
-                      <img
-                        src={section.imageUrl}
-                        alt={section.name}
-                        className="w-full h-full object-cover grayscale opacity-80"
-                      />
+                      {section.imageUrl && (
+                        <img
+                          src={section.imageUrl}
+                          alt={section.name}
+                          className="w-full h-full object-cover grayscale opacity-80"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -463,11 +466,12 @@ function DesktopSectionCategories({
   const { data: categories = [], isLoading } = useGetCategoriesQuery(
     sectionId,
     {
-      skip: !sectionId,
+      skip: sectionId <= 0,
     },
   );
 
-  if (isLoading) return <div className="text-sm text-gray-400">Loading...</div>;
+  if (sectionId <= 0 || isLoading)
+    return <div className="text-sm text-gray-400">Loading...</div>;
 
   return (
     <ul className="space-y-3">

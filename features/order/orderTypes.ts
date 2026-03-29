@@ -1,4 +1,7 @@
 export interface OrderItem {
+    category?: any;
+    categoryId?: any;
+    cartId?: number;
     orderItemId?: number;
     productId: number;
     productName: string;
@@ -31,6 +34,7 @@ export interface DeliveryAddress {
 export interface Order {
     orderId: number;
     status: string;
+    trackingId?: string;
     paymentMethod?: string;
     paymentStatus?: string;
     userId?: number;
@@ -58,6 +62,7 @@ export interface PlacedOrderResponse {
     orderId: number;
     status?: string;
     orderStatus?: string;
+    trackingId?: string;
     paymentMethod?: string;
     paymentStatus?: string;
     subtotal?: number;
@@ -131,6 +136,16 @@ export interface BuyNowCheckoutRequest {
     quantity: number;
     addressId: number;
     paymentMethod: OrderPaymentMethod;
+}
+
+export interface PlaceOrderRequest {
+    addressId: number;
+    paymentMethod: OrderPaymentMethod;
+    idempotencyKey?: string;
+}
+
+export interface PlaceBuyNowOrderRequest extends BuyNowCheckoutRequest {
+    idempotencyKey?: string;
 }
 
 export interface BuyNowCheckoutResponse {
@@ -453,10 +468,22 @@ export interface VerifyPaymentResponse {
     [key: string]: unknown;
 }
 
-export interface OrderTrackingResponse {
+export interface OrderTrackingEvent {
     status: string;
+    date: string;
     location: string;
-    estimatedDeliveryDate: string;
+}
+
+export interface TrackingLookupResponse {
+    trackingId: string;
+    events: OrderTrackingEvent[];
+}
+
+export interface OrderTrackingResponse {
+    orderId: number;
+    status: string;
+    trackingId: string;
+    events: OrderTrackingEvent[];
 }
 
 export interface ShiprocketPickupLocation {
@@ -467,4 +494,14 @@ export interface ShiprocketPickupLocation {
     pincode?: string;
     address?: string;
     [key: string]: unknown;
+}
+
+export interface ProcessOrderWebhookRequest {
+    signature: string;
+    payload: string;
+}
+
+export interface ProcessShiprocketWebhookRequest {
+    secret: string;
+    payload: Record<string, unknown>;
 }

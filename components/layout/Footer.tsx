@@ -2,76 +2,91 @@
 
 import React from "react";
 import Link from "next/link";
-import { Instagram, Facebook, Twitter, Youtube } from "lucide-react";
+import { Instagram, Facebook, Youtube, Twitter } from "lucide-react";
 
 export const Footer: React.FC = () => {
   const footerSections = [
     {
-      title: "Selection",
+      title: "Sections",
       links: [
-        { name: "Men", href: "/shop?section=mens" },
-        { name: "Women", href: "/shop?section=womens" },
-        { name: "Kids", href: "/shop?section=kids" },
-        { name: "Sale", href: "/shop" },
+        { name: "Men", href: "/men" },
+        { name: "Women", href: "/women" },
+        { name: "Kids", href: "/kids" },
+        { name: "Boys", href: "/boys" },
+        { name: "Sale", href: "/sale" },
         { name: "New Arrivals", href: "/" },
       ],
     },
     {
-      title: "Company",
+      title: "Help & Support",
       links: [
         { name: "About Us", href: "/about" },
-        { name: "Careers", href: "/careers" },
-        { name: "Contact Us", href: "/contact" },
+        { name: "Contact", href: "/contact" },
+        { name: "FAQ", href: "/faq" },
+        { name: "Track Order", href: "/track" },
+        { name: "Return / Exchange", href: "/returns" },
       ],
     },
     {
-      title: "Help",
+      title: "Policies",
       links: [
-        { name: "Shipping Info", href: "/faq" },
-        { name: "Returns", href: "/contact" },
-        { name: "Size Guide", href: "/size-guide" },
-        { name: "FAQ", href: "/faq" },
+        { name: "Privacy Policy", href: "/privacy" },
+        { name: "Refund Policy", href: "/refund" },
+        { name: "Shipping Policy", href: "/shipping" },
+        { name: "Terms of Service", href: "/terms" },
       ],
     },
   ];
 
   return (
-    <footer className="bg-white border-t border-neutral-100 pt-20 pb-10">
-      <div className="max-w-7xl mx-auto px-6">
-        {/* Main Navigation */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-20">
-          {/* Logo & Manifesto Section */}
-          <div className="col-span-2 lg:col-span-2 pr-0 lg:pr-20">
-            <h2 className="text-xl text-black font-bold tracking-[0.3em] uppercase mb-6">
-              RICH N RETIRED
-            </h2>
-            <p className="text-sm text-neutral-500 leading-relaxed font-light max-w-sm">
-              Elevated essentials for the modern wardrobe. We believe in
-              timeless design, sustainable craftsmanship, and the art of living
-              well.
-            </p>
-            <div className="flex space-x-5 mt-8">
-              <Instagram className="w-5 h-5 text-neutral-400 hover:text-black cursor-pointer transition-colors" />
-              <Facebook className="w-5 h-5 text-neutral-400 hover:text-black cursor-pointer transition-colors" />
-              <Twitter className="w-5 h-5 text-neutral-400 hover:text-black cursor-pointer transition-colors" />
-              <Youtube className="w-5 h-5 text-neutral-400 hover:text-black cursor-pointer transition-colors" />
+    <footer className="bg-black text-white border-t border-neutral-900 pt-24 pb-12">
+      <div className="max-w-7xl mx-auto px-6 md:px-12">
+        
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-24">
+          
+          {/* Brand & Contact Section (Takes up 5 columns on desktop) */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <div>
+              <h2 className="text-[14px] font-bold tracking-[0.4em] uppercase mb-8 border-l-2 border-white pl-4">
+                Rich N Retired
+              </h2>
+              <div className="space-y-6 text-[13px] font-light text-neutral-400 tracking-wide leading-relaxed">
+                <p>
+                  CUSTOMER SUPPORT <br />
+                  <span className="text-white font-medium">+91 98898 08605</span>
+                </p>
+        
+              </div>
+            </div>
+
+            {/* Social Icons */}
+            <div className="flex items-center gap-6 mt-10">
+              <Link href="#" className="hover:text-neutral-400 transition-colors"><Instagram size={18} /></Link>
+              <Link href="#" className="hover:text-neutral-400 transition-colors"><Facebook size={18} /></Link>
+              <Link href="#" className="hover:text-neutral-400 transition-colors"><Twitter size={18} /></Link>
+              <Link href="#" className="hover:text-neutral-400 transition-colors"><Youtube size={18} /></Link>
             </div>
           </div>
 
-          {/* Links Sections */}
+          {/* Spacer for Desktop Alignment */}
+          <div className="hidden lg:block lg:col-span-1"></div>
+
+          {/* Navigation Links (Each takes 2 columns) */}
           {footerSections.map((section) => (
-            <div key={section.title}>
-              <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-black mb-6">
+            <div key={section.title} className="lg:col-span-2">
+              <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold text-neutral-500 mb-8">
                 {section.title}
               </h4>
-              <ul className="space-y-4">
+              <ul className="space-y-5">
                 {section.links.map((link) => (
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className="text-[13px] text-neutral-500 hover:text-black transition-colors duration-200 font-light"
+                      className="text-[12px] text-white/70 hover:text-white transition-all duration-300 font-light tracking-wider relative group"
                     >
                       {link.name}
+                      <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full" />
                     </Link>
                   </li>
                 ))}
@@ -80,54 +95,14 @@ export const Footer: React.FC = () => {
           ))}
         </div>
 
-        {/* Bottom Bar: Legal & Payments */}
-        <div className="border-t border-neutral-100 pt-10">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-medium">
-              <span>© 2026 Rich and Retired</span>
-              <Link
-                href="/privacy"
-                className="hover:text-black transition-colors"
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
-                className="hover:text-black transition-colors"
-              >
-                Terms of Service
-              </Link>
-              <Link
-                href="/cookies"
-                className="hover:text-black transition-colors"
-              >
-                Cookies
-              </Link>
-            </div>
-
-            {/* Clean Payment Icons */}
-            <div className="flex items-center gap-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg"
-                alt="Visa"
-                className="h-3"
-              />
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"
-                alt="Mastercard"
-                className="h-5"
-              />
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg"
-                alt="PayPal"
-                className="h-4"
-              />
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_Pay_logo.svg"
-                alt="Apple Pay"
-                className="h-5"
-              />
-            </div>
+        {/* Bottom Bar */}
+        <div className="border-t border-neutral-900 pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
+          <p className="text-[10px] tracking-[0.2em] text-neutral-600 uppercase">
+            © 2026 Rich N Retired. All Rights Reserved.
+          </p>
+          <div className="flex gap-8">
+            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">Designed in India</span>
+            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">Global Shipping Available</span>
           </div>
         </div>
       </div>

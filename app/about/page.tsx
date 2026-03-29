@@ -18,7 +18,7 @@ const AboutPage = () => {
           <span className="text-[10px] uppercase tracking-[0.6em] mb-8 block opacity-80 animate-fade-in">
             Established MMXXIV
           </span>
-          <h1 className="text-6xl md:text-9xl font-extralight tracking-tighter leading-none mb-12 italic serif">
+          <h1 className="text-6xl md:text-9xl font-extralight tracking-tighter leading-none mb-12  serif">
             The Art of <br /> Persistence
           </h1>
           <div className="flex justify-center">
@@ -33,7 +33,7 @@ const AboutPage = () => {
           <h2 className="text-[10px] uppercase tracking-[0.5em] text-neutral-400 font-bold mb-12">
             Our Philosophy
           </h2>
-          <p className="text-3xl md:text-5xl font-light tracking-tight leading-[1.2] italic serif text-neutral-800">
+          <p className="text-3xl md:text-5xl font-light tracking-tight leading-[1.2]  serif text-neutral-800">
             "We believe that a garment should be more than a trend. It is a
             vessel for memory, a sculpture for the body, and a commitment to the
             earth."
@@ -56,7 +56,7 @@ const AboutPage = () => {
             <span className="text-xs font-bold tracking-widest text-neutral-300">
               01 / ARCHITECTURAL INTEGRITY
             </span>
-            <h3 className="text-4xl font-light tracking-tighter italic serif">
+            <h3 className="text-4xl font-light tracking-tighter  serif">
               Engineered, not just sewn.
             </h3>
             <p className="text-neutral-500 font-light leading-relaxed text-lg">
@@ -76,7 +76,7 @@ const AboutPage = () => {
             <span className="text-xs font-bold tracking-widest text-neutral-300">
               02 / RADICAL HONESTY
             </span>
-            <h3 className="text-4xl font-light tracking-tighter italic serif">
+            <h3 className="text-4xl font-light tracking-tighter  serif">
               Luxury without the footprint.
             </h3>
             <p className="text-neutral-500 font-light leading-relaxed text-lg">
@@ -153,7 +153,7 @@ const AboutPage = () => {
       {/* Final CTA */}
       <section className="py-32 bg-[#0a0a0a] text-white">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12">
-          <h2 className="text-4xl md:text-6xl font-extralight tracking-tighter italic serif">
+          <h2 className="text-4xl md:text-6xl font-extralight tracking-tighter serif">
             Experience the <br /> collection.
           </h2>
           <Link

@@ -7,6 +7,8 @@ import {
   useGetOrderDetailsQuery,
   useCancelOrderMutation,
   useGetEligibleReturnItemsQuery,
+  useGetOrderTrackingQuery,
+  useInitiatePaymentMutation,
 } from "@/features/order/orderApi";
 import { OrderItem, ReturnReason } from "@/features/order/orderTypes";
 import { ReturnForm } from "@/components/returns/ReturnForm";
@@ -17,9 +19,13 @@ import {
   MapPin,
   X,
   UndoIcon,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { getCurrentUser } from "@/lib/auth";
+import { buildInitiatePaymentRequest } from "@/lib/razorpay";
 
 type ReturnableOrderItem = OrderItem & {
   orderItemId?: number;
@@ -56,13 +62,18 @@ export default function OrderDetailsPage() {
     error: orderError,
     refetch,
   } = useGetOrderDetailsQuery(orderId);
+  const { data: tracking, isLoading: trackingLoading } = useGetOrderTrackingQuery(orderId, {
+    skip: !Number.isFinite(orderId) || orderId <= 0,
+  });
   const { data: eligibleReturnItems = [], isLoading: eligibleItemsLoading } =
     useGetEligibleReturnItemsQuery(orderId, {
       skip: !Number.isFinite(orderId) || orderId <= 0,
     });
   const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
+  const [initiatePayment, { isLoading: initiatingPayment }] = useInitiatePaymentMutation();
 
   const canReturnOrder = order?.status === "PAID" || order?.status === "DELIVERED";
+  const hasTracking = Boolean(trackingLoading || tracking?.trackingId || tracking?.events?.length);
 
   const getReturnableItem = (item: OrderItem): ReturnableOrderItem | null => {
     if (item.orderItemId) {
@@ -99,6 +110,29 @@ export default function OrderDetailsPage() {
 
   const handleCancelOrder = async () => {
     setIsCancelDialogOpen(true);
+  };
+
+  const handlePayNow = async () => {
+    if (!order) return;
+    try {
+      setError(null);
+      const currentUser = globalThis.window === undefined ? null : getCurrentUser();
+      const payResp = await initiatePayment(
+        buildInitiatePaymentRequest({
+          orderId: order.orderId,
+          amount: order.totalAmount,
+          receipt: `order-${order.orderId}-${Date.now()}`,
+          orderUserName: order.userName,
+          orderUserEmail: order.userEmail,
+          orderUserPhone: order.userPhone,
+          currentUser,
+        }),
+      ).unwrap();
+      sessionStorage.setItem(`payment_init_${order.orderId}`, JSON.stringify(payResp));
+      router.push(`/checkout/payment?orderId=${order.orderId}`);
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || "Failed to initiate payment. Please try again.");
+    }
   };
 
   const confirmCancelOrder = async () => {
@@ -229,7 +263,7 @@ export default function OrderDetailsPage() {
               <div className="flex items-start gap-3 mb-4">
                 <MapPin size={20} className="text-neutral-400 mt-1 shrink-0" />
                 <div>
-                  <h2 className="text-sm font-bold uppercase tracking-[0.15em] mb-3">
+                  <h2 className="text-sm   text-black font-bold uppercase tracking-[0.15em] mb-3">
                     Delivery Address
                   </h2>
                   <div className="space-y-1 text-sm text-neutral-900">
@@ -376,8 +410,74 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
+        {hasTracking && (
+          <div className="mb-12 border border-neutral-200 rounded-lg p-6">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-[0.15em] mb-2">
+                  Tracking
+                </h2>
+                <p className="text-sm text-neutral-500">
+                  {tracking?.trackingId
+                    ? `Tracking ID: ${tracking.trackingId}`
+                    : "Tracking updates will appear here once the shipment is processed."}
+                </p>
+              </div>
+              <span className="text-xs font-semibold tracking-widest uppercase px-3 py-2 rounded bg-neutral-100 text-neutral-700">
+                {tracking?.status || order.status}
+              </span>
+            </div>
+
+            {trackingLoading && (
+              <p className="text-sm text-neutral-400">Loading tracking updates...</p>
+            )}
+
+            {!trackingLoading && tracking?.events?.length ? (
+              <div className="space-y-4">
+                {tracking.events.map((event, index) => (
+                  <div
+                    key={`${event.status}-${event.date}-${index}`}
+                    className="flex gap-4 border-l border-neutral-200 pl-4"
+                  >
+                    <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
+                    <div>
+                      <p className="text-sm font-medium text-black">{event.status}</p>
+                      <p className="text-xs text-neutral-500">
+                        {event.date ? new Date(event.date).toLocaleString() : "Date unavailable"}
+                      </p>
+                      {event.location ? (
+                        <p className="text-sm text-neutral-600 mt-1">{event.location}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {!trackingLoading && !tracking?.events?.length && (
+              <p className="text-sm text-neutral-400">
+                Tracking is not available for this order yet.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
+          {order.requiresPayment && order.status !== "CANCELLED" && (
+            <button
+              disabled={initiatingPayment}
+              onClick={() => void handlePayNow()}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {initiatingPayment ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <CreditCard size={16} />
+              )}
+              {initiatingPayment ? "Loading..." : "Pay Now"}
+            </button>
+          )}
           {order.status !== "CANCELLED" && (
             <button
               disabled={cancelling}

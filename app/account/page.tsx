@@ -14,6 +14,7 @@ import {
   CreditCard,
   HeadphonesIcon,
   LogOut,
+  RotateCcw,
 } from "lucide-react";
 import { RootState } from "../../store";
 import { logout } from "../../features/auth/authSlice";
@@ -44,9 +45,15 @@ export default function AccountPage() {
   const navItems = [
     {
       title: "Orders",
-      desc: "Track & returns",
+      desc: "Track & manage",
       icon: Package,
       href: "/account/orders",
+    },
+    {
+      title: "Returns",
+      desc: "Manage returns",
+      icon: RotateCcw,
+      href: "/account/returns",
     },
     { title: "Wishlist", desc: "Saved pieces", icon: Heart, href: "/wishlist" },
     {
@@ -192,11 +199,11 @@ export default function AccountPage() {
           {/* PROFILE SUMMARY */}
           <aside className="lg:col-span-4 lg:border-r border-neutral-200 lg:pr-12">
             <div className="flex items-center lg:flex-col lg:items-start gap-6">
-              <div className="w-20 h-20 md:w-32 md:h-32 rounded-full bg-neutral-900 flex items-center justify-center text-white text-2xl md:text-4xl font-light">
+              {/* <div className="w-20 h-20 md:w-32 md:h-32 rounded-full bg-neutral-900 flex items-center justify-center text-white text-2xl md:text-4xl font-light">
                 {avatarLabel}
-              </div>
+              </div> */}
               <div>
-                <h2 className="text-xl md:text-2xl font-medium tracking-tight">
+                <h2 className="text-xl md:text-2xl font-medium font-uppercase tracking-tight">
                   {displayName}
                 </h2>
                 <div className="mt-6 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm">

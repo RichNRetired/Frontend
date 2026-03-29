@@ -247,7 +247,7 @@ export default function RegisterPage() {
             <p className="text-[10px] uppercase tracking-[0.5em] font-light">
               Spring / Summer
             </p>
-            <p className="text-2xl font-serif italic tracking-tighter">
+            <p className="text-2xl font-serif tracking-tighter">
               Collection MMXXVI
             </p>
           </div>

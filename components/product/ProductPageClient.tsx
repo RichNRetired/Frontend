@@ -136,12 +136,7 @@ export default function ProductPageClient({
                           {product.brand}
                         </span>
                       </div>
-                      <div className="flex justify-between py-3 border-b border-neutral-100">
-                        <span className="text-neutral-600">Product ID</span>
-                        <span className="font-medium text-neutral-900">
-                          PRD-{product.id}
-                        </span>
-                      </div>
+                     
                       <div className="flex justify-between py-3 border-b border-neutral-100">
                         <span className="text-neutral-600">Availability</span>
                         <span className={`font-medium ${availabilityClassName}`}>

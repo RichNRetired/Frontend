@@ -8,7 +8,10 @@ import {
   useGetMyOrdersQuery,
   useCancelOrderMutation,
   useReorderOrderMutation,
+  useLazyTrackOrderQuery,
+  useInitiatePaymentMutation,
 } from "@/features/order/orderApi";
+import type { Order, OrderItem, TrackingLookupResponse } from "@/features/order/orderTypes";
 import { addItem } from "@/features/cart/cartSlice";
 import {
   AlertCircle,
@@ -19,9 +22,14 @@ import {
   ShoppingBag,
   Package,
   Clock,
+  Loader2,
+  Truck,
+  CreditCard,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { getCurrentUser } from "@/lib/auth";
+import { buildInitiatePaymentRequest } from "@/lib/razorpay";
 
 const getOrderStatusDotClass = (status: string) => {
   if (status === "PAID") {
@@ -41,6 +49,10 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pendingCancelOrderId, setPendingCancelOrderId] = useState<number | null>(null);
+  const [activeTrackingOrder, setActiveTrackingOrder] = useState<{
+    orderId: number;
+    trackingId: string;
+  } | null>(null);
 
   const { data, isLoading, isError, refetch } = useGetMyOrdersQuery({
     page: 0,
@@ -49,6 +61,10 @@ export default function OrdersPage() {
 
   const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
   const [reorderOrder, { isLoading: reordering }] = useReorderOrderMutation();
+  const [trackOrder, { data: trackingData, isFetching: trackingLoading }] =
+    useLazyTrackOrderQuery();
+  const [initiatePayment] = useInitiatePaymentMutation();
+  const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
 
   const handleCancelOrder = async (orderId: number) => {
     setPendingCancelOrderId(orderId);
@@ -72,12 +88,12 @@ export default function OrdersPage() {
     }
   };
 
-  const handleReorderOrder = async (orderId: number, order: any) => {
+  const handleReorderOrder = async (orderId: number, order: Order) => {
     try {
       setError(null);
       setSuccess(null);
       await reorderOrder(orderId).unwrap();
-      order.items.forEach((item: any) => {
+      order.items.forEach((item: OrderItem) => {
         dispatch(
           addItem({
             id: String(item.cartId || item.productId),
@@ -98,6 +114,64 @@ export default function OrdersPage() {
       setError(err?.data?.message || "Failed to reorder");
     }
   };
+
+  const handlePayNow = async (order: Order) => {
+    try {
+      setError(null);
+      setPayingOrderId(order.orderId);
+      const currentUser = globalThis.window === undefined ? null : getCurrentUser();
+      const payResp = await initiatePayment(
+        buildInitiatePaymentRequest({
+          orderId: order.orderId,
+          amount: order.totalAmount,
+          receipt: `order-${order.orderId}-${Date.now()}`,
+          orderUserName: order.userName,
+          orderUserEmail: order.userEmail,
+          orderUserPhone: order.userPhone,
+          currentUser,
+        }),
+      ).unwrap();
+      sessionStorage.setItem(`payment_init_${order.orderId}`, JSON.stringify(payResp));
+      router.push(`/checkout/payment?orderId=${order.orderId}`);
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || "Failed to initiate payment. Please try again.");
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const handleTrackOrder = async (order: Order) => {
+    if (!order.trackingId) {
+      setError("Tracking is not available for this order yet.");
+      return;
+    }
+
+    if (
+      activeTrackingOrder?.orderId === order.orderId &&
+      activeTrackingOrder.trackingId === order.trackingId
+    ) {
+      setActiveTrackingOrder(null);
+      return;
+    }
+
+    setError(null);
+    setActiveTrackingOrder({
+      orderId: order.orderId,
+      trackingId: order.trackingId,
+    });
+
+    try {
+      await trackOrder(order.trackingId).unwrap();
+    } catch (err: any) {
+      setActiveTrackingOrder(null);
+      setError(err?.data?.message || "Failed to load tracking updates");
+    }
+  };
+
+  const activeTrackingDetails: TrackingLookupResponse | null =
+    activeTrackingOrder && trackingData?.trackingId === activeTrackingOrder.trackingId
+      ? trackingData
+      : null;
 
   if (isLoading) {
     return (
@@ -278,8 +352,39 @@ export default function OrdersPage() {
                 </button>
               </Link>
 
+              <button
+                type="button"
+                onClick={() => void handleTrackOrder(order)}
+                disabled={trackingLoading && activeTrackingOrder?.orderId === order.orderId}
+                className="col-span-2 flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 text-black rounded-xl text-xs font-bold uppercase tracking-tight hover:bg-neutral-100 transition-colors disabled:opacity-50"
+              >
+                {trackingLoading && activeTrackingOrder?.orderId === order.orderId ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Truck size={16} />
+                )}
+                {activeTrackingOrder?.orderId === order.orderId
+                  ? "Hide Tracking"
+                  : "Track Order"}
+              </button>
+
               {order.status !== "CANCELLED" && (
                 <>
+                  {order.requiresPayment && (
+                    <button
+                      disabled={payingOrderId === order.orderId}
+                      onClick={() => void handlePayNow(order)}
+                      className="col-span-2 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase tracking-tight disabled:opacity-50"
+                    >
+                      {payingOrderId === order.orderId ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <CreditCard size={14} />
+                      )}
+                      {payingOrderId === order.orderId ? "Loading..." : "Pay Now"}
+                    </button>
+                  )}
+
                   <button
                     disabled={reordering}
                     onClick={() => handleReorderOrder(order.orderId, order)}
@@ -303,6 +408,65 @@ export default function OrdersPage() {
                 </>
               )}
             </div>
+
+            {activeTrackingOrder?.orderId === order.orderId && (
+              <div className="border-t border-neutral-100 bg-white px-5 py-4">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
+                      Tracking ID
+                    </p>
+                    <p className="text-sm font-semibold text-neutral-900">
+                      {activeTrackingOrder.trackingId}
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-neutral-500">
+                    {activeTrackingDetails?.events?.length || 0} updates
+                  </span>
+                </div>
+
+                {trackingLoading && (
+                  <p className="text-sm text-neutral-500">Loading tracking updates...</p>
+                )}
+                {!trackingLoading && (activeTrackingDetails?.events?.length ?? 0) > 0 && (
+                  <div className="space-y-4">
+                    {(activeTrackingDetails?.events ?? []).map((event, index) => (
+                      <div
+                        key={`${event.status}-${event.date}-${index}`}
+                        className="flex gap-4 border-l border-neutral-200 pl-4"
+                      >
+                        <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
+                        <div>
+                          <p className="text-sm font-medium text-neutral-900">
+                            {event.status}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 mt-1">
+                            {event.date
+                              ? new Date(event.date).toLocaleString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })
+                              : "Date unavailable"}
+                          </p>
+                          {event.location ? (
+                            <p className="text-sm text-neutral-600 mt-1">
+                              {event.location}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!trackingLoading && !activeTrackingDetails?.events?.length && (
+                  <p className="text-sm text-neutral-500">
+                    No tracking updates are available for this order yet.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </main>

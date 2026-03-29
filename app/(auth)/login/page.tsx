@@ -67,7 +67,7 @@ export default function LoginPage() {
           >
             <h2 className="text-white text-7xl font-light leading-[0.85] tracking-tighter mb-6">
               The <br />
-              <span className="font-serif italic">Identity</span>
+              <span className="font-serif">Identity</span>
             </h2>
             <p className="text-white/80 text-[10px] uppercase tracking-[0.4em] max-w-[300px] leading-loose border-l border-white/40 pl-4">
               Membership grants priority access to seasonal drops and bespoke

@@ -21,9 +21,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 
   return (
     <>
-      {/* Background Overlay - Soft Blur for Premium Feel */}
+      {/* Background Overlay */}
       <div
-        className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] transition-opacity duration-500 ${
+        className={`fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[60] transition-opacity duration-300 ${
           isOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -33,8 +33,10 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 
       {/* Drawer Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-full sm:w-[400px] bg-white z-[70] shadow-[20px_0_60px_-15px_rgba(0,0,0,0.1)] transform transition-transform duration-500 ease-[cubic-bezier(0.32,0,0.67,0)] ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 h-full w-full sm:w-[400px] bg-white z-[70] shadow-[20px_0_60px_-15px_rgba(0,0,0,0.15)] will-change-transform ${
+          isOpen
+            ? "translate-x-0 transition-transform duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+            : "-translate-x-full transition-transform duration-250 ease-[cubic-bezier(0.55,0,1,0.45)]"
         }`}
       >
         <div className="flex flex-col h-full">
@@ -87,7 +89,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 
                 {/* Categories Accordion */}
                 <div
-                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                  className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] ${
                     expandedSection === section.name
                       ? "max-h-[500px] opacity-100"
                       : "max-h-0 opacity-0"

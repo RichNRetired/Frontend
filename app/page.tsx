@@ -19,14 +19,12 @@ import {
   useBestSellers,
   useFeaturedProducts,
   useNewArrivals,
-  useProducts,
 } from "@/hooks/useProducts";
 import { useGetSectionsQuery } from "@/features/category/categoryApi";
 
 export default function Home() {
   const { data: sectionsData = [], isLoading: sectionsLoading } =
     useGetSectionsQuery();
-  const { data: productsResp, isLoading: productsLoading } = useProducts();
   const { data: newArrivalsResp, isLoading: newArrivalsLoading } =
     useNewArrivals(0, 10);
   const { data: bestSellersResp, isLoading: bestSellersLoading } =
@@ -112,28 +110,35 @@ export default function Home() {
               className="overflow-x-auto no-scrollbar scroll-smooth py-2"
             >
               <div className="flex gap-5 min-w-max">
-                {(productsResp?.content || [])
-                  .slice(0, 10)
-                  .map((product: any) => (
-                    <div key={product.id} className="w-64 shrink-0">
-                      <ProductCard
-                        {...product}
-                        images={[
-                          ...(Array.isArray(product.images) ? product.images : []),
-                          product.main_image,
-                          product.thumbnail_image,
-                          product.medium_image,
-                        ].filter(Boolean)}
-                        image={
-                          product.main_image ||
-                          product.thumbnail_image ||
-                          product.medium_image
-                        }
-                        originalPrice={product.mrp}
-                        isOnSale={!!product.discount_percent}
-                      />
-                    </div>
-                  ))}
+                {bestSellersLoading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-64 shrink-0 animate-pulse bg-neutral-50 h-96"
+                    />
+                  ))
+                  : (bestSellersResp?.content || [])
+                    .slice(0, 10)
+                    .map((product: any) => (
+                      <div key={product.id} className="w-64 shrink-0">
+                        <ProductCard
+                          {...product}
+                          images={[
+                            ...(Array.isArray(product.images) ? product.images : []),
+                            product.main_image,
+                            product.thumbnail_image,
+                            product.medium_image,
+                          ].filter(Boolean)}
+                          image={
+                            product.main_image ||
+                            product.thumbnail_image ||
+                            product.medium_image
+                          }
+                          originalPrice={product.mrp}
+                          isOnSale={!!product.discount_percent}
+                        />
+                      </div>
+                    ))}
               </div>
             </div>
 
@@ -149,22 +154,29 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white py-8 md:py-8">
+      <section className="bg-white py-4 md:py-6">
         <div className="max-w-7xl mx-auto px-0 md:px-6">
-          <div className="relative overflow-hidden bg-black aspect-video md:rounded-sm">
-            <video
-              className="h-full w-full object-cover"
-              src="https://s7ap1.scene7.com/is/content/adityabirlafashion/videoSpring%20SS26?wid=1366&hei=670px"
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="metadata"
+          <Link
+            href="/shop"
+            className="block relative overflow-hidden bg-white md:rounded-sm group cursor-pointer 
+                 /* This sets a fixed maximum height for desktop */
+                 h-auto max-h-[300px] md:max-h-[450px] lg:max-h-[550px] 
+                 flex justify-center items-center"
+          >
+            <img
+              className="w-full h-full 
+                   /* 'object-contain' ensures the image is NEVER cut/cropped */
+                   object-contain 
+                   transition-transform duration-700 group-hover:scale-102"
+              src="/sectionImage.jpg"
+              alt="Shop Spring SS26 Collection"
+              loading="lazy"
             />
-          </div>
+            {/* Subtle overlay that only appears on the image area */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/[0.02] transition-colors pointer-events-none" />
+          </Link>
         </div>
       </section>
-
       {/* New Arrivals */}
       <section className="py-8 sm:py-15 bg-white border-y border-neutral-100">
         <div className="max-w-7xl mx-auto px-6">
@@ -236,7 +248,7 @@ export default function Home() {
               href="/shop"
               className="group flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase border-b border-black pb-1"
             >
-              Explore Archive{" "}
+              Explore All{" "}
               <MoveRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
             </Link>
           </div>
@@ -348,7 +360,7 @@ export default function Home() {
 
         {/* Trust Bar integrated into footer area */}
         <div className="mt-20 border-t border-neutral-800 pt-10">
-          <div className="flex flex-wrap justify-center gap-8 md:gap-16 text-neutral-500 italic">
+          <div className="flex flex-wrap justify-center gap-8 md:gap-16 text-neutral-500">
             <div className="flex items-center gap-3">
               <Truck className="w-5 h-5 stroke-[1px]" />
               <span className="text-[10px] uppercase tracking-[0.25em] font-medium">

@@ -140,10 +140,10 @@ export default function CartPage() {
                   className="group relative flex flex-col sm:flex-row gap-6 md:gap-10 border-b border-neutral-50 pb-12 transition-all"
                 >
                   {/* Image with hover effect */}
-                  <div className="w-full sm:w-44 h-62.5 sm:h-60 overflow-hidden bg-neutral-100 shrink-0">
+                  <div className="w-full sm:w-44 aspect-[3/4] sm:aspect-auto sm:h-60 overflow-hidden bg-neutral-100 shrink-0">
                     <img
                       src={item.image}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
                       alt={item.name}
                     />
                   </div>
@@ -156,7 +156,7 @@ export default function CartPage() {
                           {item.name}
                         </h3>
                        
-                        <p className="text-sm font-semibold italic text-neutral-800">
+                        <p className="text-sm font-semibold text-neutral-800">
                           ₹{formatCurrency(item.price)}
                         </p>
                       </div>
@@ -268,7 +268,7 @@ export default function CartPage() {
                     Total
                   </span>
                   <div className="text-right">
-                    <span className="text-2xl font-light italic tracking-tight">
+                    <span className="text-2xl font-light tracking-tight">
                       ₹{formatCurrency(total)}
                     </span>
                     <p className="text-[10px] text-neutral-400">VAT Included</p>

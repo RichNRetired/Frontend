@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import Link from "next/link";
@@ -13,17 +14,18 @@ export default function SuccessPage() {
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const orderIdFromUrl = searchParams.get("orderId");
-  const [fallbackOrderId, setFallbackOrderId] = useState<string | null>(null);
-
-  useEffect(() => {
+  const orderId = useMemo(() => {
     if (orderIdFromUrl) {
-      return;
+      return orderIdFromUrl;
     }
 
-    setFallbackOrderId(globalThis.sessionStorage.getItem("lastOrderId"));
+    if (globalThis.window === undefined) {
+      return null;
+    }
+
+    return globalThis.sessionStorage.getItem("lastOrderId");
   }, [orderIdFromUrl]);
 
-  const orderId = orderIdFromUrl || fallbackOrderId;
   const numericOrderId = useMemo(() => {
     const parsed = Number(orderId);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -104,15 +106,34 @@ export default function SuccessPage() {
                 {order.items?.map((item) => (
                   <div
                     key={item.orderItemId ?? `${item.productId}-${item.quantity}`}
-                    className="flex justify-between items-start pb-4 border-b border-neutral-100"
+                    className="flex items-start justify-between gap-4 pb-4 border-b border-neutral-100"
                   >
-                    <div>
-                      <p className="font-medium text-neutral-900">
-                        {item.productName}
-                      </p>
-                      <p className="text-sm text-neutral-900">
-                        Qty: {item.quantity}
-                      </p>
+                    <div className="flex items-start gap-4 min-w-0">
+                      <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-neutral-50 border border-neutral-100">
+                        {item.imageUrl ? (
+                          <Image
+                            src={item.imageUrl}
+                            alt={item.productName}
+                            fill
+                            sizes="80px"
+                            className="object-contain p-2"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[10px] font-medium uppercase tracking-widest text-neutral-300">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="font-medium text-neutral-900">
+                          {item.productName}
+                        </p>
+                        <p className="text-sm text-neutral-900 mt-1">
+                          Qty: {item.quantity}
+                        </p>
+                      </div>
                     </div>
                     <p className="font-medium text-black">
                       ₹
@@ -205,7 +226,7 @@ export default function SuccessPage() {
           <ul className="space-y-3 text-sm text-neutral-600">
             <li className="flex gap-3">
               <span className="font-bold text-neutral-900 w-6">1</span>
-              <span>You'll receive an order confirmation email shortly</span>
+              <span>You will receive an order confirmation email shortly</span>
             </li>
             <li className="flex gap-3">
               <span className="font-bold text-neutral-900 w-6">2</span>

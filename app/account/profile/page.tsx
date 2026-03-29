@@ -204,7 +204,7 @@ export default function ProfilePage() {
                     type="email"
                     value={formData.email}
                     disabled={true}
-                    className="w-full h-10 border-0 border-b border-slate-100 rounded-none bg-transparent px-0 text-sm text-slate-400 cursor-not-allowed italic"
+                    className="w-full h-10 border-0 border-b border-slate-100 rounded-none bg-transparent px-0 text-sm text-slate-400 cursor-not-allowed "
                   />
                 </div>
 

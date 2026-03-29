@@ -6,23 +6,23 @@ import { motion } from "framer-motion";
 
 const campaigns = [
   {
-    category: "Menswear",
-    title: "THE PERFECT\nT-SHIRT",
+    category: "T-Shirts",
+    title: "PREMIUM\nOVERSIZED TEE",
     description:
-      "Heavyweight 300GSM organic cotton. A structured drape for a contemporary silhouette.",
-    image: "/BannerImage2.jpg",
-    link: "/shop?category=t-shirts",
-    btn: "Shop Collection",
+      "Heavyweight 300GSM cotton. Oversized fit designed for everyday comfort and streetwear style.",
+    image: "/BannerImage.jpg",
+    link: "/shop?category=tshirts",
+    btn: "Shop Oversized",
   },
   {
-    category: "Editorial",
-    title: "THE OXFORD\nSERIES",
+    category: "T-Shirts",
+    title: "SUMMER\nCOLLECTION",
     description:
-      "Crisp, refined, and versatile. Reimagining the classic button-down for the modern era.",
-    image: "/BannerImage1.jpg",
-    link: "/shop?category=shirts",
-    btn: "Explore Shirts",
-  },
+      "Bold prints. Unique designs. Express your style with our latest graphic collection.",
+    image: "/BannerImage2.jpg",
+    link: "/shop?category=graphic-tshirts",
+    btn: "Shop Summer Collection",
+  }
 ];
 
 export default function CampaignBanners() {

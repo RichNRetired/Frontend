@@ -14,7 +14,7 @@ import {
   InitiatePaymentResponse,
   VerifyPaymentRequest,
 } from "@/features/order/orderTypes";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, CreditCard, Loader2 } from "lucide-react";
 import { readBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -290,7 +290,7 @@ export default function PaymentPage() {
           setLoading(false);
           setPaymentError(
             response.error?.description ||
-              "Payment failed. Please try again or use another method.",
+            "Payment failed. Please try again or use another method.",
           );
         });
         rzp.open();
@@ -328,10 +328,14 @@ export default function PaymentPage() {
 
       <div className="max-w-2xl mx-auto px-6 py-20 text-center">
         <div className="mb-8">
-          <CheckCircle2 size={48} className="mx-auto  mb-4 text-green-600" />
-          <h1 className="text-2xl font-light text-neutral-600 mb-2">Complete Payment</h1>
+          <CreditCard size={48} className="mx-auto mb-4 text-blue-600" />
+
+          <h1 className="text-2xl font-light text-neutral-900 mb-2">
+            Make Your Payment
+          </h1>
+
           <p className="text-neutral-600">
-            Follow the instructions below to complete your payment.
+            Please complete your payment to confirm your order.
           </p>
         </div>
 

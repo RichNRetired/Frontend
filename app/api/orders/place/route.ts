@@ -6,13 +6,19 @@ export async function POST(req: NextRequest) {
         // forward auth token
         const authHeader = req.headers.get('Authorization');
         const token = authHeader?.replace('Bearer ', '');
+        const idempotencyKey = req.headers.get('Idempotency-Key');
 
         const url = new URL(req.url);
         const addressId = url.searchParams.get('addressId');
         const paymentMethod = url.searchParams.get('paymentMethod');
 
-        // you could optionally validate parameters here
-        const body = await req.json();
+        // Body is optional for place-order (params-only POST)
+        let body: Record<string, unknown> | null = null;
+        try {
+            body = await req.json();
+        } catch {
+            // No body sent — that is fine for this endpoint
+        }
 
         // Build backend URL with query params
         let backendUrl = '/orders/place';
@@ -23,8 +29,11 @@ export async function POST(req: NextRequest) {
 
         const result = await fetchBackendApi(backendUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            headers: {
+                'Content-Type': 'application/json',
+                ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+            },
+            body: body ? JSON.stringify(body) : undefined,
             token,
         });
 

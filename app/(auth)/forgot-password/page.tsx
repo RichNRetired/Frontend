@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
             <div className="space-y-3">
               <h1 className="text-3xl font-bold tracking-tighter text-slate-900">
                 Reset{" "}
-                <span className="font-serif italic font-light">Password</span>
+                <span className="font-serif font-light">Password</span>
               </h1>
               <p className="text-sm text-slate-500 leading-relaxed">
                 Enter the email address associated with your account and

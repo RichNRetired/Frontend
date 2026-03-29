@@ -50,7 +50,7 @@ const CareersPage = () => {
           </span>
           <h1 className="text-6xl md:text-8xl font-extralight tracking-tighter leading-[0.9] mb-12 max-w-4xl">
             Building the future of <br />
-            <span className="italic serif text-neutral-400">
+            <span className="serif text-neutral-400">
               conscious luxury.
             </span>
           </h1>
@@ -74,7 +74,7 @@ const CareersPage = () => {
                 <div className="w-12 h-12 rounded-full border border-neutral-100 flex items-center justify-center text-neutral-400">
                   {value.icon}
                 </div>
-                <h3 className="text-2xl font-light tracking-tight italic serif">
+                <h3 className="text-2xl font-light tracking-tight serif">
                   {value.title}
                 </h3>
                 <p className="text-neutral-500 font-light leading-relaxed tracking-wide">
@@ -90,7 +90,7 @@ const CareersPage = () => {
       <section className="py-32 bg-neutral-50 border-y border-neutral-100 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-baseline mb-24 gap-6">
-            <h2 className="text-4xl md:text-5xl font-extralight tracking-tighter italic serif">
+            <h2 className="text-4xl md:text-5xl font-extralight tracking-tighter serif">
               Opportunities
             </h2>
             <div className="flex gap-8">
@@ -123,7 +123,7 @@ const CareersPage = () => {
                     <span className="text-[9px] uppercase tracking-[0.4em] text-neutral-400 mb-2 block">
                       {dept.location}
                     </span>
-                    <h4 className="text-3xl md:text-4xl font-light tracking-tight group-hover:italic transition-all duration-500">
+                    <h4 className="text-3xl md:text-4xl font-light tracking-tight transition-all duration-500">
                       {dept.name}
                     </h4>
                   </div>
@@ -156,7 +156,7 @@ const CareersPage = () => {
             <h2 className="text-xs uppercase tracking-[0.6em] text-neutral-400 font-bold">
               Life at the Atelier
             </h2>
-            <h3 className="text-5xl font-extralight tracking-tighter leading-tight italic serif">
+            <h3 className="text-5xl font-extralight tracking-tighter leading-tight serif">
               A collective of <br /> creative minds.
             </h3>
             <p className="text-lg text-neutral-500 font-light leading-relaxed">
@@ -185,7 +185,7 @@ const CareersPage = () => {
       {/* Final CTA */}
       <section className="py-32 bg-[#111] text-white text-center">
         <div className="max-w-2xl mx-auto px-6">
-          <h2 className="text-4xl font-light italic serif mb-10">
+          <h2 className="text-4xl font-light serif mb-10">
             Start your journey.
           </h2>
           <p className="text-neutral-500 font-light mb-12">

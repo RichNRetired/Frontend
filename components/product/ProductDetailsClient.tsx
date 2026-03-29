@@ -339,7 +339,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
         </p>
       </div>
 
-      <div className="mb-8 border border-neutral-200 p-4">
+      {/* <div className="mb-8 border border-neutral-200 p-4">
         <p className="text-[11px] uppercase tracking-widest mb-3 font-bold">
           Check Delivery Availability
         </p>
@@ -384,7 +384,7 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
             Delivery is not serviceable for this pincode.
           </p>
         )}
-      </div>
+      </div> */}
 
       {activeVariants.length > 0 && (
         <div className="mb-8 space-y-6">

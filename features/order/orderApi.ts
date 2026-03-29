@@ -1,5 +1,6 @@
 import type { RootState } from "@/store";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import {
     CheckoutRequest,
     CheckoutResponse,
@@ -7,6 +8,7 @@ import {
     BuyNowCheckoutResponse,
     CancelOrderRequest,
     Order,
+    OrderItem,
     OrdersResponse,
     PlacedOrderResponse,
     ApiResponse,
@@ -29,10 +31,15 @@ import {
     VerifyPaymentRequest,
     VerifyPaymentResponse,
     OrderTrackingResponse,
+    TrackingLookupResponse,
     ShiprocketPickupLocation,
+    PlaceBuyNowOrderRequest,
+    PlaceOrderRequest,
+    ProcessOrderWebhookRequest,
+    ProcessShiprocketWebhookRequest,
 } from "./orderTypes";
 
-type RawOrderItem = Partial<Order["items"][number]> & {
+type RawOrderItem = Partial<OrderItem> & {
     productImage?: string;
     total?: number;
     subtotal?: number;
@@ -47,6 +54,24 @@ type RawOrder = Partial<Order> & {
     deliveryPostalCode?: string;
     deliveryCountry?: string;
     items?: RawOrderItem[];
+};
+
+type RawTrackingEvent = {
+    status?: string;
+    date?: string;
+    location?: string;
+};
+
+type RawTrackingLookupResponse = {
+    trackingId?: string;
+    events?: RawTrackingEvent[];
+};
+
+type RawOrderTrackingResponse = {
+    orderId?: number;
+    status?: string;
+    trackingId?: string;
+    events?: RawTrackingEvent[];
 };
 
 const PREPAID_PAYMENT_METHODS = new Set(["PREPAID", "CARD", "UPI", "NETBANKING"]);
@@ -67,8 +92,11 @@ function deriveRequiresPayment(order: RawOrder): boolean {
     return !FINALIZED_PAYMENT_STATUSES.has(paymentStatus);
 }
 
-function normalizeOrderItem(item: RawOrderItem) {
+function normalizeOrderItem(item: RawOrderItem): OrderItem {
     return {
+        category: item.category,
+        categoryId: item.categoryId,
+        cartId: Number(item.cartId ?? 0),
         orderItemId: item.orderItemId,
         productId: Number(item.productId ?? 0),
         productName: item.productName ?? "",
@@ -112,6 +140,7 @@ function normalizeOrder(order: RawOrder): Order {
     return {
         orderId: Number(order.orderId ?? 0),
         status: order.status ?? order.orderStatus ?? "PENDING",
+        trackingId: order.trackingId,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         userId: order.userId,
@@ -140,6 +169,7 @@ function normalizePlacedOrder(order: RawOrder): PlacedOrderResponse {
         orderId: Number(order.orderId ?? 0),
         status: order.status ?? order.orderStatus,
         orderStatus: order.orderStatus,
+        trackingId: order.trackingId,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         subtotal: order.subtotal,
@@ -162,6 +192,9 @@ function normalizePlacedOrder(order: RawOrder): PlacedOrderResponse {
 function normalizeCheckoutResponse(response: CheckoutResponse): CheckoutResponse {
     return {
         ...response,
+        isDeliveryAvailable: response.isDeliveryAvailable !== false,
+        isCodAvailable: response.isCodAvailable !== false,
+        isValidForCheckout: response.isValidForCheckout !== false,
         items: Array.isArray(response.items)
             ? response.items.map((item) => normalizeOrderItem(item as RawOrderItem))
             : [],
@@ -187,6 +220,38 @@ function applyCancelledOrderState(order: Partial<Order> | undefined) {
 
     order.status = "CANCELLED";
     order.message ??= "Order cancelled successfully";
+}
+
+function normalizeTrackingEvent(event: RawTrackingEvent) {
+    return {
+        status: event.status ?? "",
+        date: event.date ?? "",
+        location: event.location ?? "",
+    };
+}
+
+function normalizeTrackingLookupResponse(
+    response: RawTrackingLookupResponse,
+): TrackingLookupResponse {
+    return {
+        trackingId: response.trackingId ?? "",
+        events: Array.isArray(response.events)
+            ? response.events.map(normalizeTrackingEvent)
+            : [],
+    };
+}
+
+function normalizeOrderTrackingResponse(
+    response: RawOrderTrackingResponse,
+): OrderTrackingResponse {
+    return {
+        orderId: Number(response.orderId ?? 0),
+        status: response.status ?? "",
+        trackingId: response.trackingId ?? "",
+        events: Array.isArray(response.events)
+            ? response.events.map(normalizeTrackingEvent)
+            : [],
+    };
 }
 
 export const orderApi = createApi({
@@ -232,21 +297,27 @@ export const orderApi = createApi({
         }),
 
         /** Place a direct order with explicit item payload, used by Buy Now */
-        placeOrderCheckout: builder.mutation<PlacedOrderResponse, BuyNowCheckoutRequest>({
-            query: (body) => ({
+        placeOrderCheckout: builder.mutation<PlacedOrderResponse, PlaceBuyNowOrderRequest>({
+            query: ({ idempotencyKey, ...body }) => ({
                 url: "/orders/buy-now/place-order",
                 method: "POST",
                 body,
+                headers: {
+                    "Idempotency-Key": idempotencyKey || createIdempotencyKey("buy-now"),
+                },
             }),
             transformResponse: (response: RawOrder) => normalizePlacedOrder(response),
             invalidatesTags: ["Orders"],
         }),
 
         /** Place Order - used when user completes purchase */
-        placeOrder: builder.mutation<PlacedOrderResponse, { addressId: number; paymentMethod: string }>({
-            query: ({ addressId, paymentMethod }) => ({
+        placeOrder: builder.mutation<PlacedOrderResponse, PlaceOrderRequest>({
+            query: ({ addressId, paymentMethod, idempotencyKey }) => ({
                 url: `/orders/place?addressId=${addressId}&paymentMethod=${paymentMethod}`,
                 method: "POST",
+                headers: {
+                    "Idempotency-Key": idempotencyKey || createIdempotencyKey("checkout"),
+                },
             }),
             transformResponse: (response: RawOrder) => normalizePlacedOrder(response),
             invalidatesTags: ["Orders"],
@@ -392,11 +463,24 @@ export const orderApi = createApi({
         }),
 
         /** Track an order using external tracking id */
-        trackOrder: builder.query<OrderTrackingResponse, string>({
+        trackOrder: builder.query<TrackingLookupResponse, string>({
             query: (trackingId) => ({
                 url: `/orders/track/${encodeURIComponent(trackingId)}`,
                 method: "GET",
             }),
+            transformResponse: (response: RawTrackingLookupResponse) =>
+                normalizeTrackingLookupResponse(response),
+        }),
+
+        /** Track an order using internal order id */
+        getOrderTracking: builder.query<OrderTrackingResponse, number>({
+            query: (orderId) => ({
+                url: `/orders/orders/${orderId}/tracking`,
+                method: "GET",
+            }),
+            transformResponse: (response: RawOrderTrackingResponse) =>
+                normalizeOrderTrackingResponse(response),
+            providesTags: (_result, _error, orderId) => [{ type: "Orders", id: orderId }],
         }),
 
         /** Get Shiprocket pickup locations */
@@ -408,7 +492,7 @@ export const orderApi = createApi({
         }),
 
         /** Forward the Razorpay webhook payload when needed */
-        processOrderWebhook: builder.mutation<string | Record<string, unknown>, { signature: string; payload: string }>({
+        processOrderWebhook: builder.mutation<string | Record<string, unknown>, ProcessOrderWebhookRequest>({
             query: ({ signature, payload }) => ({
                 url: "/orders/webhook",
                 method: "POST",
@@ -416,6 +500,15 @@ export const orderApi = createApi({
                     "X-Razorpay-Signature": signature,
                     "Content-Type": "application/json",
                 },
+                body: payload,
+            }),
+        }),
+
+        /** Forward Shiprocket webhook payload when needed */
+        processShiprocketWebhook: builder.mutation<ApiResponse | Record<string, unknown>, ProcessShiprocketWebhookRequest>({
+            query: ({ secret, payload }) => ({
+                url: `/orders/webhook/shiprocket?secret=${encodeURIComponent(secret)}`,
+                method: "POST",
                 body: payload,
             }),
         }),
@@ -520,8 +613,11 @@ export const {
     useGetMyOrdersQuery,
     useTrackOrderQuery,
     useLazyTrackOrderQuery,
+    useGetOrderTrackingQuery,
+    useLazyGetOrderTrackingQuery,
     useGetShiprocketPickupLocationsQuery,
     useProcessOrderWebhookMutation,
+    useProcessShiprocketWebhookMutation,
     useRequestReturnMutation,
     useGetMyReturnsQuery,
     useCheckReturnEligibilityMutation,

@@ -12,31 +12,44 @@ export default function QuickCategories() {
     setMounted(true);
   }, []);
 
+  if (!mounted) return null;
+
   return (
-    <section className="py-12 md:mt-4 border-b border-neutral-100 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-8 md:mb-10">
-          <h2 className="text-3xl md:text-4xl font-light tracking-tight text-neutral-900 uppercase">
-            Shop by Category
+    <section className="py-12 bg-white">
+      <div className="max-w-[1400px] mx-auto px-4">
+        {/* Section Heading */}
+        <div className="text-center mb-10">
+          <h2 className="text-xl md:text-2xl font-bold tracking-[0.1em] text-black uppercase">
+            Featured Categories
           </h2>
         </div>
-        <div className="flex flex-wrap md:flex-nowrap gap-4 md:gap-8 overflow-x-visible md:overflow-x-auto no-scrollbar pb-4 justify-center">
-          {!mounted ? null : quickCategories.map((cat) => (
+
+        {/* Centered Flex Container */}
+        <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+          {quickCategories.map((cat) => (
             <Link
               key={cat.id}
               href={`/shop?section=${cat.name.toLowerCase()}`}
-              className="flex flex-col items-center gap-3 min-w-20 md:min-w-25 group shrink-0"
+              className="relative group overflow-hidden block w-[calc(50%-8px)] md:w-[220px] lg:w-[240px]"
             >
-              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border border-neutral-100 shadow-sm group-hover:shadow-md transition-all group-hover:scale-105">
+              {/* Image Container with 2:3 Aspect Ratio */}
+              <div className="aspect-[2/3] w-full overflow-hidden bg-neutral-100 relative">
                 <img
                   src={cat.imageUrl}
                   alt={cat.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                 />
+                
+                {/* Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-90" />
+
+                {/* Text Label Overlaid */}
+                <div className="absolute bottom-6 left-0 right-0 text-center px-2">
+                  <span className="text-white text-xs md:text-sm font-bold uppercase tracking-[0.15em] drop-shadow-md">
+                    {cat.name}
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] md:text-[11px] uppercase tracking-widest font-medium text-neutral-600 group-hover:text-black transition-colors text-center">
-                {cat.name}
-              </span>
             </Link>
           ))}
         </div>

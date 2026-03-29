@@ -162,8 +162,8 @@ export const AddAddressModal: React.FC<AddAddressModalProps> = ({
             </div>
           )}
 
-          {/* Serviceable Location */}
-          <div>
+       
+          {/* <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500 mb-2">
               Serviceable Location
             </label>
@@ -182,7 +182,7 @@ export const AddAddressModal: React.FC<AddAddressModalProps> = ({
                 </option>
               ))}
             </select>
-          </div>
+          </div> */}
 
           {/* Address Line 1 */}
           <div>
