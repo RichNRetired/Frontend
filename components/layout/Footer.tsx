@@ -10,8 +10,6 @@ export const Footer: React.FC = () => {
       title: "Sections",
       links: [
         { name: "Men", href: "/men" },
-        { name: "Women", href: "/women" },
-        { name: "Kids", href: "/kids" },
         { name: "Boys", href: "/boys" },
         { name: "Sale", href: "/sale" },
         { name: "New Arrivals", href: "/" },
@@ -41,10 +39,8 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-black text-white border-t border-neutral-900 pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
-        
         {/* Main Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-24">
-          
           {/* Brand & Contact Section (Takes up 5 columns on desktop) */}
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div>
@@ -54,18 +50,39 @@ export const Footer: React.FC = () => {
               <div className="space-y-6 text-[13px] font-light text-neutral-400 tracking-wide leading-relaxed">
                 <p>
                   CUSTOMER SUPPORT <br />
-                  <span className="text-white font-medium">+91 98898 08605</span>
+                  <span className="text-white font-medium">
+                    +91 98898 08605
+                  </span>
                 </p>
-        
               </div>
             </div>
 
             {/* Social Icons */}
             <div className="flex items-center gap-6 mt-10">
-              <Link href="#" className="hover:text-neutral-400 transition-colors"><Instagram size={18} /></Link>
-              <Link href="#" className="hover:text-neutral-400 transition-colors"><Facebook size={18} /></Link>
-              <Link href="#" className="hover:text-neutral-400 transition-colors"><Twitter size={18} /></Link>
-              <Link href="#" className="hover:text-neutral-400 transition-colors"><Youtube size={18} /></Link>
+              <Link
+                href="#"
+                className="hover:text-neutral-400 transition-colors"
+              >
+                <Instagram size={18} />
+              </Link>
+              <Link
+                href="#"
+                className="hover:text-neutral-400 transition-colors"
+              >
+                <Facebook size={18} />
+              </Link>
+              <Link
+                href="#"
+                className="hover:text-neutral-400 transition-colors"
+              >
+                <Twitter size={18} />
+              </Link>
+              <Link
+                href="#"
+                className="hover:text-neutral-400 transition-colors"
+              >
+                <Youtube size={18} />
+              </Link>
             </div>
           </div>
 
@@ -101,8 +118,12 @@ export const Footer: React.FC = () => {
             © 2026 Rich N Retired. All Rights Reserved.
           </p>
           <div className="flex gap-8">
-            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">Designed in India</span>
-            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">Global Shipping Available</span>
+            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">
+              Designed in India
+            </span>
+            <span className="text-[9px] text-neutral-700 tracking-widest uppercase">
+              Global Shipping Available
+            </span>
           </div>
         </div>
       </div>

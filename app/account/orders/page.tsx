@@ -11,7 +11,11 @@ import {
   useLazyTrackOrderQuery,
   useInitiatePaymentMutation,
 } from "@/features/order/orderApi";
-import type { Order, OrderItem, TrackingLookupResponse } from "@/features/order/orderTypes";
+import type {
+  Order,
+  OrderItem,
+  TrackingLookupResponse,
+} from "@/features/order/orderTypes";
 import { addItem } from "@/features/cart/cartSlice";
 import {
   AlertCircle,
@@ -31,24 +35,26 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getCurrentUser } from "@/lib/auth";
 import { buildInitiatePaymentRequest } from "@/lib/razorpay";
 
-const getOrderStatusDotClass = (status: string) => {
-  if (status === "PAID") {
-    return "bg-green-500";
-  }
+// const getOrderStatusDotClass = (status: string) => {
+//   if (status === "PAID") {
+//     return "bg-green-500";
+//   }
 
-  if (status === "CANCELLED") {
-    return "bg-red-500";
-  }
+//   if (status === "CANCELLED") {
+//     return "bg-red-500";
+//   }
 
-  return "bg-orange-400";
-};
+//   return "bg-orange-400";
+// };
 
 export default function OrdersPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [pendingCancelOrderId, setPendingCancelOrderId] = useState<number | null>(null);
+  const [pendingCancelOrderId, setPendingCancelOrderId] = useState<
+    number | null
+  >(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<{
     orderId: number;
     trackingId: string;
@@ -99,7 +105,8 @@ export default function OrdersPage() {
             id: String(item.cartId || item.productId),
             productId: item.productId,
             variantId: Number(item.variantId || 0),
-            categoryId: Number(item.categoryId ?? item.category?.id) || undefined,
+            categoryId:
+              Number(item.categoryId ?? item.category?.id) || undefined,
             name: item.productName,
             price: item.price,
             quantity: item.quantity,
@@ -119,7 +126,8 @@ export default function OrdersPage() {
     try {
       setError(null);
       setPayingOrderId(order.orderId);
-      const currentUser = globalThis.window === undefined ? null : getCurrentUser();
+      const currentUser =
+        globalThis.window === undefined ? null : getCurrentUser();
       const payResp = await initiatePayment(
         buildInitiatePaymentRequest({
           orderId: order.orderId,
@@ -131,10 +139,17 @@ export default function OrdersPage() {
           currentUser,
         }),
       ).unwrap();
-      sessionStorage.setItem(`payment_init_${order.orderId}`, JSON.stringify(payResp));
+      sessionStorage.setItem(
+        `payment_init_${order.orderId}`,
+        JSON.stringify(payResp),
+      );
       router.push(`/checkout/payment?orderId=${order.orderId}`);
     } catch (err: any) {
-      setError(err?.data?.message || err?.message || "Failed to initiate payment. Please try again.");
+      setError(
+        err?.data?.message ||
+          err?.message ||
+          "Failed to initiate payment. Please try again.",
+      );
     } finally {
       setPayingOrderId(null);
     }
@@ -169,7 +184,8 @@ export default function OrdersPage() {
   };
 
   const activeTrackingDetails: TrackingLookupResponse | null =
-    activeTrackingOrder && trackingData?.trackingId === activeTrackingOrder.trackingId
+    activeTrackingOrder &&
+    trackingData?.trackingId === activeTrackingOrder.trackingId
       ? trackingData
       : null;
 
@@ -322,14 +338,14 @@ export default function OrdersPage() {
 
             {/* Status & Date */}
             <div className="px-5 pb-5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <div
                   className={`w-2 h-2 rounded-full ${getOrderStatusDotClass(order.status)}`}
                 />
                 <span className="text-xs font-bold uppercase tracking-wider text-neutral-700">
                   {order.status}
                 </span>
-              </div>
+              </div> */}
               <div className="flex items-center gap-1 text-neutral-400">
                 <Clock size={12} />
                 <span className="text-[11px] font-medium">
@@ -355,10 +371,14 @@ export default function OrdersPage() {
               <button
                 type="button"
                 onClick={() => void handleTrackOrder(order)}
-                disabled={trackingLoading && activeTrackingOrder?.orderId === order.orderId}
+                disabled={
+                  trackingLoading &&
+                  activeTrackingOrder?.orderId === order.orderId
+                }
                 className="col-span-2 flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 text-black rounded-xl text-xs font-bold uppercase tracking-tight hover:bg-neutral-100 transition-colors disabled:opacity-50"
               >
-                {trackingLoading && activeTrackingOrder?.orderId === order.orderId ? (
+                {trackingLoading &&
+                activeTrackingOrder?.orderId === order.orderId ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Truck size={16} />
@@ -381,7 +401,9 @@ export default function OrdersPage() {
                       ) : (
                         <CreditCard size={14} />
                       )}
-                      {payingOrderId === order.orderId ? "Loading..." : "Pay Now"}
+                      {payingOrderId === order.orderId
+                        ? "Loading..."
+                        : "Pay Now"}
                     </button>
                   )}
 
@@ -390,11 +412,7 @@ export default function OrdersPage() {
                     onClick={() => handleReorderOrder(order.orderId, order)}
                     className="flex items-center justify-center gap-2 py-3 bg-black text-white rounded-xl text-xs font-bold uppercase tracking-tight disabled:opacity-50"
                   >
-                    <RefreshCw
-                      size={14}
-                      className={reordering ? "animate-spin" : ""}
-                    />
-                    {reordering ? "..." : "Reorder"}
+                    {reordering ? "..." : "Buy Again"}
                   </button>
 
                   <button
@@ -402,8 +420,7 @@ export default function OrdersPage() {
                     onClick={() => handleCancelOrder(order.orderId)}
                     className="flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold uppercase tracking-tight border border-red-100 disabled:opacity-50"
                   >
-                    <X size={14} />
-                    {cancelling ? "..." : "Cancel"}
+                    {cancelling ? "..." : "Cancel Order"}
                   </button>
                 </>
               )}
@@ -426,40 +443,48 @@ export default function OrdersPage() {
                 </div>
 
                 {trackingLoading && (
-                  <p className="text-sm text-neutral-500">Loading tracking updates...</p>
+                  <p className="text-sm text-neutral-500">
+                    Loading tracking updates...
+                  </p>
                 )}
-                {!trackingLoading && (activeTrackingDetails?.events?.length ?? 0) > 0 && (
-                  <div className="space-y-4">
-                    {(activeTrackingDetails?.events ?? []).map((event, index) => (
-                      <div
-                        key={`${event.status}-${event.date}-${index}`}
-                        className="flex gap-4 border-l border-neutral-200 pl-4"
-                      >
-                        <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
-                        <div>
-                          <p className="text-sm font-medium text-neutral-900">
-                            {event.status}
-                          </p>
-                          <p className="text-[11px] text-neutral-500 mt-1">
-                            {event.date
-                              ? new Date(event.date).toLocaleString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })
-                              : "Date unavailable"}
-                          </p>
-                          {event.location ? (
-                            <p className="text-sm text-neutral-600 mt-1">
-                              {event.location}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {!trackingLoading &&
+                  (activeTrackingDetails?.events?.length ?? 0) > 0 && (
+                    <div className="space-y-4">
+                      {(activeTrackingDetails?.events ?? []).map(
+                        (event, index) => (
+                          <div
+                            key={`${event.status}-${event.date}-${index}`}
+                            className="flex gap-4 border-l border-neutral-200 pl-4"
+                          >
+                            <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">
+                                {event.status}
+                              </p>
+                              <p className="text-[11px] text-neutral-500 mt-1">
+                                {event.date
+                                  ? new Date(event.date).toLocaleString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      },
+                                    )
+                                  : "Date unavailable"}
+                              </p>
+                              {event.location ? (
+                                <p className="text-sm text-neutral-600 mt-1">
+                                  {event.location}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
                 {!trackingLoading && !activeTrackingDetails?.events?.length && (
                   <p className="text-sm text-neutral-500">
                     No tracking updates are available for this order yet.

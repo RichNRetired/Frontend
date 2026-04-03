@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { calculateTax } from "@/features/cart/cartUtils";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
+import { calculateTax } from "@/features/cart/cartUtils";
 import {
   useCheckoutMutation,
   useBuyNowCheckoutMutation,
@@ -42,10 +42,10 @@ import {
   ShieldCheck,
   ChevronRight,
   ShoppingBag,
-  Plus,
   LogIn,
   TicketPercent,
   X,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { sendEvent } from "@/services/analytics.service";
@@ -79,12 +79,21 @@ function resolveNumericUserId(...candidates: unknown[]): number | undefined {
   return undefined;
 }
 
-function resolveBooleanCandidate(...candidates: unknown[]): boolean | undefined {
+function resolveBooleanCandidate(
+  ...candidates: unknown[]
+): boolean | undefined {
   return candidates.find((value) => typeof value === "boolean");
 }
 
-function readUserField<T>(userValue: unknown, fieldName: string): T | undefined {
-  if (!userValue || typeof userValue !== "object" || !(fieldName in userValue)) {
+function readUserField<T>(
+  userValue: unknown,
+  fieldName: string,
+): T | undefined {
+  if (
+    !userValue ||
+    typeof userValue !== "object" ||
+    !(fieldName in userValue)
+  ) {
     return undefined;
   }
 
@@ -111,7 +120,9 @@ async function fetchCategoryIdsForProducts(productIds: number[]) {
 
         return [
           productId,
-          Number.isFinite(categoryId) && categoryId > 0 ? categoryId : undefined,
+          Number.isFinite(categoryId) && categoryId > 0
+            ? categoryId
+            : undefined,
         ] as const;
       } catch (error) {
         console.error("Failed to resolve category for coupon payload", error);
@@ -193,7 +204,10 @@ async function validateCouponPreview({
   setAppliedCouponContextSignature,
 }: {
   couponCode: string;
-  validateCoupon: MutationTrigger<CouponValidationRequest, CouponValidationResponse>;
+  validateCoupon: MutationTrigger<
+    CouponValidationRequest,
+    CouponValidationResponse
+  >;
   buildCouponPayload: (nextCode?: string) => Promise<CouponValidationRequest>;
   couponContextSignature: string;
   setCouponCode: React.Dispatch<React.SetStateAction<string>>;
@@ -226,7 +240,9 @@ async function validateCouponPreview({
     if (!validation.valid) {
       setAppliedCouponPreview(null);
       setAppliedCouponContextSignature(null);
-      setCouponError(validation.message || "Coupon is not valid for this order.");
+      setCouponError(
+        validation.message || "Coupon is not valid for this order.",
+      );
       return;
     }
 
@@ -275,7 +291,8 @@ async function finalizeOrderCoupon({
 
     if (!couponResult.wasSuccessful) {
       throw new Error(
-        couponResult.failureReason || "Coupon could not be applied to this order.",
+        couponResult.failureReason ||
+          "Coupon could not be applied to this order.",
       );
     }
 
@@ -299,25 +316,27 @@ async function finalizeOrderCoupon({
   }
 }
 
-function CouponPanel(props: Readonly<{
-  couponCode: string;
-  setCouponCode: React.Dispatch<React.SetStateAction<string>>;
-  validatingCoupon: boolean;
-  applyingCoupon: boolean;
-  onApplyCoupon: (nextCode?: string) => Promise<void>;
-  appliedCouponPreview: CouponValidationResponse | null;
-  clearCouponPreview: (message?: string, clearCode?: boolean) => void;
-  couponError: string | null;
-  couponMessage: string | null;
-  availableCoupons: Array<{
-    id: number;
-    code: string;
-    description: string;
-    maxDiscountAmount: number;
-    discountValue: number;
-  }>;
-  availableCouponsLoading: boolean;
-}>) {
+function CouponPanel(
+  props: Readonly<{
+    couponCode: string;
+    setCouponCode: React.Dispatch<React.SetStateAction<string>>;
+    validatingCoupon: boolean;
+    applyingCoupon: boolean;
+    onApplyCoupon: (nextCode?: string) => Promise<void>;
+    appliedCouponPreview: CouponValidationResponse | null;
+    clearCouponPreview: (message?: string, clearCode?: boolean) => void;
+    couponError: string | null;
+    couponMessage: string | null;
+    availableCoupons: Array<{
+      id: number;
+      code: string;
+      description: string;
+      maxDiscountAmount: number;
+      discountValue: number;
+    }>;
+    availableCouponsLoading: boolean;
+  }>,
+) {
   const {
     couponCode,
     setCouponCode,
@@ -362,7 +381,11 @@ function CouponPanel(props: Readonly<{
           disabled={validatingCoupon || applyingCoupon || !couponCode.trim()}
           className="rounded-2xl bg-black px-5 text-[10px] uppercase tracking-[0.2em] text-white hover:bg-neutral-800 disabled:opacity-40"
         >
-          {validatingCoupon ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
+          {validatingCoupon ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            "Apply"
+          )}
         </Button>
       </div>
 
@@ -383,17 +406,19 @@ function CouponPanel(props: Readonly<{
       <AvailableCouponList
         availableCoupons={availableCoupons}
         availableCouponsLoading={availableCouponsLoading}
-        onApplyCoupon={onApplyCoupon}
+        setCouponCode={setCouponCode}
       />
     </div>
   );
 }
 
-function AppliedCouponNotice(props: Readonly<{
-  appliedCouponPreview: CouponValidationResponse | null;
-  couponCode: string;
-  clearCouponPreview: (message?: string, clearCode?: boolean) => void;
-}>) {
+function AppliedCouponNotice(
+  props: Readonly<{
+    appliedCouponPreview: CouponValidationResponse | null;
+    couponCode: string;
+    clearCouponPreview: (message?: string, clearCode?: boolean) => void;
+  }>,
+) {
   const { appliedCouponPreview, couponCode, clearCouponPreview } = props;
 
   if (!appliedCouponPreview?.valid) {
@@ -407,7 +432,8 @@ function AppliedCouponNotice(props: Readonly<{
           {appliedCouponPreview.coupon?.code || couponCode}
         </p>
         <p className="mt-1 text-sm text-emerald-900">
-          Save ₹{appliedCouponPreview.discountAmount.toLocaleString()} on this order.
+          Save ₹{appliedCouponPreview.discountAmount.toLocaleString()} on this
+          order.
         </p>
         {appliedCouponPreview.warnings?.length ? (
           <p className="mt-1 text-[11px] text-emerald-700">
@@ -427,18 +453,20 @@ function AppliedCouponNotice(props: Readonly<{
   );
 }
 
-function AvailableCouponList(props: Readonly<{
-  availableCoupons: Array<{
-    id: number;
-    code: string;
-    description: string;
-    maxDiscountAmount: number;
-    discountValue: number;
-  }>;
-  availableCouponsLoading: boolean;
-  onApplyCoupon: (nextCode?: string) => Promise<void>;
-}>) {
-  const { availableCoupons, availableCouponsLoading, onApplyCoupon } = props;
+function AvailableCouponList(
+  props: Readonly<{
+    availableCoupons: Array<{
+      id: number;
+      code: string;
+      description: string;
+      maxDiscountAmount: number;
+      discountValue: number;
+    }>;
+    availableCouponsLoading: boolean;
+    setCouponCode: React.Dispatch<React.SetStateAction<string>>;
+  }>,
+) {
+  const { availableCoupons, availableCouponsLoading, setCouponCode } = props;
 
   return (
     <div className="mt-4">
@@ -457,14 +485,15 @@ function AvailableCouponList(props: Readonly<{
             <button
               key={coupon.id}
               type="button"
-              onClick={() => void onApplyCoupon(coupon.code)}
+              onClick={() => setCouponCode(coupon.code)}
               className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-black"
             >
               <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-black">
                 {coupon.code}
               </span>
               <span className="mt-1 block text-[11px] text-neutral-500">
-                {coupon.description || `Save up to ₹${coupon.maxDiscountAmount || coupon.discountValue}`}
+                {coupon.description ||
+                  `Save up to ₹${coupon.maxDiscountAmount || coupon.discountValue}`}
               </span>
             </button>
           ))}
@@ -478,14 +507,17 @@ function AvailableCouponList(props: Readonly<{
   );
 }
 
-function SummaryBreakdown(props: Readonly<{
-  subtotal: number;
-  shippingCharges: number;
-  taxAmount: number;
-  discountAmount: number;
-  totalAmount: number;
-}>) {
-  const { subtotal, shippingCharges, taxAmount, discountAmount, totalAmount } = props;
+function SummaryBreakdown(
+  props: Readonly<{
+    subtotal: number;
+    shippingCharges: number;
+    taxAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+  }>,
+) {
+  const { subtotal, shippingCharges, taxAmount, discountAmount, totalAmount } =
+    props;
 
   return (
     <div className="space-y-4 pt-6 border-t border-neutral-50 mb-8">
@@ -493,7 +525,9 @@ function SummaryBreakdown(props: Readonly<{
         <span className="text-neutral-400 font-light uppercase tracking-tighter">
           Subtotal
         </span>
-        <span className="text-black font-medium">₹{subtotal.toLocaleString()}</span>
+        <span className="text-black font-medium">
+          ₹{subtotal.toLocaleString()}
+        </span>
       </div>
       <div className="flex justify-between text-[12px]">
         <span className="text-neutral-400 font-light uppercase tracking-tighter">
@@ -513,7 +547,9 @@ function SummaryBreakdown(props: Readonly<{
         <span className="text-neutral-400 font-light uppercase tracking-tighter">
           Tax (10%)
         </span>
-        <span className="text-black font-medium">₹{taxAmount.toLocaleString()}</span>
+        <span className="text-black font-medium">
+          ₹{taxAmount.toLocaleString()}
+        </span>
       </div>
       {discountAmount > 0 ? (
         <div className="flex justify-between text-[12px]">
@@ -572,8 +608,11 @@ export default function CheckoutPage() {
   >({});
   const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
 
-  const { data: addresses = [], isLoading: addressesLoading, refetch: refetchAddresses } =
-    useGetAddressesQuery();
+  const {
+    data: addresses = [],
+    isLoading: addressesLoading,
+    refetch: refetchAddresses,
+  } = useGetAddressesQuery();
   useGetLocationsQuery();
   const [checkoutSummary, { isLoading: summaryLoading }] =
     useCheckoutMutation();
@@ -591,10 +630,12 @@ export default function CheckoutPage() {
   const [removeCouponFromOrder] = useRemoveCouponFromOrderMutation();
   const [cancelOrder] = useCancelOrderMutation();
 
-  const [checkoutData, setCheckoutData] = useState<
-    CheckoutResponse | null
-  >(null);
-  const [lastPlacedOrderId, setLastPlacedOrderId] = useState<number | null>(null);
+  const [checkoutData, setCheckoutData] = useState<CheckoutResponse | null>(
+    null,
+  );
+  const [lastPlacedOrderId, setLastPlacedOrderId] = useState<number | null>(
+    null,
+  );
   const isBuyNowMode = buyNowItem !== null;
   const checkoutItems = useMemo(
     () =>
@@ -648,12 +689,14 @@ export default function CheckoutPage() {
       readUserField<boolean>(storedUser, "isNewUser"),
     );
   }, [storedUser, user]);
-  const subtotal = checkoutData?.subtotal ?? checkoutItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-  const taxAmount = checkoutData?.taxAmount ?? Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
-  const shippingCharges = checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
+  const subtotal =
+    checkoutData?.subtotal ??
+    checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const taxAmount =
+    checkoutData?.taxAmount ??
+    Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
+  const shippingCharges =
+    checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
   const orderAmountBeforeCoupon = subtotal + taxAmount + shippingCharges;
   const discountAmount = appliedCouponPreview?.valid
     ? appliedCouponPreview.discountAmount
@@ -703,7 +746,10 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (currentState.status !== "payment" && currentState.status !== "completed") {
+      if (
+        currentState.status !== "payment" &&
+        currentState.status !== "completed"
+      ) {
         updateBuyNowStatus("restore-pending");
       }
     };
@@ -738,7 +784,8 @@ export default function CheckoutPage() {
     let resolvedCategoryIds = categoryIdsByProductId;
 
     if (missingProductIds.length > 0) {
-      const fetchedCategoryIds = await fetchCategoryIdsForProducts(missingProductIds);
+      const fetchedCategoryIds =
+        await fetchCategoryIdsForProducts(missingProductIds);
 
       resolvedCategoryIds = {
         ...categoryIdsByProductId,
@@ -796,14 +843,16 @@ export default function CheckoutPage() {
 
     let isCancelled = false;
 
-    void fetchCategoryIdsForProducts(missingProductIds).then((fetchedCategoryIds) => {
-      if (isCancelled) return;
+    void fetchCategoryIdsForProducts(missingProductIds).then(
+      (fetchedCategoryIds) => {
+        if (isCancelled) return;
 
-      setCategoryIdsByProductId((current) => ({
-        ...current,
-        ...fetchedCategoryIds,
-      }));
-    });
+        setCategoryIdsByProductId((current) => ({
+          ...current,
+          ...fetchedCategoryIds,
+        }));
+      },
+    );
 
     return () => {
       isCancelled = true;
@@ -843,9 +892,15 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const numericAddressId = selectedAddressId ? Number(selectedAddressId) : undefined;
+    const numericAddressId = selectedAddressId
+      ? Number(selectedAddressId)
+      : undefined;
 
-    if (!numericAddressId || !Number.isFinite(numericAddressId) || numericAddressId <= 0) {
+    if (
+      !numericAddressId ||
+      !Number.isFinite(numericAddressId) ||
+      numericAddressId <= 0
+    ) {
       setCheckoutData(null);
       return;
     }
@@ -941,14 +996,19 @@ export default function CheckoutPage() {
   ]);
 
   useEffect(() => {
-    if (!appliedCouponPreview || appliedCouponContextSignature === couponContextSignature) {
+    if (
+      !appliedCouponPreview ||
+      appliedCouponContextSignature === couponContextSignature
+    ) {
       return;
     }
 
     setAppliedCouponPreview(null);
     setAppliedCouponContextSignature(null);
     setCouponError(null);
-    setCouponMessage("Coupon cleared because checkout details changed. Apply it again.");
+    setCouponMessage(
+      "Coupon cleared because checkout details changed. Apply it again.",
+    );
   }, [
     appliedCouponContextSignature,
     appliedCouponPreview,
@@ -1041,18 +1101,19 @@ export default function CheckoutPage() {
     try {
       setOrderError(null);
 
-      const result = isBuyNowMode && buyNowItem
-        ? await placeOrderCheckout({
-            productId: buyNowItem.productId,
-            variantId: buyNowItem.variantId,
-            quantity: buyNowItem.quantity,
-            addressId: Number(selectedAddressId),
-            paymentMethod: normalizedPaymentMethod,
-          }).unwrap()
-        : await placeOrder({
-            addressId: Number(selectedAddressId),
-            paymentMethod: normalizedPaymentMethod,
-          }).unwrap();
+      const result =
+        isBuyNowMode && buyNowItem
+          ? await placeOrderCheckout({
+              productId: buyNowItem.productId,
+              variantId: buyNowItem.variantId,
+              quantity: buyNowItem.quantity,
+              addressId: Number(selectedAddressId),
+              paymentMethod: normalizedPaymentMethod,
+            }).unwrap()
+          : await placeOrder({
+              addressId: Number(selectedAddressId),
+              paymentMethod: normalizedPaymentMethod,
+            }).unwrap();
 
       setLastPlacedOrderId(result.orderId);
 
@@ -1070,13 +1131,16 @@ export default function CheckoutPage() {
           updateBuyNowStatus("payment");
         }
 
-        const currentUser = globalThis.window === undefined ? null : getCurrentUser();
-        const payResp = await initiatePayment(buildInitiatePaymentRequest({
-          orderId: result.orderId,
-          amount: finalTotalAmount,
-          receipt: `order-${result.orderId}-${Date.now()}`,
-          currentUser,
-        })).unwrap();
+        const currentUser =
+          globalThis.window === undefined ? null : getCurrentUser();
+        const payResp = await initiatePayment(
+          buildInitiatePaymentRequest({
+            orderId: result.orderId,
+            amount: finalTotalAmount,
+            receipt: `order-${result.orderId}-${Date.now()}`,
+            currentUser,
+          }),
+        ).unwrap();
         sessionStorage.setItem(
           `payment_init_${result.orderId}`,
           JSON.stringify(payResp),
@@ -1149,7 +1213,8 @@ export default function CheckoutPage() {
                   onClick={() => setIsAddAddressModalOpen(true)}
                   className="inline-flex items-center gap-2 self-start rounded-full border border-neutral-200 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-black transition-colors hover:border-black hover:bg-neutral-50 md:self-auto"
                 >
-                  <Plus size={14} /> Add Address
+                  <Plus size={14} />
+                  Add Address
                 </button>
               </div>
 
@@ -1183,12 +1248,13 @@ export default function CheckoutPage() {
                         )}
                       </button>
                     ))}
-
                   </div>
 
                   {!filteredAddresses.length && (
                     <div className="sm:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
-                      <p className="mb-4">No saved addresses found for this delivery location.</p>
+                      <p className="mb-4">
+                        No saved addresses found for this delivery location.
+                      </p>
                       <button
                         onClick={() => setIsAddAddressModalOpen(true)}
                         className="inline-flex items-center gap-2 text-black font-semibold text-sm hover:underline"
@@ -1348,24 +1414,37 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {checkoutData && !checkoutData.isValidForCheckout && checkoutData.validationErrors.length > 0 && (
-                  <div className="mb-6 p-4 bg-yellow-50 rounded-xl text-yellow-800 text-[10px] font-bold uppercase tracking-tight">
-                    {checkoutData.validationErrors.join(", ")}
-                  </div>
-                )}
+                {checkoutData &&
+                  !checkoutData.isValidForCheckout &&
+                  checkoutData.validationErrors.length > 0 && (
+                    <div className="mb-6 p-4 bg-yellow-50 rounded-xl text-yellow-800 text-[10px] font-bold uppercase tracking-tight">
+                      {checkoutData.validationErrors.join(", ")}
+                    </div>
+                  )}
 
                 <button
                   onClick={handleCheckout}
                   disabled={
-                    isCheckoutSummaryLoading || placingOrder || placingBuyNowOrder || initiatingPayment || validatingCoupon || applyingCoupon || !selectedAddressId ||
+                    isCheckoutSummaryLoading ||
+                    placingOrder ||
+                    placingBuyNowOrder ||
+                    initiatingPayment ||
+                    validatingCoupon ||
+                    applyingCoupon ||
+                    !selectedAddressId ||
                     (!!checkoutData && !checkoutData.isValidForCheckout) ||
                     (!!checkoutData && !checkoutData.isDeliveryAvailable) ||
-                    (!!checkoutData && paymentMethod === "COD" && !checkoutData.isCodAvailable)
+                    (!!checkoutData &&
+                      paymentMethod === "COD" &&
+                      !checkoutData.isCodAvailable)
                   }
                   className="w-full group relative overflow-hidden bg-black text-white py-5 md:py-6 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-neutral-800 disabled:opacity-20 transition-all shadow-2xl shadow-black/20"
                 >
                   <div className="flex items-center justify-center gap-3">
-                    {placingOrder || placingBuyNowOrder || initiatingPayment || applyingCoupon ? (
+                    {placingOrder ||
+                    placingBuyNowOrder ||
+                    initiatingPayment ||
+                    applyingCoupon ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
                       <>

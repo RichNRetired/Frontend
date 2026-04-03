@@ -142,6 +142,61 @@ export const loginUser = createAsyncThunk<AuthResponse, { email: string; passwor
     }
 );
 
+export const requestOtpThunk = createAsyncThunk<{ message: string }, { identifier: string }, AuthThunkConfig>(
+    "auth/requestOtp",
+    async (data: { identifier: string }, { rejectWithValue }) => {
+        try {
+            const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api/auth/request-otp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) {
+                throw new Error('Failed to request OTP');
+            }
+            return await res.json();
+        } catch (error) {
+            return rejectWithValue(extractErrorMessage(error, "Failed to request OTP"));
+        }
+    }
+);
+
+export const verifyOtpThunk = createAsyncThunk<AuthResponse, { identifier: string; otp: string }, AuthThunkConfig>(
+    "auth/verifyOtp",
+    async (data: { identifier: string; otp: string }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || 'https://project-fnwy.onrender.com').trim().replace(/\/$/, '')}/api/auth/verify-otp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) {
+                throw new Error('Failed to verify OTP');
+            }
+            const responseData = await res.json();
+            localStorage.setItem("accessToken", responseData.accessToken);
+            localStorage.setItem("refreshToken", responseData.refreshToken);
+            if (responseData.tokenType) {
+                localStorage.setItem("tokenType", responseData.tokenType);
+            }
+
+            try {
+                await mergeGuestCartIntoAccount(dispatch);
+            } catch (mergeError) {
+                console.error("Guest cart merge after OTP login failed", mergeError);
+            }
+
+            return responseData;
+        } catch (error) {
+            return rejectWithValue(extractErrorMessage(error, "Invalid OTP"));
+        }
+    }
+);
+
 const authSlice = createSlice({
     name: "auth",
     initialState,
@@ -215,6 +270,40 @@ const authSlice = createSlice({
                 state.error = action.payload as string;
             })
             .addCase(loginUser.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(requestOtpThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(requestOtpThunk.fulfilled, (state) => {
+                state.loading = false;
+                state.error = null;
+            })
+            .addCase(requestOtpThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(verifyOtpThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(verifyOtpThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.error = null;
+                state.isAuthenticated = true;
+                state.user = null;
+                if (!state.user) {
+                    const token = action.payload.accessToken || localStorage.getItem('accessToken');
+                    const decoded = decodeJwt(token);
+                    if (decoded) {
+                        state.user = mapDecodedUser(decoded);
+                    }
+                }
+                state.tokenType = action.payload.tokenType ?? null;
+            })
+            .addCase(verifyOtpThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
             });

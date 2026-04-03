@@ -11,6 +11,7 @@ interface InputProps {
   required?: boolean;
   className?: string;
   disabled?: boolean;
+  maxLength?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -24,6 +25,7 @@ export const Input: React.FC<InputProps> = ({
   required,
   className = "",
   disabled = false,
+  maxLength,
 }) => {
   return (
     <input
@@ -36,6 +38,7 @@ export const Input: React.FC<InputProps> = ({
       value={value}
       onChange={onChange}
       disabled={disabled}
+      maxLength={maxLength}
       className={`border p-2 rounded w-full ${className}`}
     />
   );

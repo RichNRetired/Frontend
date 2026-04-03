@@ -191,6 +191,16 @@ export default function LoginPage() {
           {/* FOOTER */}
           <div className="pt-12 border-t border-neutral-100 flex flex-col items-center gap-8">
             <p className="text-[11px] text-neutral-500 tracking-tight">
+              Or login with{" "}
+              <Link
+                href="/otp-login"
+                className="text-black font-black uppercase tracking-[0.1em] hover:text-neutral-500 transition decoration-black underline underline-offset-[12px]"
+              >
+                OTP
+              </Link>
+            </p>
+
+            <p className="text-[11px] text-neutral-500 tracking-tight">
               New to the brand?{" "}
               <Link
                 href="/register"

@@ -37,7 +37,8 @@ const aliases: Record<string, string> = {
   all: "all",
 };
 
-const normalizeSectionKey = (value: string) => aliases[value.trim().toLowerCase()] || value.trim().toLowerCase();
+const normalizeSectionKey = (value: string) =>
+  aliases[value.trim().toLowerCase()] || value.trim().toLowerCase();
 
 const allowedPriceFilters: PriceFilter[] = [
   "all",
@@ -92,17 +93,36 @@ const pickFilterOptions = (options: Record<string, unknown> | undefined) => {
 
 const extractProductTypes = (products: any[]): string[] => {
   const typeKeywords = [
-    "shirt", "t-shirt", "tshirt", "dress", "pants", "pant",
-    "jeans", "skirt", "top", "blouse", "sweater", "hoodie",
-    "jacket", "coat", "shorts", "lehenga", "saree", "kurta",
-    "bottom", "trouser", "cardigan", "vest", "tank"
+    "shirt",
+    "t-shirt",
+    "tshirt",
+    "dress",
+    "pants",
+    "pant",
+    "jeans",
+    "skirt",
+    "top",
+    "blouse",
+    "sweater",
+    "hoodie",
+    "jacket",
+    "coat",
+    "shorts",
+    "lehenga",
+    "saree",
+    "kurta",
+    "bottom",
+    "trouser",
+    "cardigan",
+    "vest",
+    "tank",
   ];
 
   const typesSet = new Set<string>();
-  
-  products.forEach(product => {
+
+  products.forEach((product) => {
     const name = product.name?.toLowerCase() || "";
-    typeKeywords.forEach(keyword => {
+    typeKeywords.forEach((keyword) => {
       if (name.includes(keyword)) {
         // Capitalize first letter
         const formatted = keyword.charAt(0).toUpperCase() + keyword.slice(1);
@@ -124,7 +144,9 @@ export default function ShopPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedProductType, setSelectedProductType] = useState<string | null>(null);
+  const [selectedProductType, setSelectedProductType] = useState<string | null>(
+    null,
+  );
   const [selectedPrice, setSelectedPrice] = useState<PriceFilter>("all");
   const [sortBy, setSortBy] = useState<SortFilter>("featured");
 
@@ -178,8 +200,8 @@ export default function ShopPage() {
 
   const filteredProducts = useMemo(() => {
     if (!selectedProductType) return products;
-    
-    return products.filter(product => {
+
+    return products.filter((product) => {
       const name = product.name?.toLowerCase() || "";
       const typeKeyword = selectedProductType.toLowerCase();
       return name.includes(typeKeyword);
@@ -335,26 +357,7 @@ export default function ShopPage() {
             >
               Mens
             </Link>
-            <Link
-              href={`/shop?section=womens${locationId ? `&locationId=${locationId}` : ""}`}
-              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
-                section === "womens"
-                  ? "border-black bg-black text-white"
-                  : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
-              }`}
-            >
-              Womens
-            </Link>
-            <Link
-              href={`/shop?section=girls${locationId ? `&locationId=${locationId}` : ""}`}
-              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
-                section === "girls"
-                  ? "border-black bg-black text-white"
-                  : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
-              }`}
-            >
-              Girls
-            </Link>
+
             <Link
               href={`/shop?section=boys${locationId ? `&locationId=${locationId}` : ""}`}
               className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
@@ -364,16 +367,6 @@ export default function ShopPage() {
               }`}
             >
               Boys
-            </Link>
-            <Link
-              href={`/shop?section=kids${locationId ? `&locationId=${locationId}` : ""}`}
-              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors ${
-                section === "kids"
-                  ? "border-black bg-black text-white"
-                  : "border-neutral-300 text-neutral-700 hover:border-black hover:text-black"
-              }`}
-            >
-              Kids
             </Link>
           </div>
         </div>
@@ -591,7 +584,11 @@ export default function ShopPage() {
                     price={product.price}
                     originalPrice={product.mrp}
                     images={product.images}
-                    image={product.main_image || product.medium_image || product.thumbnail_image}
+                    image={
+                      product.main_image ||
+                      product.medium_image ||
+                      product.thumbnail_image
+                    }
                     variants={product.variants}
                     isOnSale={!!product.discount_percent}
                     isNew={Boolean(product.status?.toLowerCase() === "new")}
