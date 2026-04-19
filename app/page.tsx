@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Script from "next/script";
 import Link from "next/link";
 import { ProductCard } from "../components/product/ProductCard";
 import HeroSection from "@/components/layout/Hero";
@@ -76,6 +77,45 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased text-neutral-900">
+      <Script
+        id="schema-org"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Rich and Retired",
+            url: "https://www.richnretired.com",
+            logo: "https://www.richnretired.com/RichLogo.png",
+            contactPoint: {
+              "@type": "ContactPoint",
+              contactType: "customer service",
+              availableLanguage: ["English", "Hindi"],
+            },
+          }),
+        }}
+      />
+      <Script
+        id="schema-website"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Rich and Retired",
+            url: "https://www.richnretired.com",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate:
+                  "https://www.richnretired.com/shop?search={search_term_string}",
+              },
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
       <HeroSection />
 
       {/* New Quick Categories (Like Reference) */}

@@ -1,11 +1,75 @@
+import { Metadata } from "next";
 import ProductPageClient from "@/components/product/ProductPageClient";
 
+const BASE_URL = "https://www.richnretired.com";
+const API_URL = "https://project-fnwy.onrender.com/api";
+
 type Params = { params: Promise<{ slug: string }> };
+
+async function getProduct(slug: string) {
+  try {
+    const res = await fetch(`${API_URL}/products/slug/${slug}`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  if (!product) {
+    return {
+      title: "Product Not Found",
+      description: "The product you are looking for does not exist.",
+    };
+  }
+
+  const title = `${product.name} | Rich and Retired`;
+  const description =
+    product.shortDescription ||
+    product.description?.slice(0, 160) ||
+    `Buy ${product.name} from Rich and Retired. Best price guaranteed.`;
+  const image = product.mainImage || product.thumbnailImage || "/RichLogo.png";
+  const url = `${BASE_URL}/product/${slug}`;
+
+  return {
+    title,
+    description,
+    keywords: [
+      product.name,
+      product.brand,
+      product.category?.name,
+      "buy online India",
+      "Rich and Retired",
+    ].filter(Boolean),
+    openGraph: {
+      type: "website",
+      url,
+      title,
+      description,
+      images: [{ url: image, alt: product.name }],
+      siteName: "Rich and Retired",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
+}
 
 export default async function ProductPage({ params }: Params) {
   const { slug } = await params;
 
-  // Validate slug
   if (!slug || slug.trim() === "") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -14,20 +78,15 @@ export default async function ProductPage({ params }: Params) {
     );
   }
 
-  // Extract product ID from slug (format: "id-slug-name")
-  // If URL is like /product/101-nike-running-shoes, extract 101
   let productId: number | string = slug;
 
-  // Try to extract numeric ID if slug contains dash (format: "id-slug")
   if (slug.includes("-")) {
     const parts = slug.split("-");
     const potentialId = parts[0];
-
     if (!isNaN(Number(potentialId))) {
       productId = Number(potentialId);
     }
   } else if (!isNaN(Number(slug))) {
-    // If slug is just a number, use it as ID
     productId = Number(slug);
   }
 
