@@ -295,7 +295,6 @@ export default function OtpLoginPage() {
                 </label>
                 <Input
                   type="text"
-                  inputMode="numeric"
                   value={otp}
                   onChange={(e) =>
                     setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
@@ -303,7 +302,6 @@ export default function OtpLoginPage() {
                   placeholder="000000"
                   required
                   maxLength={6}
-                  autoFocus
                   className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300 text-center text-2xl tracking-[0.5em]"
                 />
                 <p className="text-[9px] text-neutral-400 mt-2 uppercase tracking-widest text-center">
