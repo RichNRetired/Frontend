@@ -44,6 +44,13 @@ export default function ProductPageClient({
       { skip: !normalizedProductId },
     );
 
+  // Must be declared here — before any early returns — to satisfy Rules of Hooks
+  const [activeVariantImage, setActiveVariantImage] = useState<string | null>(null);
+
+  const handleVariantChange = useCallback((variant: ProductVariant | null) => {
+    setActiveVariantImage(variant?.imageUrl ?? null);
+  }, []);
+
   const relatedProducts = (relatedResp?.content || []).filter(
     (item) => item.id !== normalizedProductId,
   );
@@ -111,12 +118,6 @@ export default function ProductPageClient({
       </div>
     );
   }
-
-  const [activeVariantImage, setActiveVariantImage] = useState<string | null>(null);
-
-  const handleVariantChange = useCallback((variant: ProductVariant | null) => {
-    setActiveVariantImage(variant?.imageUrl ?? null);
-  }, []);
 
   // Build the image list: if the selected variant has its own image, put it first.
   // Fall back to product-level images, then other variant images.
