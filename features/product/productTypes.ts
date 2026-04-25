@@ -14,6 +14,7 @@ export interface ProductVariant {
     sellingPrice: number;
     isActive: boolean;
     availableStock: number;
+    imageUrl?: string;
 }
 
 export interface ProductImage {

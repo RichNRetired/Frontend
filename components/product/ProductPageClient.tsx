@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import ProductDetailsClient from "./ProductDetailsClient";
 import PDPImageGallery from "./PDPImageGallery";
 import { ProductCard } from "./ProductCard";
@@ -9,6 +9,7 @@ import {
   useGetRelatedProductsQuery,
 } from "@/features/product/productApi";
 import { getProductImageUrls } from "@/features/product/productUtils";
+import { ProductVariant } from "@/features/product/productTypes";
 
 interface ProductPageClientProps {
   productId: string | number;
@@ -111,7 +112,20 @@ export default function ProductPageClient({
     );
   }
 
-  const imageUrls = getProductImageUrls(product);
+  const [activeVariantImage, setActiveVariantImage] = useState<string | null>(null);
+
+  const handleVariantChange = useCallback((variant: ProductVariant | null) => {
+    setActiveVariantImage(variant?.imageUrl ?? null);
+  }, []);
+
+  // Build the image list: if the selected variant has its own image, put it first.
+  // Fall back to product-level images, then other variant images.
+  const imageUrls = useMemo(() => {
+    const base = getProductImageUrls(product);
+    if (!activeVariantImage) return base;
+    // Put the active variant's image at the front, dedup the rest
+    return [activeVariantImage, ...base.filter((u) => u !== activeVariantImage)];
+  }, [product, activeVariantImage]);
   const availabilityClassName = product.stock > 0 ? "text-green-600" : "text-red-600";
   const availabilityLabel = product.stock > 0 ? "In Stock" : "Out of Stock";
   const productStatusLabel = product.is_active ? "Active" : "Inactive";
@@ -178,7 +192,7 @@ export default function ProductPageClient({
               </div>
             </div>
           </div>
-          <ProductDetailsClient product={product} />
+          <ProductDetailsClient product={product} onVariantChange={handleVariantChange} />
         </div>
       </div>
 

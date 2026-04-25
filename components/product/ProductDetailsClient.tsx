@@ -1,6 +1,6 @@
 "use client";
 
-import { Product } from "@/features/product/productTypes";
+import { Product, ProductVariant } from "@/features/product/productTypes";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +22,7 @@ import { startBuyNowCheckout } from "@/lib/buy-now";
 
 interface Props {
   product: Product;
+  onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
 type SizeGuideUnit = "CM" | "INCHES";
@@ -47,7 +48,7 @@ const sizeGuideMeasurements = {
   ],
 } as const;
 
-export default function ProductDetailsClient({ product }: Readonly<Props>) {
+export default function ProductDetailsClient({ product, onVariantChange }: Readonly<Props>) {
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -129,6 +130,11 @@ export default function ProductDetailsClient({ product }: Readonly<Props>) {
 
     return activeVariants[0];
   }, [activeVariants, selectedColor, selectedSize]);
+
+  // Notify parent whenever selected variant changes so gallery can update image
+  useEffect(() => {
+    onVariantChange?.(selectedVariant ?? null);
+  }, [selectedVariant, onVariantChange]);
 
   const effectivePrice = selectedVariant?.sellingPrice ?? product.price;
   const effectiveMrp = selectedVariant?.mrp ?? product.mrp;
