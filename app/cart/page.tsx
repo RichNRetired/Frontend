@@ -76,7 +76,6 @@ export default function CartPage() {
   };
 
   const subtotal = toSafeNumber(cartSummary?.subtotal);
-  const taxAmount = toSafeNumber(cartSummary?.taxAmount);
   const shippingCharges = toSafeNumber(cartSummary?.shippingCharges);
   const discountAmount = toSafeNumber(cartSummary?.discountAmount);
   const total = toSafeNumber(cartSummary?.finalAmount);
@@ -215,15 +214,9 @@ export default function CartPage() {
 
               <div className="space-y-6">
                 <div className="flex justify-between text-sm font-light text-neutral-600">
-                  <span>Subtotal</span>
+                  <span>Subtotal <span className="text-[10px] opacity-60">(incl. taxes)</span></span>
                   <span className="font-medium text-neutral-900">
                     ₹{formatCurrency(subtotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm font-light text-neutral-600">
-                  <span>Tax</span>
-                  <span className="font-medium text-neutral-900">
-                    ₹{formatCurrency(taxAmount)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-light text-neutral-600">

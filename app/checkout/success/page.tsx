@@ -151,16 +151,7 @@ export default function SuccessPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-neutral-900">Subtotal</span>
                 <span className="font-medium text-black">
-                  ₹
-                  {(
-                    order.subtotal || order.totalAmount * 0.85
-                  ).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-900">Tax</span>
-                <span className="font-medium text-black">
-                  ₹{(order.taxAmount || 0).toLocaleString()}
+                  ₹{(order.subtotal || order.totalAmount).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">

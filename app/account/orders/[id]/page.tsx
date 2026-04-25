@@ -299,14 +299,6 @@ export default function OrderDetailsPage() {
                   </span>
                 </div>
               )}
-              {order.taxAmount !== undefined && (
-                <div className="flex justify-between">
-                  <span className="text-neutral-600">Tax</span>
-                  <span className="font-medium text-neutral-600">
-                    ₹{order.taxAmount.toLocaleString()}
-                  </span>
-                </div>
-              )}
               {order.shippingCharges !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Shipping</span>

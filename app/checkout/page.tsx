@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
-import { calculateTax } from "@/features/cart/cartUtils";
 import {
   useCheckoutMutation,
   useBuyNowCheckoutMutation,
@@ -511,19 +510,18 @@ function SummaryBreakdown(
   props: Readonly<{
     subtotal: number;
     shippingCharges: number;
-    taxAmount: number;
     discountAmount: number;
     totalAmount: number;
   }>,
 ) {
-  const { subtotal, shippingCharges, taxAmount, discountAmount, totalAmount } =
-    props;
+  const { subtotal, shippingCharges, discountAmount, totalAmount } = props;
 
   return (
     <div className="space-y-4 pt-6 border-t border-neutral-50 mb-8">
       <div className="flex justify-between text-[12px]">
         <span className="text-neutral-400 font-light uppercase tracking-tighter">
           Subtotal
+          <span className="ml-1 text-[10px] normal-case tracking-normal opacity-60">(incl. taxes)</span>
         </span>
         <span className="text-black font-medium">
           ₹{subtotal.toLocaleString()}
@@ -541,14 +539,6 @@ function SummaryBreakdown(
           }
         >
           {shippingCharges === 0 ? "Complimentary" : `₹${shippingCharges}`}
-        </span>
-      </div>
-      <div className="flex justify-between text-[12px]">
-        <span className="text-neutral-400 font-light uppercase tracking-tighter">
-          Tax (10%)
-        </span>
-        <span className="text-black font-medium">
-          ₹{taxAmount.toLocaleString()}
         </span>
       </div>
       {discountAmount > 0 ? (
@@ -692,12 +682,10 @@ export default function CheckoutPage() {
   const subtotal =
     checkoutData?.subtotal ??
     checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxAmount =
-    checkoutData?.taxAmount ??
-    Math.round(calculateTax(subtotal, 0.1) * 100) / 100;
   const shippingCharges =
     checkoutData?.shippingCharges ?? (subtotal > 100 ? 0 : 10);
-  const orderAmountBeforeCoupon = subtotal + taxAmount + shippingCharges;
+  // Tax is included in price — not added separately
+  const orderAmountBeforeCoupon = subtotal + shippingCharges;
   const discountAmount = appliedCouponPreview?.valid
     ? appliedCouponPreview.discountAmount
     : 0;
@@ -711,7 +699,6 @@ export default function CheckoutPage() {
         normalizedPaymentMethod,
         cartSignature,
         subtotal,
-        taxAmount,
         shippingCharges,
       ].join("::"),
     [
@@ -720,7 +707,6 @@ export default function CheckoutPage() {
       selectedAddressId,
       shippingCharges,
       subtotal,
-      taxAmount,
     ],
   );
   const { data: availableCoupons = [], isFetching: availableCouponsLoading } =
@@ -1403,7 +1389,6 @@ export default function CheckoutPage() {
                 <SummaryBreakdown
                   subtotal={subtotal}
                   shippingCharges={shippingCharges}
-                  taxAmount={taxAmount}
                   discountAmount={discountAmount}
                   totalAmount={totalAmount}
                 />
