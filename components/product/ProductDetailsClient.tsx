@@ -11,14 +11,26 @@ import {
   ShieldCheck,
   Globe,
   RefreshCcw,
-  MapPin,
+  Tag,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { sendEvent } from "@/services/analytics.service";
 import { getPrimaryProductImage } from "@/features/product/productUtils";
-import { useLazyCheckLocationServiceabilityQuery } from "@/features/location/locationApi";
 import { startBuyNowCheckout } from "@/lib/buy-now";
+
+const API_BASE = "https://project-fnwy.onrender.com/api";
+
+interface ActiveCoupon {
+  code: string;
+  description: string;
+  type: string;
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+}
 
 interface Props {
   product: Product;
@@ -60,11 +72,18 @@ export default function ProductDetailsClient({ product, onVariantChange }: Reado
   const [pincode, setPincode] = useState("");
   const [pincodeError, setPincodeError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [coupons, setCoupons] = useState<ActiveCoupon[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const router = useRouter();
+
+  useEffect(() => {
+    fetch(`${API_BASE}/public/coupons`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setCoupons(data); })
+      .catch(() => {});
+  }, []);
   const { addToCart } = useCart();
-  const [checkLocationServiceability, serviceabilityState] =
-    useLazyCheckLocationServiceabilityQuery();
   const {
     addToWishlist,
     removeFromWishlistByProductId,
@@ -207,19 +226,18 @@ export default function ProductDetailsClient({ product, onVariantChange }: Reado
     buyNowLabel = "Redirecting...";
   }
 
-  const handleCheckServiceability = async () => {
-    const normalizedPincode = pincode.trim();
-    if (!/^\d{6}$/.test(normalizedPincode)) {
-      setPincodeError("Enter a valid 6-digit pincode");
-      return;
-    }
+  const copyCouponCode = (code: string) => {
+    navigator.clipboard.writeText(code).catch(() => {});
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
 
-    setPincodeError(null);
-    try {
-      await checkLocationServiceability(normalizedPincode).unwrap();
-    } catch {
-      // handled via query state
+  const formatCouponSaving = (c: ActiveCoupon) => {
+    if (c.type === "PERCENTAGE") {
+      const pct = `${c.discountValue}% off`;
+      return c.maxDiscountAmount ? `${pct} up to ₹${c.maxDiscountAmount}` : pct;
     }
+    return `₹${c.discountValue} off`;
   };
 
   const handleAddToCart = async () => {
@@ -433,23 +451,34 @@ export default function ProductDetailsClient({ product, onVariantChange }: Reado
           {colorOptions.length > 0 && (
             <div>
               <p className="text-[11px] uppercase tracking-widest mb-3 font-bold">
-                Color
+                Color — <span className="font-normal normal-case tracking-normal text-neutral-500">{selectedColor}</span>
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {colorOptions.map((color) => {
                   const isSelected = selectedColor === color;
+                  const cssColor = color.toLowerCase();
+                  const isLight = ["white", "ivory", "cream", "beige", "yellow", "lime"].includes(cssColor);
                   return (
                     <button
                       key={color}
                       type="button"
+                      title={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 border text-[11px] uppercase tracking-wider font-semibold transition-colors ${
-                        isSelected
-                          ? "border-black bg-black text-white"
-                          : "border-neutral-300 text-neutral-700 hover:border-black"
+                      className={`relative w-9 h-9 rounded-full transition-all focus:outline-none ${
+                        isSelected ? "ring-2 ring-offset-2 ring-black scale-110" : "hover:scale-105"
                       }`}
+                      style={{
+                        backgroundColor: cssColor,
+                        border: isLight ? "1px solid #d1d5db" : "1px solid transparent",
+                      }}
                     >
-                      {color}
+                      {isSelected && (
+                        <span
+                          className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isLight ? "text-black" : "text-white"}`}
+                        >
+                          ✓
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -520,6 +549,42 @@ export default function ProductDetailsClient({ product, onVariantChange }: Reado
           {wishlistLabel}
         </button>
       </div>
+
+      {/* Coupons / Offers */}
+      {coupons.length > 0 && (
+        <div className="mb-8 border border-neutral-200 rounded-sm">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-100 bg-neutral-50">
+            <Tag size={13} className="text-neutral-500" />
+            <p className="text-[11px] uppercase tracking-widest font-bold text-neutral-700">Available Offers</p>
+          </div>
+          <ul className="divide-y divide-neutral-100">
+            {coupons.map((c) => (
+              <li key={c.code} className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-neutral-800 leading-snug">
+                    <span className="font-semibold">{formatCouponSaving(c)}</span>
+                    {c.minOrderAmount ? ` on orders above ₹${c.minOrderAmount}` : ""}
+                  </p>
+                  {c.description && (
+                    <p className="text-[11px] text-neutral-500 mt-0.5 truncate">{c.description}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyCouponCode(c.code)}
+                  className="flex-shrink-0 flex items-center gap-1.5 border border-dashed border-neutral-400 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-700 hover:border-black hover:text-black transition-colors"
+                >
+                  {copiedCode === c.code ? (
+                    <><Check size={11} className="text-green-600" /><span className="text-green-600">Copied!</span></>
+                  ) : (
+                    <><Copy size={11} />{c.code}</>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Collapsible Info Sections - H&M/Zara Style */}
       <div className="border-t border-neutral-200">
