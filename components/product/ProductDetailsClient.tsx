@@ -346,16 +346,21 @@ export default function ProductDetailsClient({ product, onVariantChange }: Reado
         )}
       </header>
 
-      {/* Pricing - Zara Style */}
+      {/* Pricing */}
       <div className="mb-10">
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-baseline gap-3 flex-wrap">
           <span className="text-2xl font-light">
             ₹{effectivePrice?.toLocaleString()}
           </span>
           {canShowMrp && (
-            <span className="text-neutral-400 line-through text-lg font-light">
-              ₹{effectiveMrp.toLocaleString()}
-            </span>
+            <>
+              <span className="text-neutral-400 line-through text-lg font-light">
+                ₹{effectiveMrp.toLocaleString()}
+              </span>
+              <span className="text-green-600 text-sm font-semibold">
+                {Math.round((1 - effectivePrice / effectiveMrp) * 100)}% off
+              </span>
+            </>
           )}
         </div>
         <p className="text-[10px] uppercase tracking-wider text-neutral-400 mt-1">

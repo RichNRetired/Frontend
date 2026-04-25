@@ -512,52 +512,93 @@ function SummaryBreakdown(
     shippingCharges: number;
     discountAmount: number;
     totalAmount: number;
+    mrpTotal: number;
   }>,
 ) {
-  const { subtotal, shippingCharges, discountAmount, totalAmount } = props;
+  const { subtotal, shippingCharges, discountAmount, totalAmount, mrpTotal } = props;
+  const [feeExpanded, setFeeExpanded] = React.useState(false);
+
+  const bagDiscount = mrpTotal > subtotal ? mrpTotal - subtotal : 0;
+  const displayBagTotal = mrpTotal > subtotal ? mrpTotal : subtotal;
+  const totalSavings = bagDiscount + discountAmount + (shippingCharges === 0 ? 0 : 0);
 
   return (
-    <div className="space-y-4 pt-6 border-t border-neutral-50 mb-8">
-      <div className="flex justify-between text-[12px]">
-        <span className="text-neutral-400 font-light uppercase tracking-tighter">
-          Subtotal
-          <span className="ml-1 text-[10px] normal-case tracking-normal opacity-60">(incl. taxes)</span>
-        </span>
-        <span className="text-black font-medium">
-          ₹{subtotal.toLocaleString()}
-        </span>
+    <div className="mb-8 border border-neutral-200 rounded-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-neutral-700">Order Details</h3>
       </div>
-      <div className="flex justify-between text-[12px]">
-        <span className="text-neutral-400 font-light uppercase tracking-tighter">
-          Shipping
-        </span>
-        <span
-          className={
-            shippingCharges === 0
-              ? "text-green-600 font-medium"
-              : "text-black font-medium"
-          }
-        >
-          {shippingCharges === 0 ? "Complimentary" : `₹${shippingCharges}`}
-        </span>
-      </div>
-      {discountAmount > 0 ? (
-        <div className="flex justify-between text-[12px]">
-          <span className="text-neutral-400 font-light uppercase tracking-tighter">
-            Coupon Discount
-          </span>
-          <span className="text-emerald-600 font-medium">
-            -₹{discountAmount.toLocaleString()}
-          </span>
+
+      <div className="px-4 py-3 space-y-3 text-sm text-neutral-800">
+        {/* Bag Total */}
+        <div className="flex justify-between">
+          <span>Bag total</span>
+          <span className="font-medium">₹{displayBagTotal.toLocaleString()}</span>
         </div>
-      ) : null}
-      <div className="pt-6 flex justify-between items-end">
-        <span className="text-[10px] text-black font-bold uppercase tracking-[0.2em]">
-          Total
-        </span>
-        <span className="text-3xl font-light tracking-tighter text-black">
-          ₹{totalAmount.toLocaleString()}
-        </span>
+
+        {/* Bag Discount */}
+        {bagDiscount > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Bag discount</span>
+            <span className="font-medium">- ₹{bagDiscount.toLocaleString()}</span>
+          </div>
+        )}
+
+        {/* Convenience Fee — collapsible */}
+        <div className="border-t border-dashed border-neutral-200 pt-3">
+          <button
+            type="button"
+            className="w-full flex justify-between items-center text-sm text-neutral-800"
+            onClick={() => setFeeExpanded((v) => !v)}
+          >
+            <span className="flex items-center gap-1">
+              Convenience Fee
+              <span className="text-[10px] text-blue-600 underline ml-1">What&apos;s this?</span>
+            </span>
+            <span className="text-green-600 font-medium flex items-center gap-1">
+              Free
+              {shippingCharges > 0 && (
+                <span className="line-through text-neutral-400 text-xs ml-1">₹{shippingCharges}</span>
+              )}
+            </span>
+          </button>
+
+          {feeExpanded && (
+            <div className="mt-2 space-y-2 pl-2 text-xs text-neutral-600">
+              <div className="flex justify-between">
+                <span>Delivery Fee</span>
+                <span className="text-green-600">
+                  Free {shippingCharges > 0 && <span className="line-through text-neutral-400">₹{shippingCharges}</span>}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Platform Fee</span>
+                <span className="text-green-600">Free</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Coupon savings */}
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Coupon savings</span>
+            <span className="font-medium">- ₹{discountAmount.toLocaleString()}</span>
+          </div>
+        )}
+
+        {/* Divider */}
+        <div className="border-t border-neutral-200 pt-3 flex justify-between font-bold text-base">
+          <span>Order Total</span>
+          <span>₹{totalAmount.toLocaleString()}</span>
+        </div>
+
+        {/* Total savings callout */}
+        {totalSavings + discountAmount > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-sm px-3 py-2 text-[11px] text-green-700 font-medium text-center">
+            🎉 You are saving ₹{(bagDiscount + discountAmount).toLocaleString()} on this order!
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1391,6 +1432,16 @@ export default function CheckoutPage() {
                   shippingCharges={shippingCharges}
                   discountAmount={discountAmount}
                   totalAmount={totalAmount}
+                  mrpTotal={
+                    checkoutData?.items?.reduce(
+                      (sum, item) => sum + (item.mrp ?? item.price) * item.quantity,
+                      0,
+                    ) ??
+                    checkoutItems.reduce(
+                      (sum, item) => sum + item.price * item.quantity,
+                      0,
+                    )
+                  }
                 />
 
                 {orderError && (
