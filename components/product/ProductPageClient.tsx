@@ -44,12 +44,20 @@ export default function ProductPageClient({
       { skip: !normalizedProductId },
     );
 
-  // Must be declared here — before any early returns — to satisfy Rules of Hooks
+  // All hooks must be declared before any early returns — Rules of Hooks
   const [activeVariantImage, setActiveVariantImage] = useState<string | null>(null);
 
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setActiveVariantImage(variant?.imageUrl ?? null);
   }, []);
+
+  // imageUrls must be a hook (useMemo) declared here, before early returns
+  const imageUrls = useMemo(() => {
+    if (!product) return [];
+    const base = getProductImageUrls(product);
+    if (!activeVariantImage) return base;
+    return [activeVariantImage, ...base.filter((u) => u !== activeVariantImage)];
+  }, [product, activeVariantImage]);
 
   const relatedProducts = (relatedResp?.content || []).filter(
     (item) => item.id !== normalizedProductId,
@@ -119,14 +127,6 @@ export default function ProductPageClient({
     );
   }
 
-  // Build the image list: if the selected variant has its own image, put it first.
-  // Fall back to product-level images, then other variant images.
-  const imageUrls = useMemo(() => {
-    const base = getProductImageUrls(product);
-    if (!activeVariantImage) return base;
-    // Put the active variant's image at the front, dedup the rest
-    return [activeVariantImage, ...base.filter((u) => u !== activeVariantImage)];
-  }, [product, activeVariantImage]);
   const availabilityClassName = product.stock > 0 ? "text-green-600" : "text-red-600";
   const availabilityLabel = product.stock > 0 ? "In Stock" : "Out of Stock";
   const productStatusLabel = product.is_active ? "Active" : "Inactive";
