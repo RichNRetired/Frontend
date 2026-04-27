@@ -420,14 +420,9 @@ export default function OrderDetailsPage() {
               <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-black">
                 Order Tracking
               </h2>
-              {(tracking?.trackingId || order.shippingStatus) && (
+              {tracking?.trackingId && (
                 <div className="text-right text-xs text-neutral-500 space-y-0.5">
-                  {tracking?.trackingId && (
-                    <p>Tracking: <span className="font-semibold text-black">{tracking.trackingId}</span></p>
-                  )}
-                  {order.shippingProvider && (
-                    <p className="font-medium">{order.shippingProvider}</p>
-                  )}
+                  <p>Tracking: <span className="font-semibold text-black">{tracking.trackingId}</span></p>
                 </div>
               )}
             </div>
