@@ -324,6 +324,29 @@ export default function OrderDetailsPage() {
                 <span>Total</span>
                 <span>₹{order.totalAmount.toLocaleString()}</span>
               </div>
+              <div className="border-t pt-3 flex justify-between items-center text-sm">
+                <span className="text-neutral-600">Payment</span>
+                <div className="flex items-center gap-2">
+                  {order.paymentMethod && (
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-neutral-100 text-neutral-700">
+                      {order.paymentMethod}
+                    </span>
+                  )}
+                  {order.paymentStatus && (
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                      order.paymentStatus === "SUCCESS" || order.paymentStatus === "COMPLETED"
+                        ? "bg-green-100 text-green-700"
+                        : order.paymentStatus === "FAILED" || order.paymentStatus === "CANCELLED"
+                        ? "bg-red-100 text-red-700"
+                        : order.paymentStatus === "REFUND_PENDING"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {order.paymentStatus}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
