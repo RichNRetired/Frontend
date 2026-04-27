@@ -516,11 +516,12 @@ function SummaryBreakdown(
   }>,
 ) {
   const { subtotal, shippingCharges, discountAmount, totalAmount, mrpTotal } = props;
-  const [feeExpanded, setFeeExpanded] = React.useState(false);
 
   const bagDiscount = mrpTotal > subtotal ? mrpTotal - subtotal : 0;
   const displayBagTotal = mrpTotal > subtotal ? mrpTotal : subtotal;
-  const totalSavings = bagDiscount + discountAmount + (shippingCharges === 0 ? 0 : 0);
+  // Convenience fee — always ₹0 for now (platform fee)
+  const convenienceFee: number = 0;
+  const deliveryFree = shippingCharges === 0;
 
   return (
     <div className="mb-8 border border-neutral-200 rounded-sm overflow-hidden">
@@ -529,8 +530,9 @@ function SummaryBreakdown(
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-neutral-700">Order Details</h3>
       </div>
 
-      <div className="px-4 py-3 space-y-3 text-sm text-neutral-800">
-        {/* Bag Total */}
+      <div className="px-4 py-4 space-y-3 text-sm text-neutral-800">
+
+        {/* Bag Total (MRP) */}
         <div className="flex justify-between">
           <span>Bag total</span>
           <span className="font-medium">₹{displayBagTotal.toLocaleString()}</span>
@@ -544,38 +546,31 @@ function SummaryBreakdown(
           </div>
         )}
 
-        {/* Convenience Fee — collapsible */}
-        <div className="border-t border-dashed border-neutral-200 pt-3">
-          <button
-            type="button"
-            className="w-full flex justify-between items-center text-sm text-neutral-800"
-            onClick={() => setFeeExpanded((v) => !v)}
-          >
-            <span className="flex items-center gap-1">
-              Convenience Fee
-              <span className="text-[10px] text-blue-600 underline ml-1">What&apos;s this?</span>
-            </span>
-            <span className="text-green-600 font-medium flex items-center gap-1">
-              Free
-              {shippingCharges > 0 && (
-                <span className="line-through text-neutral-400 text-xs ml-1">₹{shippingCharges}</span>
-              )}
-            </span>
-          </button>
+        {/* Delivery Charges */}
+        <div className="flex justify-between">
+          <span className="flex items-center gap-1.5">
+            <Truck size={13} className="text-neutral-400" />
+            Delivery Charges
+          </span>
+          {deliveryFree ? (
+            <span className="font-medium text-green-600">Free</span>
+          ) : (
+            <span className="font-medium">₹{shippingCharges.toLocaleString()}</span>
+          )}
+        </div>
 
-          {feeExpanded && (
-            <div className="mt-2 space-y-2 pl-2 text-xs text-neutral-600">
-              <div className="flex justify-between">
-                <span>Delivery Fee</span>
-                <span className="text-green-600">
-                  Free {shippingCharges > 0 && <span className="line-through text-neutral-400">₹{shippingCharges}</span>}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Platform Fee</span>
-                <span className="text-green-600">Free</span>
-              </div>
-            </div>
+        {/* Convenience Fee */}
+        <div className="flex justify-between">
+          <span className="flex items-center gap-1">
+            Convenience Fee
+            <span className="text-[10px] text-blue-500 underline underline-offset-2 ml-1 cursor-default">
+              What&apos;s this?
+            </span>
+          </span>
+          {convenienceFee === 0 ? (
+            <span className="font-medium text-green-600">Free</span>
+          ) : (
+            <span className="font-medium">₹{convenienceFee.toLocaleString()}</span>
           )}
         </div>
 
@@ -587,14 +582,14 @@ function SummaryBreakdown(
           </div>
         )}
 
-        {/* Divider */}
+        {/* Order Total */}
         <div className="border-t border-neutral-200 pt-3 flex justify-between font-bold text-base">
           <span>Order Total</span>
           <span>₹{totalAmount.toLocaleString()}</span>
         </div>
 
-        {/* Total savings callout */}
-        {totalSavings + discountAmount > 0 && (
+        {/* Savings callout */}
+        {(bagDiscount + discountAmount) > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-sm px-3 py-2 text-[11px] text-green-700 font-medium text-center">
             🎉 You are saving ₹{(bagDiscount + discountAmount).toLocaleString()} on this order!
           </div>

@@ -21,6 +21,8 @@ import {
   UndoIcon,
   CreditCard,
   Loader2,
+  ShoppingBag,
+  RefreshCcw,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -378,6 +380,15 @@ export default function OrderDetailsPage() {
                       </p>
                     </div>
                   </div>
+                  {/* Buy Again Button (for cancelled orders) */}
+                  {order.status === "CANCELLED" && (
+                    <Link href={`/product/${item.productId}`}>
+                      <button className="whitespace-nowrap px-4 py-2.5 bg-black text-white rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all flex items-center gap-1.5">
+                        <ShoppingBag size={14} />
+                        Buy Again
+                      </button>
+                    </Link>
+                  )}
                   {/* Return Button */}
                   {canReturnOrder && (
                     canRequestReturn ? (
@@ -402,55 +413,132 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {hasTracking && (
-          <div className="mb-12 border border-neutral-200 rounded-lg p-6">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <h2 className="text-sm font-bold uppercase tracking-[0.15em] mb-2">
-                  Tracking
-                </h2>
-                <p className="text-sm text-neutral-500">
-                  {tracking?.trackingId
-                    ? `Tracking ID: ${tracking.trackingId}`
-                    : "Tracking updates will appear here once the shipment is processed."}
-                </p>
-              </div>
-              <span className="text-xs font-semibold tracking-widest uppercase px-3 py-2 rounded bg-neutral-100 text-neutral-700">
-                {tracking?.status || order.status}
-              </span>
+        {/* ── Order Tracking Timeline ──────────────────────────────────── */}
+        {!["PENDING_PAYMENT", "PENDING", "CANCELLED", "PARTIALLY_CANCELLED"].includes(order.status) && (
+          <div className="mb-12 border border-neutral-200 rounded-xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-black">
+                Order Tracking
+              </h2>
+              {(tracking?.trackingId || order.shippingStatus) && (
+                <div className="text-right text-xs text-neutral-500 space-y-0.5">
+                  {tracking?.trackingId && (
+                    <p>Tracking: <span className="font-semibold text-black">{tracking.trackingId}</span></p>
+                  )}
+                  {order.shippingProvider && (
+                    <p className="font-medium">{order.shippingProvider}</p>
+                  )}
+                </div>
+              )}
             </div>
 
-            {trackingLoading && (
-              <p className="text-sm text-neutral-400">Loading tracking updates...</p>
+            {/* Step Tracker */}
+            {(() => {
+              const steps = [
+                {label: "Order\nPlaced",    icon: "📋", statusMatch: ["PLACED","PAID","CONFIRMED","SHIPPED","DELIVERED"]},
+                {label: "Confirmed",        icon: "✅", statusMatch: ["PLACED","PAID","CONFIRMED","SHIPPED","DELIVERED"]},
+                {label: "Shipped",          icon: "🚚", statusMatch: ["SHIPPED","DELIVERED"]},
+                {label: "Delivered",        icon: "🎉", statusMatch: ["DELIVERED"]},
+              ];
+              const activeIdx = (() => {
+                if (order.status === "DELIVERED") return 3;
+                if (order.status === "SHIPPED") return 2;
+                if (["PLACED","PAID","CONFIRMED"].includes(order.status)) return 1;
+                return 0;
+              })();
+              return (
+                <div className="flex items-start justify-between gap-0 mb-5">
+                  {steps.map((step, i) => {
+                    const done = i <= activeIdx;
+                    const current = i === activeIdx;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center relative">
+                        {/* Connector */}
+                        {i > 0 && (
+                          <div className={`absolute top-[14px] right-1/2 left-[-50%] h-0.5 ${i <= activeIdx ? "bg-black" : "bg-neutral-200"}`} />
+                        )}
+                        {/* Circle */}
+                        <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all
+                          ${done ? "bg-black border-2 border-black" : "bg-white border-2 border-neutral-200"}
+                          ${current ? "ring-2 ring-offset-1 ring-black" : ""}`}>
+                          {done
+                            ? <span className="text-sm">{step.icon}</span>
+                            : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
+                        </div>
+                        {/* Label */}
+                        <p className={`text-center text-[10px] leading-[13px] whitespace-pre-line
+                          ${done ? "font-bold text-black" : "text-neutral-400"}`}>
+                          {step.label}
+                        </p>
+                        {/* Date for first step */}
+                        {i === 0 && order.createdAt && (
+                          <p className="text-[9px] text-neutral-400 mt-0.5">
+                            {new Date(order.createdAt).toLocaleDateString("en-IN", {day: "numeric", month: "short"})}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Expected Delivery Badge */}
+            {order.expectedDelivery && order.status !== "DELIVERED" && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full text-xs text-green-700 font-semibold mb-4">
+                <span>🗓</span>
+                Estimated Delivery:{" "}
+                {new Date(order.expectedDelivery).toLocaleDateString("en-IN", {
+                  day: "numeric", month: "long", year: "numeric",
+                })}
+              </div>
             )}
 
+            {/* Shiprocket events feed */}
+            {trackingLoading && (
+              <p className="text-sm text-neutral-400 mt-4">Loading live tracking updates...</p>
+            )}
             {!trackingLoading && tracking?.events?.length ? (
-              <div className="space-y-4">
+              <div className="mt-4 space-y-3 border-t border-neutral-100 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500 mb-2">Live Updates</p>
                 {tracking.events.map((event, index) => (
-                  <div
-                    key={`${event.status}-${event.date}-${index}`}
-                    className="flex gap-4 border-l border-neutral-200 pl-4"
-                  >
-                    <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
+                  <div key={`${event.status}-${event.date}-${index}`} className="flex gap-3 border-l-2 border-neutral-200 pl-4">
                     <div>
-                      <p className="text-sm font-medium text-black">{event.status}</p>
+                      <p className="text-sm font-semibold text-black">{event.status}</p>
                       <p className="text-xs text-neutral-500">
-                        {event.date ? new Date(event.date).toLocaleString() : "Date unavailable"}
+                        {event.date ? new Date(event.date).toLocaleString("en-IN") : "—"}
                       </p>
-                      {event.location ? (
-                        <p className="text-sm text-neutral-600 mt-1">{event.location}</p>
-                      ) : null}
+                      {event.location && (
+                        <p className="text-xs text-neutral-500 mt-0.5">📍 {event.location}</p>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : null}
+          </div>
+        )}
 
-            {!trackingLoading && !tracking?.events?.length && (
-              <p className="text-sm text-neutral-400">
-                Tracking is not available for this order yet.
-              </p>
-            )}
+        {/* Cancelled Order Banner */}
+        {order.status === "CANCELLED" && (
+          <div className="mb-8 rounded-xl border border-red-100 bg-red-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="mt-0.5 text-2xl">❌</div>
+              <div>
+                <p className="font-semibold text-red-700 text-sm">This order has been cancelled</p>
+                <p className="text-xs text-red-500 mt-0.5">
+                  {order.paymentStatus === "REFUND_PENDING"
+                    ? "Your refund is being processed and will be credited shortly."
+                    : "No payment was captured for this order."}
+                </p>
+              </div>
+            </div>
+            <Link href="/shop">
+              <button className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all whitespace-nowrap">
+                <ShoppingBag size={14} />
+                Shop Again
+              </button>
+            </Link>
           </div>
         )}
 
@@ -469,6 +557,14 @@ export default function OrderDetailsPage() {
               )}
               {initiatingPayment ? "Loading..." : "Pay Now"}
             </button>
+          )}
+          {order.status === "CANCELLED" && order.items && order.items.length > 0 && (
+            <Link href={`/product/${order.items[0].productId}`}>
+              <button className="flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all">
+                <RefreshCcw size={16} />
+                Buy Again
+              </button>
+            </Link>
           )}
           {order.status !== "CANCELLED" && (
             <button
