@@ -515,10 +515,14 @@ export const orderApi = createApi({
 
         /** Request Product Return */
         requestReturn: builder.mutation<ReturnResponse, ReturnRequest>({
-            query: (body) => ({
-                url: "/returns/returns",
+            query: ({ orderId, orderItemId, quantity, reason, reasonDescription, comments }) => ({
+                url: `/returns/${orderId}/return`,
                 method: "POST",
-                body,
+                body: {
+                    reason,
+                    comment: reasonDescription || comments,
+                    items: [{ orderItemId, quantity }],
+                },
             }),
             invalidatesTags: ["Returns", "Orders"],
         }),

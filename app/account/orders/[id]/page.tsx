@@ -584,7 +584,7 @@ export default function OrderDetailsPage() {
               </button>
             </Link>
           )}
-          {order.status !== "CANCELLED" && (
+          {order.status !== "CANCELLED" && order.status !== "DELIVERED" && order.status !== "SHIPPED" && (
             <button
               disabled={cancelling}
               onClick={handleCancelOrder}
