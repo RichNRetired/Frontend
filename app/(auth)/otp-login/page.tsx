@@ -24,6 +24,8 @@ export default function OtpLoginPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<Step>("input");
   const [isLoading, setIsLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -46,16 +48,34 @@ export default function OtpLoginPage() {
     return identifier.trim();
   };
 
+  const startCooldown = () => {
+    setResendCooldown(30);
+    const timer = setInterval(() => {
+      setResendCooldown((c) => {
+        if (c <= 1) { clearInterval(timer); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     const result = await dispatch(requestOtpThunk({ identifier: getIdentifier() }));
-
     setIsLoading(false);
-
     if (requestOtpThunk.fulfilled.match(result)) {
       setStep("otp");
+      startCooldown();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResendLoading(true);
+    const result = await dispatch(requestOtpThunk({ identifier: getIdentifier() }));
+    setResendLoading(false);
+    if (requestOtpThunk.fulfilled.match(result)) {
+      setOtp("");
+      startCooldown();
     }
   };
 
@@ -307,6 +327,22 @@ export default function OtpLoginPage() {
                 <p className="text-[9px] text-neutral-400 mt-2 uppercase tracking-widest text-center">
                   Valid for 5 minutes
                 </p>
+                <div className="mt-3 text-center">
+                  {resendCooldown > 0 ? (
+                    <p className="text-[10px] uppercase tracking-widest text-neutral-400">
+                      Resend OTP in {resendCooldown}s
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendLoading}
+                      className="text-[10px] uppercase tracking-widest font-bold text-black underline underline-offset-4 hover:text-neutral-500 transition disabled:opacity-50"
+                    >
+                      {resendLoading ? "Sending..." : "Resend OTP"}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <AnimatePresence>
