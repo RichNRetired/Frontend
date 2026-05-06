@@ -217,7 +217,6 @@ export default function OtpLoginPage() {
                           }
                           placeholder="98765 43210"
                           required
-                          maxLength={10}
                           className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300 tracking-widest"
                         />
                       </div>
