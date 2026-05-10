@@ -312,7 +312,7 @@ export default function OtpLoginPage() {
                 <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400 group-focus-within:text-black transition-colors mb-2">
                   Enter OTP
                 </label>
-                <Input
+                <input
                   type="text"
                   value={otp}
                   onChange={(e) =>
@@ -321,7 +321,7 @@ export default function OtpLoginPage() {
                   placeholder="000000"
                   required
                   maxLength={6}
-                  className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300 text-center text-2xl tracking-[0.5em]"
+                  className="h-12 border-0 border-b border-neutral-200 rounded-none px-0 bg-transparent text-sm placeholder:text-neutral-300 focus-visible:ring-0 focus-visible:border-black transition-all duration-300 text-center text-2xl tracking-[0.5em] w-full outline-none"
                 />
                 <p className="text-[9px] text-neutral-400 mt-2 uppercase tracking-widest text-center">
                   Valid for 5 minutes

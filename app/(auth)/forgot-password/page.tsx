@@ -99,13 +99,13 @@ export default function ForgotPasswordPage() {
                 <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 group-focus-within:text-black transition-colors">
                   Email or Phone
                 </label>
-                <Input
+                <input
                   type="text"
                   placeholder="email@example.com or 9876543210"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendOtp()}
-                  className="h-12 border-0 border-b border-slate-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-black transition-all bg-transparent placeholder:text-slate-200"
+                  className="h-12 border-0 border-b border-slate-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-black transition-all bg-transparent placeholder:text-slate-200 w-full outline-none"
                 />
               </div>
               <Button
