@@ -31,6 +31,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
+import { formatOrderId } from "@/lib/formatter";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getCurrentUser } from "@/lib/auth";
 import { buildInitiatePaymentRequest } from "@/lib/razorpay";
@@ -294,8 +295,8 @@ export default function OrdersPage() {
                   <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold">
                     Order ID
                   </p>
-                  <p className="text-sm font-semibold text-neutral-900">
-                    #{order.orderId.toString().slice(-6)}
+                  <p className="text-sm font-semibold text-neutral-900 tracking-wide">
+                    {formatOrderId(order.orderId, order.createdAt)}
                   </p>
                 </div>
               </div>

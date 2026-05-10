@@ -25,6 +25,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { sendEvent } from "@/services/analytics.service";
+import { formatOrderId } from "@/lib/formatter";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getCurrentUser } from "@/lib/auth";
 import { buildInitiatePaymentRequest } from "@/lib/razorpay";
@@ -237,8 +238,11 @@ export default function OrderDetailsPage() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h1 className="text-4xl text-black font-light uppercase tracking-tighter mb-2">
-                Orders #{order.orderId}
+                Order
               </h1>
+              <p className="text-sm font-medium tracking-widest text-neutral-500 mb-1">
+                {formatOrderId(order.orderId, order.createdAt)}
+              </p>
               <p className="text-neutral-500">
                 {order.createdAt
                   ? new Date(order.createdAt).toLocaleDateString("en-US", {

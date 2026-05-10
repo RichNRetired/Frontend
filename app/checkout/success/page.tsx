@@ -9,6 +9,7 @@ import { clearCart } from "@/features/cart/cartSlice";
 import { useGetOrderDetailsQuery } from "@/features/order/orderApi";
 import { CheckCircle2, ArrowRight, Package } from "lucide-react";
 import { clearBuyNowState, updateBuyNowStatus } from "@/lib/buy-now";
+import { formatOrderId } from "@/lib/formatter";
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
@@ -85,8 +86,8 @@ export default function SuccessPage() {
             <div className="grid grid-cols-2 gap-8 mb-8 pb-8 border-b">
               <div>
                 <p className="text-sm text-neutral-900 mb-1">Order Number</p>
-                <p className="text-2xl text-black font-medium">
-                  #{order.orderId}
+                <p className="text-lg text-black font-medium tracking-wide">
+                  {formatOrderId(order.orderId, order.createdAt)}
                 </p>
               </div>
               <div className="text-right">
