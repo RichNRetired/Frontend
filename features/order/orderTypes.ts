@@ -507,6 +507,18 @@ export interface ProcessOrderWebhookRequest {
     payload: string;
 }
 
+export interface ReturnStatusResponse {
+    returnId?: number;
+    orderId: number;
+    status: string;
+    reason?: string;
+    trackingId?: string;
+    refundAmount?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    items?: { orderItemId: number; quantity: number }[];
+}
+
 export interface ProcessShiprocketWebhookRequest {
     secret: string;
     payload: Record<string, unknown>;

@@ -9,6 +9,7 @@ import {
   useGetEligibleReturnItemsQuery,
   useGetOrderTrackingQuery,
   useInitiatePaymentMutation,
+  useGetReturnByOrderIdQuery,
 } from "@/features/order/orderApi";
 import { OrderItem, ReturnReason } from "@/features/order/orderTypes";
 import { ReturnForm } from "@/components/returns/ReturnForm";
@@ -74,6 +75,13 @@ export default function OrderDetailsPage() {
     });
   const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
   const [initiatePayment, { isLoading: initiatingPayment }] = useInitiatePaymentMutation();
+  const { data: returnStatus } = useGetReturnByOrderIdQuery(orderId, {
+    skip:
+      !Number.isFinite(orderId) ||
+      orderId <= 0 ||
+      !order ||
+      (order.status !== "RETURN_REQUESTED" && order.status !== "DELIVERED"),
+  });
 
   const canReturnOrder = order?.status === "DELIVERED";
   const hasTracking = Boolean(trackingLoading || tracking?.trackingId || tracking?.events?.length);
@@ -461,12 +469,15 @@ export default function OrderDetailsPage() {
           const shippedTs   = historyMap.get("SHIPPED");
           const deliveredTs = historyMap.get("DELIVERED");
 
+          // paymentStatus SUCCESS/COMPLETED/PAID means admin confirmed payment
+          const paymentSuccess = ["SUCCESS", "COMPLETED", "PAID"].includes(order.paymentStatus ?? "");
+
           // "Payment" step is done when:
-          // - Prepaid: PAID exists in history
-          // - COD: order is SHIPPED or DELIVERED (payment collected on delivery)
+          // - Prepaid: paymentStatus is SUCCESS/COMPLETED, OR PAID exists in history
+          // - COD: admin marked paymentStatus as paid, OR order is SHIPPED/DELIVERED (cash collected)
           const paymentDone = isCOD
-            ? (historyMap.has("SHIPPED") || historyMap.has("DELIVERED"))
-            : historyMap.has("PAID");
+            ? (paymentSuccess || historyMap.has("SHIPPED") || historyMap.has("DELIVERED"))
+            : (paymentSuccess || historyMap.has("PAID"));
 
           const paymentTs = isCOD ? (shippedTs ?? deliveredTs) : paidTs;
 
@@ -689,6 +700,177 @@ export default function OrderDetailsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Return Journey Tracking ──────────────────────────────────── */}
+        {returnStatus && (() => {
+          const rs = returnStatus.status ?? "";
+          const isRejected  = rs === "REJECTED" || rs === "CANCELLED";
+          const isCompleted = ["REFUND_COMPLETED", "REFUNDED", "COMPLETED"].includes(rs);
+
+          // Which steps are done?
+          const afterRequest  = !["PENDING_APPROVAL"].includes(rs) && !isRejected;
+          const afterPickup   = ["PICKUP_COMPLETED","QC_PENDING","QC_IN_PROGRESS","QC_PASSED","QC_FAILED","REFUND_PENDING","REFUND_COMPLETED","REFUNDED","COMPLETED"].includes(rs);
+          const afterQC       = ["QC_PASSED","REFUND_PENDING","REFUND_COMPLETED","REFUNDED","COMPLETED"].includes(rs);
+          const qcFailed      = rs === "QC_FAILED";
+
+          type RStep = { id: string; label: string; sublabel: string; icon: string; done: boolean; isCurrent: boolean; variant?: "red" | "blue" | "amber" };
+
+          const steps: RStep[] = [
+            {
+              id: "requested",
+              label: "Return Requested",
+              sublabel: "Awaiting approval",
+              icon: "↩️",
+              done: true,
+              isCurrent: rs === "PENDING_APPROVAL",
+            },
+            {
+              id: "pickup",
+              label: "Pickup Scheduled",
+              sublabel: "Courier will collect your item",
+              icon: "🚚",
+              done: afterRequest,
+              isCurrent: rs === "PICKUP_SCHEDULED",
+            },
+            {
+              id: "received",
+              label: "Item Picked Up",
+              sublabel: "Item received at warehouse",
+              icon: "📦",
+              done: afterPickup,
+              isCurrent: rs === "PICKUP_COMPLETED",
+            },
+            {
+              id: "qc",
+              label: qcFailed ? "QC Failed" : "Quality Check",
+              sublabel: qcFailed ? "Item did not pass quality check" : "Inspecting your return",
+              icon: qcFailed ? "⚠️" : "🔍",
+              done: afterQC || qcFailed,
+              isCurrent: rs === "QC_PENDING" || rs === "QC_IN_PROGRESS",
+              variant: qcFailed ? "amber" : undefined,
+            },
+            {
+              id: "refund",
+              label: "Refund Processed",
+              sublabel: isCompleted ? "Amount credited to your account" : "Refund being initiated",
+              icon: "💰",
+              done: isCompleted,
+              isCurrent: rs === "REFUND_PENDING",
+            },
+          ];
+
+          if (isRejected) {
+            steps.push({
+              id: "rejected",
+              label: rs === "CANCELLED" ? "Return Cancelled" : "Return Rejected",
+              sublabel: "Please contact support for assistance",
+              icon: "❌",
+              done: true,
+              isCurrent: true,
+              variant: "red",
+            });
+          }
+
+          const circleCls = (s: RStep) => {
+            if (s.variant === "red")   return "bg-red-500 border-red-500";
+            if (s.variant === "amber") return "bg-amber-500 border-amber-500";
+            if (s.variant === "blue")  return "bg-blue-500 border-blue-500";
+            if (s.done)                return "bg-black border-black";
+            return "bg-white border-neutral-200";
+          };
+          const labelCls = (s: RStep) => {
+            if (s.variant === "red")   return "text-red-600";
+            if (s.variant === "amber") return "text-amber-600";
+            if (s.variant === "blue")  return "text-blue-600";
+            if (s.done)                return "text-black";
+            return "text-neutral-300";
+          };
+          const lineDone = (i: number) => steps[i]?.done && steps[i + 1]?.done;
+
+          const fmtDate = (ts: string) =>
+            new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+          const fmtTime = (ts: string) =>
+            new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+          return (
+            <div className="mb-12 border border-blue-100 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-blue-50 bg-blue-50">
+                <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-blue-800">↩️ Return Journey</h2>
+                <div className="flex items-center gap-3">
+                  {returnStatus.trackingId && (
+                    <span className="text-[11px] font-semibold text-blue-500">
+                      Tracking: <span className="text-blue-800">{returnStatus.trackingId}</span>
+                    </span>
+                  )}
+                  {returnStatus.refundAmount != null && (
+                    <span className="text-[11px] font-semibold text-blue-500">
+                      Refund: <span className="text-blue-800">₹{Number(returnStatus.refundAmount).toLocaleString()}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 py-6">
+                {/* Desktop */}
+                <div className="hidden sm:flex items-start justify-between mb-4">
+                  {steps.map((step, i) => (
+                    <div key={step.id} className="flex-1 flex flex-col items-center relative">
+                      {i > 0 && (
+                        <div className={`absolute top-[15px] right-1/2 left-[-50%] h-[2px]
+                          ${lineDone(i - 1) ? "bg-black" : "bg-neutral-200"}`} />
+                      )}
+                      <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-2 border-2
+                        ${circleCls(step)}
+                        ${step.isCurrent ? "ring-2 ring-offset-2 ring-blue-400" : ""}`}>
+                        {step.done
+                          ? <span className="text-sm leading-none">{step.icon}</span>
+                          : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
+                      </div>
+                      <p className={`text-center text-[10px] leading-tight font-bold uppercase tracking-wide ${labelCls(step)}`}>
+                        {step.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mobile */}
+                <div className="sm:hidden space-y-0">
+                  {steps.map((step, i) => (
+                    <div key={step.id} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2
+                          ${circleCls(step)}
+                          ${step.isCurrent ? "ring-2 ring-offset-1 ring-blue-400" : ""}`}>
+                          {step.done
+                            ? <span className="text-sm">{step.icon}</span>
+                            : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
+                        </div>
+                        {i < steps.length - 1 && (
+                          <div className={`w-[2px] flex-1 min-h-[28px] my-1
+                            ${lineDone(i) ? "bg-black" : "bg-neutral-200"}`} />
+                        )}
+                      </div>
+                      <div className="pb-5 min-w-0">
+                        <p className={`text-sm font-bold ${labelCls(step)}`}>{step.label}</p>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">{step.sublabel}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Return created date */}
+                {returnStatus.createdAt && (
+                  <div className="mt-3 text-[11px] text-neutral-400">
+                    Return requested on{" "}
+                    {new Date(returnStatus.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric", month: "long", year: "numeric",
+                    })}
                   </div>
                 )}
               </div>

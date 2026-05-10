@@ -37,6 +37,7 @@ import {
     PlaceOrderRequest,
     ProcessOrderWebhookRequest,
     ProcessShiprocketWebhookRequest,
+    ReturnStatusResponse,
 } from "./orderTypes";
 
 type RawOrderItem = Partial<OrderItem> & {
@@ -586,6 +587,15 @@ export const orderApi = createApi({
             invalidatesTags: (_result, _error, returnId) => ["Returns", { type: "Returns", id: returnId }, "Orders"],
         }),
 
+        /** Get return status for an order (by orderId) */
+        getReturnByOrderId: builder.query<ReturnStatusResponse, number>({
+            query: (orderId) => ({
+                url: `/returns/${orderId}/return`,
+                method: "GET",
+            }),
+            providesTags: (_result, _error, orderId) => [{ type: "Returns", id: orderId }],
+        }),
+
         /** List order items eligible for return */
         getEligibleReturnItems: builder.query<EligibleReturnItem[], number>({
             query: (orderId) => ({
@@ -630,4 +640,5 @@ export const {
     useGetReturnTimelineQuery,
     useCancelReturnMutation,
     useGetEligibleReturnItemsQuery,
+    useGetReturnByOrderIdQuery,
 } = orderApi;
