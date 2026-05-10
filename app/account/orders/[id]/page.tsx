@@ -10,6 +10,7 @@ import {
   useGetOrderTrackingQuery,
   useInitiatePaymentMutation,
   useGetReturnByOrderIdQuery,
+  useCancelReturnMutation,
 } from "@/features/order/orderApi";
 import { OrderItem, ReturnReason } from "@/features/order/orderTypes";
 import { ReturnForm } from "@/components/returns/ReturnForm";
@@ -38,6 +39,37 @@ type ReturnableOrderItem = OrderItem & {
   eligibilityMessage?: string;
   isEligible?: boolean;
 };
+
+function CancelReturnButton({
+  returnId,
+  onSuccess,
+  onError,
+}: {
+  returnId?: number;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [cancelReturn, { isLoading }] = useCancelReturnMutation();
+  if (!returnId) return null;
+  const handleClick = async () => {
+    try {
+      await cancelReturn(returnId).unwrap();
+      onSuccess();
+    } catch (err: any) {
+      onError(err?.data?.message || "Failed to cancel return");
+    }
+  };
+  return (
+    <button
+      disabled={isLoading}
+      onClick={handleClick}
+      className="flex items-center gap-2 px-6 py-3 border border-red-200 text-red-600 rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <UndoIcon size={16} />
+      {isLoading ? "Cancelling..." : "Cancel Return"}
+    </button>
+  );
+}
 
 const getOrderStatusClass = (status: string) => {
   if (status === "PAID") {
@@ -892,7 +924,10 @@ export default function OrderDetailsPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {order.requiresPayment && order.status !== "CANCELLED" && (
+          {/* Pay Now — hide when return requested or order is terminal */}
+          {order.requiresPayment &&
+            order.status !== "CANCELLED" &&
+            order.status !== "RETURN_REQUESTED" && (
             <button
               disabled={initiatingPayment}
               onClick={() => void handlePayNow()}
@@ -906,6 +941,8 @@ export default function OrderDetailsPage() {
               {initiatingPayment ? "Loading..." : "Pay Now"}
             </button>
           )}
+
+          {/* Buy Again — only for cancelled orders */}
           {order.status === "CANCELLED" && order.items && order.items.length > 0 && (
             <Link href={`/product/${order.items[0].productId}`}>
               <button className="flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all">
@@ -914,7 +951,12 @@ export default function OrderDetailsPage() {
               </button>
             </Link>
           )}
-          {order.status !== "CANCELLED" && order.status !== "DELIVERED" && order.status !== "SHIPPED" && (
+
+          {/* Cancel Order — only when cancellable (not delivered, shipped, cancelled, or return requested) */}
+          {order.status !== "CANCELLED" &&
+            order.status !== "DELIVERED" &&
+            order.status !== "SHIPPED" &&
+            order.status !== "RETURN_REQUESTED" && (
             <button
               disabled={cancelling}
               onClick={handleCancelOrder}
@@ -924,6 +966,17 @@ export default function OrderDetailsPage() {
               {cancelling ? "Cancelling..." : "Cancel Order"}
             </button>
           )}
+
+          {/* Cancel Return — only when return is pending approval */}
+          {order.status === "RETURN_REQUESTED" &&
+            returnStatus?.status === "PENDING_APPROVAL" && (
+            <CancelReturnButton
+              returnId={returnStatus.returnId}
+              onSuccess={() => { refetch(); setSuccess("Return cancelled successfully!"); setTimeout(() => setSuccess(null), 3000); }}
+              onError={(msg) => setError(msg)}
+            />
+          )}
+
           <Link href="/account/orders">
             <button className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-900 rounded-lg text-sm uppercase tracking-widest font-medium hover:bg-neutral-200 transition-all">
               Back to Orders
