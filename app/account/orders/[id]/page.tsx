@@ -440,123 +440,190 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {/* ── Order Tracking Timeline ──────────────────────────────────── */}
-        {!["PENDING_PAYMENT", "PENDING", "CANCELLED", "PARTIALLY_CANCELLED"].includes(order.status) && (
-          <div className="mb-12 border border-neutral-200 rounded-xl p-6">
-            <div className="flex items-start justify-between gap-4 mb-6">
-              <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-black">
-                Order Tracking
-              </h2>
-              {tracking?.trackingId && (
-                <div className="text-right text-xs text-neutral-500 space-y-0.5">
-                  <p>Tracking: <span className="font-semibold text-black">{tracking.trackingId}</span></p>
-                </div>
-              )}
-            </div>
+        {/* ── Order Status Timeline (dynamic from statusHistory) ─────── */}
+        {(() => {
+          const STEPS: { key: string; label: string; icon: string; desc: string }[] = [
+            { key: "PENDING",   label: "Order Received",      icon: "📋", desc: "We received your order" },
+            { key: "PLACED",    label: "Order Confirmed",     icon: "✅", desc: "Your order is confirmed" },
+            { key: "PAID",      label: "Payment Verified",    icon: "💳", desc: "Payment successfully verified" },
+            { key: "SHIPPED",   label: "Shipped",             icon: "🚚", desc: "Your order is on the way" },
+            { key: "DELIVERED", label: "Delivered",           icon: "🎉", desc: "Order delivered successfully" },
+          ];
 
-            {/* Step Tracker */}
-            {(() => {
-              const steps = [
-                {label: "Order\nPlaced",    icon: "📋", statusMatch: ["PLACED","PAID","CONFIRMED","SHIPPED","DELIVERED"]},
-                {label: "Confirmed",        icon: "✅", statusMatch: ["PLACED","PAID","CONFIRMED","SHIPPED","DELIVERED"]},
-                {label: "Shipped",          icon: "🚚", statusMatch: ["SHIPPED","DELIVERED"]},
-                {label: "Delivered",        icon: "🎉", statusMatch: ["DELIVERED"]},
-              ];
-              const activeIdx = (() => {
-                if (order.status === "DELIVERED") return 3;
-                if (order.status === "SHIPPED") return 2;
-                if (["PLACED","PAID","CONFIRMED"].includes(order.status)) return 1;
-                return 0;
-              })();
-              return (
-                <div className="flex items-start justify-between gap-0 mb-5">
-                  {steps.map((step, i) => {
-                    const done = i <= activeIdx;
-                    const current = i === activeIdx;
+          const historyMap = new Map<string, string>(
+            (order.statusHistory || []).map((h) => [h.status, h.changedAt])
+          );
+
+          const isCancelled = order.status === "CANCELLED";
+          const isReturn    = order.status === "RETURN_REQUESTED";
+
+          // Find the last completed step index
+          const lastDoneIdx = STEPS.reduce((acc, s, i) => historyMap.has(s.key) ? i : acc, -1);
+          // Current active index (what the order is currently AT)
+          const currentIdx = STEPS.findIndex((s) => s.key === order.status);
+          const activeIdx  = currentIdx >= 0 ? currentIdx : lastDoneIdx;
+
+          return (
+            <div className="mb-12 border border-neutral-200 rounded-xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50">
+                <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-black">Order Journey</h2>
+                {tracking?.trackingId && (
+                  <span className="text-[11px] font-semibold text-neutral-500">
+                    Tracking: <span className="text-black">{tracking.trackingId}</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="px-6 py-6">
+                {/* Horizontal step bar (desktop) */}
+                <div className="hidden sm:flex items-start justify-between mb-8">
+                  {STEPS.map((step, i) => {
+                    const done    = historyMap.has(step.key);
+                    const current = step.key === order.status && !isCancelled && !isReturn;
+                    const ts      = historyMap.get(step.key);
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center relative">
-                        {/* Connector */}
+                      <div key={step.key} className="flex-1 flex flex-col items-center relative">
+                        {/* Connector line */}
                         {i > 0 && (
-                          <div className={`absolute top-[14px] right-1/2 left-[-50%] h-0.5 ${i <= activeIdx ? "bg-black" : "bg-neutral-200"}`} />
+                          <div className={`absolute top-[15px] right-1/2 left-[-50%] h-[2px] transition-colors
+                            ${historyMap.has(STEPS[i].key) ? "bg-black" : "bg-neutral-200"}`} />
                         )}
                         {/* Circle */}
                         <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all
                           ${done ? "bg-black border-2 border-black" : "bg-white border-2 border-neutral-200"}
-                          ${current ? "ring-2 ring-offset-1 ring-black" : ""}`}>
+                          ${current ? "ring-2 ring-offset-2 ring-black" : ""}`}>
                           {done
-                            ? <span className="text-sm">{step.icon}</span>
+                            ? <span className="text-sm leading-none">{step.icon}</span>
                             : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
                         </div>
                         {/* Label */}
-                        <p className={`text-center text-[10px] leading-[13px] whitespace-pre-line
-                          ${done ? "font-bold text-black" : "text-neutral-400"}`}>
+                        <p className={`text-center text-[10px] leading-tight font-bold uppercase tracking-wide
+                          ${done ? "text-black" : "text-neutral-300"}`}>
                           {step.label}
                         </p>
-                        {/* Date for first step */}
-                        {i === 0 && order.createdAt && (
-                          <p className="text-[9px] text-neutral-400 mt-0.5">
-                            {new Date(order.createdAt).toLocaleDateString("en-IN", {day: "numeric", month: "short"})}
+                        {/* Timestamp */}
+                        {ts && (
+                          <p className="text-[9px] text-neutral-400 mt-0.5 text-center">
+                            {new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            <br />
+                            {new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         )}
                       </div>
                     );
                   })}
                 </div>
-              );
-            })()}
 
-            {/* Expected Delivery Badge */}
-            {order.expectedDelivery && order.status !== "DELIVERED" && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full text-xs text-green-700 font-semibold mb-4">
-                <span>🗓</span>
-                Estimated Delivery:{" "}
-                {new Date(order.expectedDelivery).toLocaleDateString("en-IN", {
-                  day: "numeric", month: "long", year: "numeric",
-                })}
-              </div>
-            )}
+                {/* Vertical timeline (mobile + detailed view) */}
+                <div className="sm:hidden space-y-0">
+                  {STEPS.map((step, i) => {
+                    const done = historyMap.has(step.key);
+                    const current = step.key === order.status && !isCancelled;
+                    const ts   = historyMap.get(step.key);
+                    const isLast = i === STEPS.length - 1;
+                    return (
+                      <div key={step.key} className="flex gap-4">
+                        {/* Left: dot + line */}
+                        <div className="flex flex-col items-center">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10
+                            ${done ? "bg-black" : "bg-white border-2 border-neutral-200"}
+                            ${current ? "ring-2 ring-offset-1 ring-black" : ""}`}>
+                            {done
+                              ? <span className="text-sm">{step.icon}</span>
+                              : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
+                          </div>
+                          {!isLast && (
+                            <div className={`w-[2px] flex-1 min-h-[24px] my-1
+                              ${done && historyMap.has(STEPS[i + 1]?.key) ? "bg-black" : "bg-neutral-200"}`} />
+                          )}
+                        </div>
+                        {/* Right: content */}
+                        <div className="pb-5 min-w-0">
+                          <p className={`text-sm font-bold ${done ? "text-black" : "text-neutral-300"}`}>
+                            {step.label}
+                          </p>
+                          {ts ? (
+                            <p className="text-[11px] text-neutral-400 mt-0.5">
+                              {new Date(ts).toLocaleString("en-IN", {
+                                day: "numeric", month: "short", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                              })}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-neutral-300 mt-0.5">{step.desc}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-            {/* Shiprocket events feed */}
-            {trackingLoading && (
-              <p className="text-sm text-neutral-400 mt-4">Loading live tracking updates...</p>
-            )}
-            {!trackingLoading && tracking?.events?.length ? (
-              <div className="mt-4 space-y-3 border-t border-neutral-100 pt-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500 mb-2">Live Updates</p>
-                {tracking.events.map((event, index) => (
-                  <div key={`${event.status}-${event.date}-${index}`} className="flex gap-3 border-l-2 border-neutral-200 pl-4">
+                {/* Cancelled / Return banner */}
+                {isCancelled && (
+                  <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
+                    <span className="text-xl">❌</span>
                     <div>
-                      <p className="text-sm font-semibold text-black">{event.status}</p>
-                      <p className="text-xs text-neutral-500">
-                        {event.date ? new Date(event.date).toLocaleString("en-IN") : "—"}
+                      <p className="text-sm font-bold text-red-700">Order Cancelled</p>
+                      <p className="text-xs text-red-500">
+                        {order.paymentStatus === "REFUND_PENDING"
+                          ? "Refund is being processed and will be credited shortly."
+                          : "No payment was captured for this order."}
                       </p>
-                      {event.location && (
-                        <p className="text-xs text-neutral-500 mt-0.5">📍 {event.location}</p>
-                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        )}
+                )}
+                {isReturn && (
+                  <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+                    <span className="text-xl">↩️</span>
+                    <p className="text-sm font-bold text-blue-700">Return Requested — our team will reach out shortly.</p>
+                  </div>
+                )}
 
-        {/* Cancelled Order Banner */}
-        {order.status === "CANCELLED" && (
-          <div className="mb-8 rounded-xl border border-red-100 bg-red-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex items-start gap-3 flex-1">
-              <div className="mt-0.5 text-2xl">❌</div>
-              <div>
-                <p className="font-semibold text-red-700 text-sm">This order has been cancelled</p>
-                <p className="text-xs text-red-500 mt-0.5">
-                  {order.paymentStatus === "REFUND_PENDING"
-                    ? "Your refund is being processed and will be credited shortly."
-                    : "No payment was captured for this order."}
-                </p>
+                {/* Expected Delivery */}
+                {order.expectedDelivery && order.status !== "DELIVERED" && !isCancelled && (
+                  <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full text-xs text-green-700 font-semibold">
+                    <span>🗓</span>
+                    Estimated Delivery:{" "}
+                    {new Date(order.expectedDelivery).toLocaleDateString("en-IN", {
+                      day: "numeric", month: "long", year: "numeric",
+                    })}
+                  </div>
+                )}
+
+                {/* Live shiprocket events */}
+                {trackingLoading && (
+                  <p className="text-sm text-neutral-400 mt-4">Loading live tracking updates...</p>
+                )}
+                {!trackingLoading && (tracking?.events?.length ?? 0) > 0 && (
+                  <div className="mt-5 space-y-3 border-t border-neutral-100 pt-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Live Updates</p>
+                    {tracking!.events.map((event, index) => (
+                      <div key={`${event.status}-${event.date}-${index}`}
+                        className="flex gap-3 border-l-2 border-neutral-200 pl-4">
+                        <div>
+                          <p className="text-sm font-semibold text-black">{event.status}</p>
+                          <p className="text-xs text-neutral-500">
+                            {event.date ? new Date(event.date).toLocaleString("en-IN") : "—"}
+                          </p>
+                          {event.location && (
+                            <p className="text-xs text-neutral-500 mt-0.5">📍 {event.location}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+          );
+        })()}
+
+        {/* Cancelled — Shop Again CTA */}
+        {order.status === "CANCELLED" && (
+          <div className="mb-8 flex justify-end">
             <Link href="/shop">
-              <button className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all whitespace-nowrap">
+              <button className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg text-xs uppercase tracking-widest font-medium hover:bg-neutral-800 transition-all">
                 <ShoppingBag size={14} />
                 Shop Again
               </button>

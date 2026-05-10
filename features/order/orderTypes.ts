@@ -31,6 +31,11 @@ export interface DeliveryAddress {
     country: string;
 }
 
+export interface OrderStatusHistoryEntry {
+    status: string;
+    changedAt: string; // LocalDateTime as ISO string from backend
+}
+
 export interface Order {
     orderId: number;
     status: string;
@@ -56,6 +61,7 @@ export interface Order {
     deliveryAddress?: DeliveryAddress;
     items: OrderItem[];
     createdAt: string;
+    statusHistory?: OrderStatusHistoryEntry[];
 }
 
 export interface PlacedOrderResponse {
