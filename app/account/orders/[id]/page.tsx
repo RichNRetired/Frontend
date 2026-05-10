@@ -482,7 +482,6 @@ export default function OrderDetailsPage() {
 
         {/* ── Order Journey Timeline ───────────────────────────────────── */}
         {(() => {
-          const isCOD       = order.paymentMethod === "COD";
           const isCancelled = order.status === "CANCELLED";
           const isReturn    = order.status === "RETURN_REQUESTED";
           const historyMap  = new Map<string, string>(
@@ -496,22 +495,10 @@ export default function OrderDetailsPage() {
           // Step 4: Delivered        (DELIVERED in history)
           // Step 5 (conditional): Cancelled OR Return Requested
 
-          const confirmedTs = historyMap.get("PLACED");
-          const paidTs      = historyMap.get("PAID");
-          const shippedTs   = historyMap.get("SHIPPED");
-          const deliveredTs = historyMap.get("DELIVERED");
-
-          // paymentStatus SUCCESS/COMPLETED/PAID means admin confirmed payment
-          const paymentSuccess = ["SUCCESS", "COMPLETED", "PAID"].includes(order.paymentStatus ?? "");
-
-          // "Payment" step is done when:
-          // - Prepaid: paymentStatus is SUCCESS/COMPLETED, OR PAID exists in history
-          // - COD: admin marked paymentStatus as paid, OR order is SHIPPED/DELIVERED (cash collected)
-          const paymentDone = isCOD
-            ? (paymentSuccess || historyMap.has("SHIPPED") || historyMap.has("DELIVERED"))
-            : (paymentSuccess || historyMap.has("PAID"));
-
-          const paymentTs = isCOD ? (shippedTs ?? deliveredTs) : paidTs;
+          const confirmedTs   = historyMap.get("PLACED");
+          const processingTs  = historyMap.get("PROCESSING");
+          const shippedTs     = historyMap.get("SHIPPED");
+          const deliveredTs   = historyMap.get("DELIVERED");
 
           type Step = {
             id: string;
@@ -527,7 +514,7 @@ export default function OrderDetailsPage() {
           const baseSteps: Step[] = [
             {
               id: "confirmed",
-              label: "Order Confirmed",
+              label: "Order Placed",
               sublabel: "We have your order",
               icon: "✅",
               done: !!confirmedTs || isCancelled || isReturn,
@@ -535,13 +522,13 @@ export default function OrderDetailsPage() {
               isCurrent: order.status === "PLACED" && !isCancelled,
             },
             {
-              id: "payment",
-              label: isCOD ? "Cash on Delivery" : "Payment Confirmed",
-              sublabel: isCOD ? "Pay when delivered" : "Payment received",
-              icon: isCOD ? "🏠" : "💳",
-              done: paymentDone,
-              ts: paymentTs,
-              isCurrent: !isCOD && order.status === "PAID",
+              id: "processing",
+              label: "Processing",
+              sublabel: "Warehouse is preparing your order",
+              icon: "📦",
+              done: !!processingTs || !!shippedTs || !!deliveredTs,
+              ts: processingTs,
+              isCurrent: order.status === "PROCESSING",
             },
             {
               id: "shipped",
@@ -646,12 +633,6 @@ export default function OrderDetailsPage() {
                       <p className={`text-center text-[10px] leading-tight font-bold uppercase tracking-wide ${labelCls(step)}`}>
                         {step.label}
                       </p>
-                      {/* COD badge on payment step */}
-                      {step.id === "payment" && isCOD && !step.done && (
-                        <span className="mt-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wide">
-                          COD Pending
-                        </span>
-                      )}
                       {/* timestamp */}
                       {step.ts && (
                         <p className="text-[9px] text-neutral-400 mt-0.5 text-center">
@@ -681,11 +662,6 @@ export default function OrderDetailsPage() {
                       </div>
                       <div className="pb-5 min-w-0">
                         <p className={`text-sm font-bold ${labelCls(step)}`}>{step.label}</p>
-                        {step.id === "payment" && isCOD && !step.done && (
-                          <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase">
-                            COD Pending
-                          </span>
-                        )}
                         {step.ts ? (
                           <p className="text-[11px] text-neutral-400 mt-0.5">
                             {new Date(step.ts).toLocaleString("en-IN", {
