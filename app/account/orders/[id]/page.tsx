@@ -74,7 +74,7 @@ export default function OrderDetailsPage() {
   const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
   const [initiatePayment, { isLoading: initiatingPayment }] = useInitiatePaymentMutation();
 
-  const canReturnOrder = order?.status === "PAID" || order?.status === "DELIVERED";
+  const canReturnOrder = order?.status === "DELIVERED";
   const hasTracking = Boolean(trackingLoading || tracking?.trackingId || tracking?.events?.length);
 
   const getReturnableItem = (item: OrderItem): ReturnableOrderItem | null => {
