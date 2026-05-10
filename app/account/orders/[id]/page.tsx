@@ -440,28 +440,133 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {/* ── Order Status Timeline (dynamic from statusHistory) ─────── */}
+        {/* ── Order Journey Timeline ───────────────────────────────────── */}
         {(() => {
-          const STEPS: { key: string; label: string; icon: string; desc: string }[] = [
-            { key: "PENDING",   label: "Order Received",      icon: "📋", desc: "We received your order" },
-            { key: "PLACED",    label: "Order Confirmed",     icon: "✅", desc: "Your order is confirmed" },
-            { key: "PAID",      label: "Payment Verified",    icon: "💳", desc: "Payment successfully verified" },
-            { key: "SHIPPED",   label: "Shipped",             icon: "🚚", desc: "Your order is on the way" },
-            { key: "DELIVERED", label: "Delivered",           icon: "🎉", desc: "Order delivered successfully" },
-          ];
-
-          const historyMap = new Map<string, string>(
+          const isCOD       = order.paymentMethod === "COD";
+          const isCancelled = order.status === "CANCELLED";
+          const isReturn    = order.status === "RETURN_REQUESTED";
+          const historyMap  = new Map<string, string>(
             (order.statusHistory || []).map((h) => [h.status, h.changedAt])
           );
 
-          const isCancelled = order.status === "CANCELLED";
-          const isReturn    = order.status === "RETURN_REQUESTED";
+          // ── Step definitions ──────────────────────────────────────────
+          // Step 1: Order Confirmed  (PLACED in history)
+          // Step 2: Payment          (PAID for prepaid / PENDING for COD)
+          // Step 3: Shipped          (SHIPPED in history)
+          // Step 4: Delivered        (DELIVERED in history)
+          // Step 5 (conditional): Cancelled OR Return Requested
 
-          // Find the last completed step index
-          const lastDoneIdx = STEPS.reduce((acc, s, i) => historyMap.has(s.key) ? i : acc, -1);
-          // Current active index (what the order is currently AT)
-          const currentIdx = STEPS.findIndex((s) => s.key === order.status);
-          const activeIdx  = currentIdx >= 0 ? currentIdx : lastDoneIdx;
+          const confirmedTs = historyMap.get("PLACED");
+          const paidTs      = historyMap.get("PAID");
+          const shippedTs   = historyMap.get("SHIPPED");
+          const deliveredTs = historyMap.get("DELIVERED");
+
+          // "Payment" step is done when:
+          // - Prepaid: PAID exists in history
+          // - COD: order is SHIPPED or DELIVERED (payment collected on delivery)
+          const paymentDone = isCOD
+            ? (historyMap.has("SHIPPED") || historyMap.has("DELIVERED"))
+            : historyMap.has("PAID");
+
+          const paymentTs = isCOD ? (shippedTs ?? deliveredTs) : paidTs;
+
+          type Step = {
+            id: string;
+            label: string;
+            sublabel: string;
+            icon: string;
+            done: boolean;
+            ts?: string;
+            isCurrent: boolean;
+            variant?: "red" | "blue";
+          };
+
+          const baseSteps: Step[] = [
+            {
+              id: "confirmed",
+              label: "Order Confirmed",
+              sublabel: "We have your order",
+              icon: "✅",
+              done: !!confirmedTs || isCancelled || isReturn,
+              ts: confirmedTs,
+              isCurrent: order.status === "PLACED" && !isCancelled,
+            },
+            {
+              id: "payment",
+              label: isCOD ? "Cash on Delivery" : "Payment Confirmed",
+              sublabel: isCOD ? "Pay when delivered" : "Payment received",
+              icon: isCOD ? "🏠" : "💳",
+              done: paymentDone,
+              ts: paymentTs,
+              isCurrent: !isCOD && order.status === "PAID",
+            },
+            {
+              id: "shipped",
+              label: "Shipped",
+              sublabel: "On its way to you",
+              icon: "🚚",
+              done: !!shippedTs || !!deliveredTs,
+              ts: shippedTs,
+              isCurrent: order.status === "SHIPPED",
+            },
+            {
+              id: "delivered",
+              label: "Delivered",
+              sublabel: "Enjoy your order!",
+              icon: "🎉",
+              done: !!deliveredTs,
+              ts: deliveredTs,
+              isCurrent: order.status === "DELIVERED" && !isReturn,
+            },
+          ];
+
+          // Append cancelled or return step
+          const allSteps: Step[] = [...baseSteps];
+          if (isCancelled) {
+            allSteps.push({
+              id: "cancelled",
+              label: "Order Cancelled",
+              sublabel: order.paymentStatus === "REFUND_PENDING"
+                ? "Refund being processed"
+                : "No payment captured",
+              icon: "❌",
+              done: true,
+              isCurrent: true,
+              variant: "red",
+            });
+          }
+          if (isReturn) {
+            allSteps.push({
+              id: "return",
+              label: "Return Requested",
+              sublabel: "Our team will reach out shortly",
+              icon: "↩️",
+              done: true,
+              isCurrent: true,
+              variant: "blue",
+            });
+          }
+
+          // Helpers for colour
+          const circleCls = (s: Step) => {
+            if (s.variant === "red")  return "bg-red-500 border-red-500";
+            if (s.variant === "blue") return "bg-blue-500 border-blue-500";
+            if (s.done)               return "bg-black border-black";
+            return "bg-white border-neutral-200";
+          };
+          const labelCls = (s: Step) => {
+            if (s.variant === "red")  return "text-red-600";
+            if (s.variant === "blue") return "text-blue-600";
+            if (s.done)               return "text-black";
+            return "text-neutral-300";
+          };
+          const lineDone = (i: number) =>
+            allSteps[i]?.done && allSteps[i + 1]?.done;
+
+          const fmtDate = (ts: string) =>
+            new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+          const fmtTime = (ts: string) =>
+            new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
           return (
             <div className="mb-12 border border-neutral-200 rounded-xl overflow-hidden">
@@ -476,115 +581,87 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="px-6 py-6">
-                {/* Horizontal step bar (desktop) */}
-                <div className="hidden sm:flex items-start justify-between mb-8">
-                  {STEPS.map((step, i) => {
-                    const done    = historyMap.has(step.key);
-                    const current = step.key === order.status && !isCancelled && !isReturn;
-                    const ts      = historyMap.get(step.key);
-                    return (
-                      <div key={step.key} className="flex-1 flex flex-col items-center relative">
-                        {/* Connector line */}
-                        {i > 0 && (
-                          <div className={`absolute top-[15px] right-1/2 left-[-50%] h-[2px] transition-colors
-                            ${historyMap.has(STEPS[i].key) ? "bg-black" : "bg-neutral-200"}`} />
-                        )}
-                        {/* Circle */}
-                        <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all
-                          ${done ? "bg-black border-2 border-black" : "bg-white border-2 border-neutral-200"}
-                          ${current ? "ring-2 ring-offset-2 ring-black" : ""}`}>
-                          {done
-                            ? <span className="text-sm leading-none">{step.icon}</span>
+
+                {/* ── Desktop: horizontal bar ─────────────────────────── */}
+                <div className="hidden sm:flex items-start justify-between mb-6">
+                  {allSteps.map((step, i) => (
+                    <div key={step.id} className="flex-1 flex flex-col items-center relative">
+                      {/* connector */}
+                      {i > 0 && (
+                        <div className={`absolute top-[15px] right-1/2 left-[-50%] h-[2px]
+                          ${lineDone(i - 1) ? "bg-black" : "bg-neutral-200"}`} />
+                      )}
+                      {/* dot */}
+                      <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-2 border-2
+                        ${circleCls(step)}
+                        ${step.isCurrent ? "ring-2 ring-offset-2 ring-black" : ""}`}>
+                        {step.done
+                          ? <span className="text-sm leading-none">{step.icon}</span>
+                          : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
+                      </div>
+                      {/* label */}
+                      <p className={`text-center text-[10px] leading-tight font-bold uppercase tracking-wide ${labelCls(step)}`}>
+                        {step.label}
+                      </p>
+                      {/* COD badge on payment step */}
+                      {step.id === "payment" && isCOD && !step.done && (
+                        <span className="mt-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wide">
+                          COD Pending
+                        </span>
+                      )}
+                      {/* timestamp */}
+                      {step.ts && (
+                        <p className="text-[9px] text-neutral-400 mt-0.5 text-center">
+                          {fmtDate(step.ts)}<br />{fmtTime(step.ts)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Mobile: vertical timeline ───────────────────────── */}
+                <div className="sm:hidden space-y-0">
+                  {allSteps.map((step, i) => (
+                    <div key={step.id} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2
+                          ${circleCls(step)}
+                          ${step.isCurrent ? "ring-2 ring-offset-1 ring-black" : ""}`}>
+                          {step.done
+                            ? <span className="text-sm">{step.icon}</span>
                             : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
                         </div>
-                        {/* Label */}
-                        <p className={`text-center text-[10px] leading-tight font-bold uppercase tracking-wide
-                          ${done ? "text-black" : "text-neutral-300"}`}>
-                          {step.label}
-                        </p>
-                        {/* Timestamp */}
-                        {ts && (
-                          <p className="text-[9px] text-neutral-400 mt-0.5 text-center">
-                            {new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                            <br />
-                            {new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                          </p>
+                        {i < allSteps.length - 1 && (
+                          <div className={`w-[2px] flex-1 min-h-[28px] my-1
+                            ${lineDone(i) ? "bg-black" : "bg-neutral-200"}`} />
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Vertical timeline (mobile + detailed view) */}
-                <div className="sm:hidden space-y-0">
-                  {STEPS.map((step, i) => {
-                    const done = historyMap.has(step.key);
-                    const current = step.key === order.status && !isCancelled;
-                    const ts   = historyMap.get(step.key);
-                    const isLast = i === STEPS.length - 1;
-                    return (
-                      <div key={step.key} className="flex gap-4">
-                        {/* Left: dot + line */}
-                        <div className="flex flex-col items-center">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10
-                            ${done ? "bg-black" : "bg-white border-2 border-neutral-200"}
-                            ${current ? "ring-2 ring-offset-1 ring-black" : ""}`}>
-                            {done
-                              ? <span className="text-sm">{step.icon}</span>
-                              : <div className="w-2 h-2 rounded-full bg-neutral-300" />}
-                          </div>
-                          {!isLast && (
-                            <div className={`w-[2px] flex-1 min-h-[24px] my-1
-                              ${done && historyMap.has(STEPS[i + 1]?.key) ? "bg-black" : "bg-neutral-200"}`} />
-                          )}
-                        </div>
-                        {/* Right: content */}
-                        <div className="pb-5 min-w-0">
-                          <p className={`text-sm font-bold ${done ? "text-black" : "text-neutral-300"}`}>
-                            {step.label}
+                      <div className="pb-5 min-w-0">
+                        <p className={`text-sm font-bold ${labelCls(step)}`}>{step.label}</p>
+                        {step.id === "payment" && isCOD && !step.done && (
+                          <span className="inline-block mt-0.5 px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase">
+                            COD Pending
+                          </span>
+                        )}
+                        {step.ts ? (
+                          <p className="text-[11px] text-neutral-400 mt-0.5">
+                            {new Date(step.ts).toLocaleString("en-IN", {
+                              day: "numeric", month: "short", year: "numeric",
+                              hour: "2-digit", minute: "2-digit",
+                            })}
                           </p>
-                          {ts ? (
-                            <p className="text-[11px] text-neutral-400 mt-0.5">
-                              {new Date(ts).toLocaleString("en-IN", {
-                                day: "numeric", month: "short", year: "numeric",
-                                hour: "2-digit", minute: "2-digit",
-                              })}
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-neutral-300 mt-0.5">{step.desc}</p>
-                          )}
-                        </div>
+                        ) : (
+                          <p className="text-[11px] text-neutral-400 mt-0.5">{step.sublabel}</p>
+                        )}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
 
-                {/* Cancelled / Return banner */}
-                {isCancelled && (
-                  <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
-                    <span className="text-xl">❌</span>
-                    <div>
-                      <p className="text-sm font-bold text-red-700">Order Cancelled</p>
-                      <p className="text-xs text-red-500">
-                        {order.paymentStatus === "REFUND_PENDING"
-                          ? "Refund is being processed and will be credited shortly."
-                          : "No payment was captured for this order."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {isReturn && (
-                  <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-                    <span className="text-xl">↩️</span>
-                    <p className="text-sm font-bold text-blue-700">Return Requested — our team will reach out shortly.</p>
-                  </div>
-                )}
-
-                {/* Expected Delivery */}
-                {order.expectedDelivery && order.status !== "DELIVERED" && !isCancelled && (
+                {/* Expected delivery pill */}
+                {order.expectedDelivery && !["DELIVERED","CANCELLED"].includes(order.status) && (
                   <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full text-xs text-green-700 font-semibold">
-                    <span>🗓</span>
-                    Estimated Delivery:{" "}
+                    🗓 Estimated Delivery:{" "}
                     {new Date(order.expectedDelivery).toLocaleDateString("en-IN", {
                       day: "numeric", month: "long", year: "numeric",
                     })}
