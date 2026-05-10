@@ -41,6 +41,10 @@ export default function ProfilePage() {
     gender: "",
     dob: "",
   });
+  const [dobDay, setDobDay] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobYear, setDobYear] = useState("");
+  const [dobError, setDobError] = useState("");
 
   const { data: profile, isLoading: profileLoading } = useGetProfileQuery();
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
@@ -51,16 +55,49 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (profile) {
+      const dob = profile.dob || "";
       setFormData({
         name: profile.user?.name || "",
         email: profile.user?.email || "",
         phone: profile.phone || "",
         fullName: profile.fullName || profile.user?.name || "",
         gender: profile.gender || "",
-        dob: profile.dob || "",
+        dob,
       });
+      if (dob) {
+        const [y, m, d] = dob.split("-");
+        setDobYear(y || ""); setDobMonth(m || ""); setDobDay(d || "");
+      }
     }
   }, [profile]);
+
+  const validateDob = (day: string, month: string, year: string): string => {
+    if (!day || !month || !year) return "";
+    const d = parseInt(day), m = parseInt(month), y = parseInt(year);
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d)
+      return "Invalid date — please check day, month and year.";
+    if (date > new Date()) return "Date of birth cannot be in the future.";
+    const age = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 3600 * 1000));
+    if (age < 13) return "You must be at least 13 years old.";
+    if (age > 100) return "Please enter a valid year of birth.";
+    return "";
+  };
+
+  const handleDobChange = (field: "day" | "month" | "year", value: string) => {
+    const nd = field === "day" ? value : dobDay;
+    const nm = field === "month" ? value : dobMonth;
+    const ny = field === "year" ? value : dobYear;
+    if (field === "day") setDobDay(value);
+    if (field === "month") setDobMonth(value);
+    if (field === "year") setDobYear(value);
+    const err = validateDob(nd, nm, ny);
+    setDobError(err);
+    if (!err && nd && nm && ny) {
+      const iso = `${ny.padStart(4,"0")}-${nm.padStart(2,"0")}-${nd.padStart(2,"0")}`;
+      setFormData(prev => ({ ...prev, dob: iso }));
+    }
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -71,6 +108,11 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (dobError) return;
+    if (dobDay && dobMonth && dobYear) {
+      const err = validateDob(dobDay, dobMonth, dobYear);
+      if (err) { setDobError(err); return; }
+    }
     try {
       await updateProfile(formData).unwrap();
       setIsEditing(false);
@@ -242,18 +284,54 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Date of Birth */}
-                <div className="group space-y-2">
-                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400 group-focus-within:text-black">
+                <div className="space-y-2">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-bold text-slate-400">
                     Date of Birth
                   </label>
-                  <input
-                    name="dob"
-                    type="date"
-                    value={formData.dob}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full h-10 border-0 border-b border-slate-200 rounded-none bg-transparent px-0 text-sm focus:ring-0 focus:border-black transition-all"
-                  />
+                  <div className="flex gap-2">
+                    {/* Day */}
+                    <select
+                      disabled={!isEditing}
+                      value={dobDay}
+                      onChange={e => handleDobChange("day", e.target.value)}
+                      className="flex-1 h-10 border-0 border-b border-slate-200 rounded-none bg-transparent text-sm focus:ring-0 focus:border-black transition-all appearance-none cursor-pointer disabled:opacity-60"
+                    >
+                      <option value="">Day</option>
+                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
+                        <option key={d} value={String(d).padStart(2,"0")}>{d}</option>
+                      ))}
+                    </select>
+                    {/* Month */}
+                    <select
+                      disabled={!isEditing}
+                      value={dobMonth}
+                      onChange={e => handleDobChange("month", e.target.value)}
+                      className="flex-[2] h-10 border-0 border-b border-slate-200 rounded-none bg-transparent text-sm focus:ring-0 focus:border-black transition-all appearance-none cursor-pointer disabled:opacity-60"
+                    >
+                      <option value="">Month</option>
+                      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+                        <option key={m} value={String(i+1).padStart(2,"0")}>{m}</option>
+                      ))}
+                    </select>
+                    {/* Year */}
+                    <select
+                      disabled={!isEditing}
+                      value={dobYear}
+                      onChange={e => handleDobChange("year", e.target.value)}
+                      className="flex-[1.5] h-10 border-0 border-b border-slate-200 rounded-none bg-transparent text-sm focus:ring-0 focus:border-black transition-all appearance-none cursor-pointer disabled:opacity-60"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 100}, (_, i) => new Date().getFullYear() - 13 - i).map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {dobError && (
+                    <p className="text-[11px] text-red-500 mt-1">{dobError}</p>
+                  )}
+                  {!dobError && dobDay && dobMonth && dobYear && (
+                    <p className="text-[11px] text-green-600 mt-1">✓ Valid date of birth</p>
+                  )}
                 </div>
               </div>
 
