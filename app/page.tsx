@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import NewsletterForm from "@/components/layout/NewsletterForm";
 import {
   useBestSellers,
   useFeaturedProducts,
@@ -385,17 +386,7 @@ export default function Home() {
           <p className="text-neutral-300 font-light mb-12 tracking-wide text-sm">
             Join for private invitations and early collection access.
           </p>
-          <form className="flex flex-col sm:flex-row gap-0 border-b border-neutral-700 pb-2 focus-within:border-white transition-colors group bg-black/10 rounded-lg">
-            <input
-              type="email"
-              placeholder="EMAIL ADDRESS"
-              className="flex-1 px-2 py-4 bg-transparent outline-none text-[10px] tracking-[0.3em] placeholder:text-neutral-500 uppercase"
-              required
-            />
-            <button className="px-6 py-4 text-[10px] font-bold tracking-[0.3em] uppercase hover:text-neutral-400 transition-colors">
-              Subscribe
-            </button>
-          </form>
+          <NewsletterForm />
         </div>
 
         {/* Trust Bar integrated into footer area */}
