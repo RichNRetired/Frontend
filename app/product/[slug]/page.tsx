@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Script from "next/script";
 import ProductPageClient from "@/components/product/ProductPageClient";
 
 const BASE_URL = "https://www.richnretired.com";
@@ -90,5 +91,38 @@ export default async function ProductPage({ params }: Params) {
     productId = Number(slug);
   }
 
-  return <ProductPageClient productId={productId} slug={slug} />;
+  // Product JSON-LD for rich snippets
+  const product = await getProduct(slug);
+  const productSchema = product ? {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.shortDescription || product.description || "",
+    image: product.mainImage || product.thumbnailImage || `${BASE_URL}/RichLogo.png`,
+    url: `${BASE_URL}/product/${slug}`,
+    brand: { "@type": "Brand", name: product.brand || "Rich and Retired" },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "INR",
+      price: product.sellingPrice || product.price || 0,
+      availability: product.in_stock !== false
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: `${BASE_URL}/product/${slug}`,
+      seller: { "@type": "Organization", name: "Rich and Retired" },
+    },
+  } : null;
+
+  return (
+    <>
+      {productSchema && (
+        <Script
+          id="product-schema"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+        />
+      )}
+      <ProductPageClient productId={productId} slug={slug} />
+    </>
+  );
 }
